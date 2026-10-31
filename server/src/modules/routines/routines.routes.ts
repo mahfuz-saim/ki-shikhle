@@ -1,6 +1,15 @@
 import { Router } from 'express';
+import { auth } from '../../middleware/auth';
+import { validate } from '../../middleware/validate';
+import { createRoutineSchema, exceptionSchema } from './routines.schema';
+import * as ctrl from './routines.controller';
 const router = Router();
-// Stub - real implementation in later phases
-router.get('/', (req, res) => res.json({ success: true, data: { message: 'routines - coming soon', module: 'routines' }, error: null }));
-router.get('/health', (req, res) => res.json({ success: true, data: { status: 'ok', module: 'routines' }, error: null }));
+router.use(auth());
+router.get('/children/:id/routines', ctrl.list);
+router.post('/children/:id/routines', validate(createRoutineSchema), ctrl.create);
+router.patch('/routines/:id', ctrl.update);
+router.delete('/routines/:id', ctrl.remove);
+router.post('/routines/:id/exceptions', validate(exceptionSchema), ctrl.addException);
+router.delete('/exceptions/:id', ctrl.deleteException);
+router.get('/children/:id/schedule', ctrl.schedule);
 export default router;
