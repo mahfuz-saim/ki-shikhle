@@ -1,6 +1,14 @@
 import { Router } from 'express';
+import { auth } from '../../middleware/auth';
+import * as ctrl from './dashboard.controller';
 const router = Router();
-// Stub - real implementation in later phases
-router.get('/', (req, res) => res.json({ success: true, data: { message: 'dashboard - coming soon', module: 'dashboard' }, error: null }));
-router.get('/health', (req, res) => res.json({ success: true, data: { status: 'ok', module: 'dashboard' }, error: null }));
+router.use(auth());
+router.get('/children/:id/dashboard/summary', ctrl.summary);
+router.get('/children/:id/dashboard/study-time', ctrl.studyTime);
+router.get('/children/:id/dashboard/subjects', ctrl.subjects);
+router.get('/children/:id/dashboard/scores', ctrl.scores);
+router.get('/children/:id/dashboard/topics', ctrl.topics);
+router.get('/children/:id/dashboard/mastery', ctrl.mastery);
+router.get('/children/:id/dashboard/consistency', ctrl.consistency);
+router.get('/dashboard/overview', ctrl.overview);
 export default router;
