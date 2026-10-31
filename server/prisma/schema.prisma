@@ -1,0 +1,428 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role { parent child admin }
+enum Source { school college tuition self_study }
+enum RoutineType { rescheduled cancelled extra }
+enum QuizStatus { draft assigned completed archived }
+enum QuestionType { mcq true_false fill_blank }
+enum SubscriptionStatus { trialing active past_due canceled expired }
+enum PaymentStatus { pending succeeded failed canceled }
+enum NotificationType { quiz_completed results_ready trial_reminder missed_sessions }
+
+model User {
+  id               String    @id @default(uuid())
+  name             String
+  email            String    @unique
+  passwordHash     String    @map("password_hash")
+  role             Role      @default(parent)
+  language         String    @default("en")
+  country          String    @default("BD")
+  timezone         String    @default("Asia/Dhaka")
+  emailVerifiedAt  DateTime? @map("email_verified_at")
+  deletedAt        DateTime? @map("deleted_at")
+  trialEndsAt      DateTime? @map("trial_ends_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  refreshTokens    RefreshToken[]
+  authTokens       AuthToken[]
+  children         Child[]
+  subjects         Subject[]   @relation("CustomSubjects")
+  quizzesCreated   Quiz[]      @relation("QuizCreator")
+  notifications    Notification[]
+  subscriptions    Subscription[]
+  aiUsageLogs      AiUsageLog[]
+  auditLogs        AuditLog[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @map("token_hash")
+  familyId   String    @map("family_id")
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  userAgent  String?   @map("user_agent")
+  ip         String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+model AuthToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  type      String    // verify, reset
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@map("auth_tokens")
+}
+
+model Child {
+  id         String    @id @default(uuid())
+  parentId   String    @map("parent_id")
+  name       String
+  nickname   String?
+  grade      String?
+  curriculum String    @default("NCTB")
+  medium     String    @default("Bangla")
+  avatar     String?
+  pinHash    String?   @map("pin_hash")
+  deletedAt  DateTime? @map("deleted_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  parent User @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  subjects Subject[] // via join? simplified
+  learningEntries LearningEntry[]
+  routines Routine[]
+  notes Note[]
+  quizzes Quiz[]
+  quizAttempts QuizAttempt[]
+  topicDigests TopicDigest[]
+  aiUsageLogs AiUsageLog[]
+
+  @@index([parentId])
+  @@map("children")
+}
+
+model Subject {
+  id         String   @id @default(uuid())
+  curriculum String   @default("NCTB")
+  grade      String?
+  nameEn     String   @map("name_en")
+  nameBn     String?  @map("name_bn")
+  parentId   String?  @map("parent_id") // null if seeded
+  isCustom   Boolean  @default(false) @map("is_custom")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  customOwner User? @relation("CustomSubjects", fields: [parentId], references: [id])
+
+  @@index([curriculum, grade])
+  @@map("subjects")
+}
+
+model LearningEntry {
+  id               String   @id @default(uuid())
+  childId          String   @map("child_id")
+  subjectId        String?  @map("subject_id")
+  source           Source
+  providerName     String?  @map("provider_name")
+  date             DateTime @db.Date
+  topicsText       String   @map("topics_text")
+  durationMin      Int?     @map("duration_min")
+  confidence       Int?
+  routineId        String?  @map("routine_id")
+  verifiedByParent Boolean  @default(false) @map("verified_by_parent")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+  revisions EntryRevision[]
+  notes Note[]
+
+  @@index([childId, date])
+  @@map("learning_entries")
+}
+
+model EntryRevision {
+  id        String   @id @default(uuid())
+  entryId   String   @map("entry_id")
+  snapshotJson Json  @map("snapshot_json")
+  changedBy String   @map("changed_by")
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  entry LearningEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@map("entry_revisions")
+}
+
+model Routine {
+  id          String   @id @default(uuid())
+  childId     String   @map("child_id")
+  subjectId   String?  @map("subject_id")
+  name        String
+  source      Source
+  weekdays    Int[]    // 0=Sun ... 6=Sat
+  startTime   String   @map("start_time") // HH:mm
+  durationMin Int      @map("duration_min")
+  startsOn    DateTime @map("starts_on") @db.Date
+  endsOn      DateTime? @map("ends_on") @db.Date
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+  exceptions RoutineException[]
+
+  @@index([childId])
+  @@map("routines")
+}
+
+model RoutineException {
+  id            String      @id @default(uuid())
+  routineId     String      @map("routine_id")
+  originalDate  DateTime    @map("original_date") @db.Date
+  type          RoutineType
+  newDate       DateTime?   @map("new_date") @db.Date
+  newStartTime  String?     @map("new_start_time")
+  note          String?
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  routine Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  @@unique([routineId, originalDate])
+  @@map("routine_exceptions")
+}
+
+model Note {
+  id            String   @id @default(uuid())
+  childId       String   @map("child_id")
+  subjectId     String?  @map("subject_id")
+  entryId       String?  @map("entry_id")
+  date          DateTime @db.Date
+  fileUrl       String?  @map("file_url")
+  textClean     String?  @map("text_clean")
+  textHash      String?  @map("text_hash")
+  ocrConfidence Float?   @map("ocr_confidence")
+  status        String   @default("active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+  entry LearningEntry? @relation(fields: [entryId], references: [id])
+
+  @@index([childId, date])
+  @@map("notes")
+}
+
+model TopicDigest {
+  id         String   @id @default(uuid())
+  sourceType String   @map("source_type") // entry | note
+  sourceId   String   @map("source_id")
+  childId    String   @map("child_id")
+  subjectId  String?  @map("subject_id")
+  date       DateTime @db.Date
+  digestJson Json     @map("digest_json")
+  textHash   String   @map("text_hash")
+  language   String   @default("en")
+  tokens     Int?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([textHash])
+  @@index([childId, date])
+  @@map("topic_digests")
+}
+
+model Quiz {
+  id          String     @id @default(uuid())
+  childId     String     @map("child_id")
+  createdBy   String     @map("created_by")
+  title       String
+  scopeJson   Json       @map("scope_json")
+  settingsJson Json      @map("settings_json")
+  status      QuizStatus @default(draft)
+  timeLimitMin Int?      @map("time_limit_min")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+  creator User @relation("QuizCreator", fields: [createdBy], references: [id])
+  questions QuizQuestion[]
+  attempts QuizAttempt[]
+
+  @@index([childId])
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id            String       @id @default(uuid())
+  quizId        String       @map("quiz_id")
+  position      Int
+  type          QuestionType
+  prompt        String
+  optionsJson   Json?        @map("options_json")
+  correctAnswer String       @map("correct_answer")
+  explanation   String?
+  topic         String?
+  reported      Boolean      @default(false)
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
+
+  @@index([quizId])
+  @@map("quiz_questions")
+}
+
+model QuizAttempt {
+  id          String    @id @default(uuid())
+  quizId      String    @map("quiz_id")
+  childId     String    @map("child_id")
+  startedAt   DateTime  @default(now()) @map("started_at")
+  submittedAt DateTime? @map("submitted_at")
+  score       Int?
+  maxScore    Int?      @map("max_score")
+  durationSec Int?      @map("duration_sec")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
+  explanation AttemptExplanation?
+
+  @@index([quizId])
+  @@index([childId])
+  @@map("quiz_attempts")
+}
+
+model QuizAnswer {
+  id         String  @id @default(uuid())
+  attemptId  String  @map("attempt_id")
+  questionId String  @map("question_id")
+  answer     String?
+  isCorrect  Boolean? @map("is_correct")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  attempt QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+  @@map("quiz_answers")
+}
+
+model AttemptExplanation {
+  id        String   @id @default(uuid())
+  attemptId String   @unique @map("attempt_id")
+  language  String   @default("en")
+  contentMd String   @map("content_md")
+  model     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  attempt QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@map("attempt_explanations")
+}
+
+model Plan {
+  id        String @id @default(uuid())
+  code      String @unique
+  name      String
+  priceBdt  Int    @map("price_bdt")
+  priceUsd  Int    @map("price_usd")
+  limitsJson Json  @map("limits_json")
+  active    Boolean @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  userId             String             @map("user_id")
+  planId             String             @map("plan_id")
+  status             SubscriptionStatus @default(trialing)
+  childSlots         Int                @default(2) @map("child_slots")
+  currentPeriodEnd   DateTime?          @map("current_period_end")
+  cancelAtPeriodEnd  Boolean            @default(false) @map("cancel_at_period_end")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id])
+  payments Payment[]
+
+  @@index([userId])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id             String   @id @default(uuid())
+  subscriptionId String   @map("subscription_id")
+  amount         Int
+  currency       String   @default("BDT")
+  provider       String   @default("demo")
+  status         PaymentStatus @default(pending)
+  isDemo         Boolean  @default(true) @map("is_demo")
+  invoiceNo      String?  @map("invoice_no")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model AiUsageLog {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  childId      String?  @map("child_id")
+  feature      String
+  model        String?
+  inputTokens  Int?     @map("input_tokens")
+  outputTokens Int?     @map("output_tokens")
+  costEst      Float?   @map("cost_est")
+  latencyMs    Int?     @map("latency_ms")
+  cacheHit     Boolean  @default(false) @map("cache_hit")
+  status       String   @default("success")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  child Child? @relation(fields: [childId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("ai_usage_logs")
+}
+
+model Notification {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  type        NotificationType
+  payloadJson Json      @map("payload_json")
+  readAt      DateTime? @map("read_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  action    String
+  entity    String?
+  entityId  String?  @map("entity_id")
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("audit_logs")
+}
+

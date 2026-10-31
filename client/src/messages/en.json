@@ -1,0 +1,9 @@
+{
+  "brand": "Ki Shikhle?",
+  "tagline": "Track what your child actually learned",
+  "nav": { "dashboard": "Dashboard", "children": "Children", "schedule": "Schedule", "notes": "Notes", "quizzes": "Quizzes", "billing": "Billing", "settings": "Settings", "logout": "Logout" },
+  "auth": { "login": "Login", "register": "Register", "email": "Email", "password": "Password", "name": "Full name", "forgot": "Forgot password?", "noAccount": "No account?", "hasAccount": "Already have an account?" },
+  "dashboard": { "studyDays": "Study days this week", "studyTime": "Study time", "quizzes": "Quizzes taken", "avgScore": "Average score", "streak": "Streak" },
+  "child": { "add": "Add child", "switchToChild": "Switch to child mode", "pin": "Enter PIN" },
+  "common": { "save": "Save", "cancel": "Cancel", "delete": "Delete", "edit": "Edit", "loading": "Loading...", "error": "Something went wrong", "empty": "No data yet" }
+}
