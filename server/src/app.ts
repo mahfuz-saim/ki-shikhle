@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import pinoHttp from 'pino-http';
 import { env } from './config/env';
 import { logger } from './utils/logger';
@@ -13,15 +14,14 @@ app.use(helmet());
 app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use(pinoHttp({ logger }));
 app.use(generalLimiter);
 
-// Health
 app.get('/api/v1/health', (req, res) => {
   res.json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0', env: env.NODE_ENV }, error: null });
 });
 
-// Placeholder routers - will be mounted phase by phase
 import authRouter from './modules/auth/auth.routes';
 import childrenRouter from './modules/children/children.routes';
 import subjectsRouter from './modules/subjects/subjects.routes';
@@ -48,7 +48,6 @@ app.use('/api/v1/billing', billingRouter);
 app.use('/api/v1/notifications', notificationsRouter);
 app.use('/api/v1/admin', adminRouter);
 
-// Serve uploads
 app.use('/uploads', express.static('uploads'));
 
 app.use(notFoundHandler);
