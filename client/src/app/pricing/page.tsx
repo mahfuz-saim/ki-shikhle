@@ -15,7 +15,7 @@ export default function PricingPage() {
     <div className="container mx-auto px-4 py-12">
       <div className="text-center mb-10">
         <h1 className="text-4xl font-bold mb-4">Simple, honest pricing</h1>
-        <p className="text-muted-foreground">15-day free trial with full Standard features (up to 2 children). Sibling: 25% off 2nd, 35% off 3rd+. Annual: pay for 10, get 12.</p>
+        <p className="text-muted-foreground">15-day free trial with full Standard features (up to 2 children). Sibling: 25% off 2nd, 35% off 3rd+. Annual: pay for 10, get 12. Cost guardrail &lt;20% via ai_usage_logs.</p>
       </div>
       <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
         {plans.map(p => (
@@ -29,11 +29,12 @@ export default function PricingPage() {
             <CardContent className="space-y-4">
               <ul className="space-y-2">{p.features.map(f => <li key={f} className="flex gap-2 text-sm"><Check className="w-4 h-4 text-emerald-500 mt-0.5" />{f}</li>)}</ul>
               <Link href="/register"><Button className="w-full" variant={p.recommended ? 'default' : 'outline'}>Start Free Trial</Button></Link>
+              <Link href="/billing"><Button variant="ghost" className="w-full">Go to Billing → Demo Checkout</Button></Link>
             </CardContent>
           </Card>
         ))}
       </div>
-      <p className="text-center text-sm text-muted-foreground mt-8">Cost guardrail: AI cost &lt; 20% of price • Provider interface with DemoProvider • Trial cron at day 10/13/15</p>
+      <p className="text-center text-sm text-muted-foreground mt-8">Demo checkout always succeeds (simulate failure toggle) • Provider interface • Trial cron day 10/13/15 • Read-only on expiry, data never deleted for non-payment</p>
     </div>
   );
 }

@@ -1,6 +1,13 @@
 import { Router } from 'express';
+import { auth } from '../../middleware/auth';
+import { validate } from '../../middleware/validate';
+import { checkoutSchema } from './billing.schema';
+import * as ctrl from './billing.controller';
 const router = Router();
-// Stub - real implementation in later phases
-router.get('/', (req, res) => res.json({ success: true, data: { message: 'billing - coming soon', module: 'billing' }, error: null }));
-router.get('/health', (req, res) => res.json({ success: true, data: { status: 'ok', module: 'billing' }, error: null }));
+router.get('/plans', ctrl.plans);
+router.use(auth());
+router.get('/subscription', ctrl.subscription);
+router.post('/demo-checkout', validate(checkoutSchema), ctrl.checkout);
+router.post('/cancel', ctrl.cancel);
+router.get('/invoices', ctrl.invoices);
 export default router;
