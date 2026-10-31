@@ -1,6 +1,8 @@
 import { Router } from 'express';
+import { auth } from '../../middleware/auth';
+import * as ctrl from './results.controller';
 const router = Router();
-// Stub - real implementation in later phases
-router.get('/', (req, res) => res.json({ success: true, data: { message: 'results - coming soon', module: 'results' }, error: null }));
-router.get('/health', (req, res) => res.json({ success: true, data: { status: 'ok', module: 'results' }, error: null }));
+router.use(auth());
+router.get('/attempts/:id', ctrl.getResults);
+router.post('/attempts/:id/explanation', ctrl.createExplanation);
 export default router;
