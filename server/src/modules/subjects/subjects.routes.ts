@@ -1,6 +1,12 @@
 import { Router } from 'express';
+import { auth } from '../../middleware/auth';
+import { validate } from '../../middleware/validate';
+import { createSubjectSchema, updateSubjectSchema } from './subjects.schema';
+import * as ctrl from './subjects.controller';
 const router = Router();
-// Stub - real implementation in later phases
-router.get('/', (req, res) => res.json({ success: true, data: { message: 'subjects - coming soon', module: 'subjects' }, error: null }));
-router.get('/health', (req, res) => res.json({ success: true, data: { status: 'ok', module: 'subjects' }, error: null }));
+router.use(auth());
+router.get('/', ctrl.list);
+router.post('/', validate(createSubjectSchema), ctrl.create);
+router.patch('/:id', validate(updateSubjectSchema), ctrl.update);
+router.delete('/:id', ctrl.remove);
 export default router;

@@ -1,6 +1,20 @@
 import { Router } from 'express';
+import { auth } from '../../middleware/auth';
+import { validate } from '../../middleware/validate';
+import { createChildSchema, updateChildSchema, pinSchema, enterSchema } from './children.schema';
+import * as ctrl from './children.controller';
+
 const router = Router();
-// Stub - real implementation in later phases
-router.get('/', (req, res) => res.json({ success: true, data: { message: 'children - coming soon', module: 'children' }, error: null }));
-router.get('/health', (req, res) => res.json({ success: true, data: { status: 'ok', module: 'children' }, error: null }));
+
+router.use(auth());
+
+router.get('/', ctrl.list);
+router.post('/', validate(createChildSchema), ctrl.create);
+router.get('/:id', ctrl.getOne);
+router.patch('/:id', validate(updateChildSchema), ctrl.update);
+router.delete('/:id', ctrl.remove);
+router.post('/:id/pin', validate(pinSchema), ctrl.setPin);
+router.post('/:id/enter', validate(enterSchema), ctrl.enter);
+router.post('/exit', ctrl.exit);
+
 export default router;
