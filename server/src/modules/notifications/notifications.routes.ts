@@ -1,6 +1,9 @@
 import { Router } from 'express';
-const router = Router();
-// Stub - real implementation in later phases
-router.get('/', (req, res) => res.json({ success: true, data: { message: 'notifications - coming soon', module: 'notifications' }, error: null }));
-router.get('/health', (req, res) => res.json({ success: true, data: { status: 'ok', module: 'notifications' }, error: null }));
+import { auth } from '../../middleware/auth';
+import * as ctrl from './notifications.controller';
+const router=Router();
+router.use(auth());
+router.get('/', ctrl.list);
+router.post('/:id/read', ctrl.read);
+router.post('/read-all', ctrl.readAll);
 export default router;
