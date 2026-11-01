@@ -10,14 +10,52 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role { parent child admin }
-enum Source { school college tuition self_study }
-enum RoutineType { rescheduled cancelled extra }
-enum QuizStatus { draft assigned completed archived }
-enum QuestionType { mcq true_false fill_blank }
-enum SubscriptionStatus { trialing active past_due canceled expired }
-enum PaymentStatus { pending succeeded failed canceled }
-enum NotificationType { quiz_completed results_ready trial_reminder missed_sessions }
+enum Role {
+  parent
+  child
+  admin
+}
+enum Source {
+  school
+  college
+  tuition
+  self_study
+}
+enum RoutineType {
+  rescheduled
+  cancelled
+  extra
+}
+enum QuizStatus {
+  draft
+  assigned
+  completed
+  archived
+}
+enum QuestionType {
+  mcq
+  true_false
+  fill_blank
+}
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+  expired
+}
+enum PaymentStatus {
+  pending
+  succeeded
+  failed
+  canceled
+}
+enum NotificationType {
+  quiz_completed
+  results_ready
+  trial_reminder
+  missed_sessions
+}
 
 model User {
   id               String    @id @default(uuid())
