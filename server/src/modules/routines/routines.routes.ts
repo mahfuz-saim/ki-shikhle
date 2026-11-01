@@ -1,0 +1,15 @@
+import { Router } from '../../platform/express-compat';
+import { auth } from '../../middleware/auth';
+import { validate } from '../../middleware/validate';
+import { createRoutineSchema, exceptionSchema } from './routines.schema';
+import * as ctrl from './routines.controller';
+const router = Router();
+router.use(auth());
+router.get('/children/:id/routines', ctrl.list);
+router.post('/children/:id/routines', validate(createRoutineSchema), ctrl.create);
+router.patch('/routines/:id', ctrl.update);
+router.delete('/routines/:id', ctrl.remove);
+router.post('/routines/:id/exceptions', validate(exceptionSchema), ctrl.addException);
+router.delete('/exceptions/:id', ctrl.deleteException);
+router.get('/children/:id/schedule', ctrl.schedule);
+export default router;

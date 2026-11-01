@@ -1,0 +1,63 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ki Shikhle? API \u2014 Express + Prisma + PostgreSQL (deploys standalone)",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "cf:tail": "wrangler tail",
+    "db:deploy": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "db:validate": "prisma validate",
+    "demo:seed": "tsx scripts/demoSeed.ts",
+    "deploy": "wrangler deploy",
+    "dev": "tsx watch src/index.ts",
+    "dev:worker": "wrangler dev",
+    "format": "prettier --write \"src/**/*.{ts,js,json}\" \"prisma/**/*.{prisma,ts}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json}\" \"prisma/**/*.{prisma,ts}\"",
+    "lint": "eslint src --ext .ts",
+    "postinstall": "prisma generate",
+    "setup": "tsx scripts/initEnv.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.27.3",
+    "@hono/node-server": "^2.1.5",
+    "@prisma/adapter-pg": "^5.22.0",
+    "@prisma/client": "^5.19.1",
+    "dotenv": "^16.4.5",
+    "hash-wasm": "^4.12.0",
+    "hono": "^4.13.16",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.23.1",
+    "prisma": "^5.19.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.14.12",
+    "@types/node-cron": "^3.0.11",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "node-cron": "^3.0.3",
+    "prettier": "^3.3.3",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5",
+    "wrangler": "^4.156.0"
+  },
+  "optionalDependencies": {
+    "@aws-sdk/client-s3": "^3.658.0",
+    "@aws-sdk/s3-request-presigner": "^3.658.0"
+  }
+}

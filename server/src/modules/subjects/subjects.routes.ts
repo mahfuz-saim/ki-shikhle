@@ -1,0 +1,12 @@
+import { Router } from '../../platform/express-compat';
+import { auth } from '../../middleware/auth';
+import { validate } from '../../middleware/validate';
+import { createSubjectSchema, updateSubjectSchema } from './subjects.schema';
+import * as ctrl from './subjects.controller';
+const router = Router();
+router.use(auth());
+router.get('/', ctrl.list);
+router.post('/', validate(createSubjectSchema), ctrl.create);
+router.patch('/:id', validate(updateSubjectSchema), ctrl.update);
+router.delete('/:id', ctrl.remove);
+export default router;

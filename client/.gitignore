@@ -1,0 +1,51 @@
+# ---- Client (Next.js 14) — deploy this folder ----
+
+# Env (set these in the platform dashboard; never commit real values)
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build output
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Test output (Playwright lives in client/e2e)
+playwright-report/
+test-results/
+blob-report/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Caches
+.cache/
+.turbo/
+.tmp/
+.temp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.suo
+*.sw?

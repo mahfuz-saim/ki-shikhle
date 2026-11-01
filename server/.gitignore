@@ -1,0 +1,51 @@
+# ---- Server (Express + Prisma) — deploy this folder ----
+
+# Env (set these in the platform dashboard; never commit real values)
+.env
+.env.*
+!.env.example
+# Wrangler local secrets (server/.dev.vars) and build output
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.wrangler/
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build output
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Local file storage (use S3 in production)
+uploads/
+storage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Caches
+.cache/
+.tmp/
+.temp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.suo
+*.sw?

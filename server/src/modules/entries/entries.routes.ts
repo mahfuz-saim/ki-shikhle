@@ -1,0 +1,13 @@
+import { Router } from '../../platform/express-compat';
+import { auth } from '../../middleware/auth';
+import { validate } from '../../middleware/validate';
+import { createEntrySchema, updateEntrySchema } from './entries.schema';
+import * as ctrl from './entries.controller';
+const router = Router();
+router.use(auth());
+router.get('/children/:id/entries', ctrl.list);
+router.post('/children/:id/entries', validate(createEntrySchema), ctrl.create);
+router.patch('/entries/:id', validate(updateEntrySchema), ctrl.update);
+router.delete('/entries/:id', ctrl.remove);
+router.post('/entries/:id/verify', ctrl.verify);
+export default router;

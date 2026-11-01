@@ -1,0 +1,14 @@
+import { Router } from '../../platform/express-compat';
+import { auth } from '../../middleware/auth';
+import * as ctrl from './dashboard.controller';
+const router = Router();
+router.use(auth());
+router.get('/children/:id/dashboard/summary', ctrl.summary);
+router.get('/children/:id/dashboard/study-time', ctrl.studyTime);
+router.get('/children/:id/dashboard/subjects', ctrl.subjects);
+router.get('/children/:id/dashboard/scores', ctrl.scores);
+router.get('/children/:id/dashboard/topics', ctrl.topics);
+router.get('/children/:id/dashboard/mastery', ctrl.mastery);
+router.get('/children/:id/dashboard/consistency', ctrl.consistency);
+router.get('/dashboard/overview', ctrl.overview);
+export default router;
