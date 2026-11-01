@@ -22,6 +22,17 @@ function createClient(): any {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { PrismaClient } = require('@prisma/client');
+    // Cloudflare Workers: Prisma's Rust engine can't run there, so use a driver adapter
+    // (node-postgres over Hyperdrive). Set DATABASE_ADAPTER=pg to enable it.
+    if (process.env.DATABASE_ADAPTER === 'pg') {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { PrismaPg } = require('@prisma/adapter-pg');
+        return new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
+      } catch (e) {
+        console.warn('⚠️  DATABASE_ADAPTER=pg but @prisma/adapter-pg is unavailable:', (e as Error).message);
+      }
+    }
     return new PrismaClient();
   } catch (e) {
     console.warn('⚠️  Prisma client is not generated yet — running without a database.');

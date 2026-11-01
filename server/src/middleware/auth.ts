@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from '../platform/express-compat';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { unauthorized } from '../utils/errors';
@@ -9,12 +9,6 @@ export interface AuthUser {
   email?: string;
   childId?: string; // for child scope
   type?: string; // access | child
-}
-
-declare global {
-  namespace Express {
-    interface Request { user?: AuthUser }
-  }
 }
 
 export function auth(requiredRole?: string | string[]) {

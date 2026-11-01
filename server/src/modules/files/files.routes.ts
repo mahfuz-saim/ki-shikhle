@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request, type Response, type NextFunction } from '../../platform/express-compat';
 import { auth } from '../../middleware/auth';
 import { prisma } from '../../db/client';
 import { storage } from '../../services/storage';
@@ -23,7 +23,7 @@ const MIME: Record<string, string> = {
   '.pdf': 'application/pdf',
 };
 
-router.get('/files/:key', auth(), async (req, res, next) => {
+router.get('/files/:key', auth(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const key = String(req.params.key || '').replace(/[^a-zA-Z0-9._-]/g, '');
     if (!key) throw notFound('File not found');

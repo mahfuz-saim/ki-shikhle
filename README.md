@@ -190,12 +190,17 @@ R2_SECRET_ACCESS_KEY=...
 
 See `docs/deployment.md` for the full walkthrough. The short version:
 
-| | Vercel (client) | Cloudflare (server) |
+| | Vercel (client) | Cloudflare **Workers** (server) |
 |---|---|---|
 | Root directory | `client` | `server` |
-| Build | `npm install && npm run build` | `npm install && npx prisma generate && npx prisma migrate deploy && npm run build` |
-| Start | (Next.js managed) | `npm start` |
-| Env | `NEXT_PUBLIC_API_BASE_URL=https://<api-host>/api/v1`, `NEXT_PUBLIC_SITE_URL` | see `server/.env.example` |
+| Build | `npm install && npm run build` | `npx prisma generate --no-engine` then `npx wrangler deploy` |
+| Start | (Next.js managed) | handled by Cloudflare (`src/worker.ts`) |
+| Env | `NEXT_PUBLIC_API_BASE_URL=https://<worker-host>/api/v1`, `NEXT_PUBLIC_SITE_URL` | `[vars]` in `wrangler.toml` + `wrangler secret put` (see `server/.dev.vars.example`) |
+
+The API runs on Hono with a small Express-compatibility layer, so it also runs on plain Node
+(`cd server && npm run dev`) — Express, `argon2` (native), pino, multer and `node-cron` were
+replaced with Workers-safe equivalents (`hash-wasm`, Web Crypto, R2, Cron Triggers, Prisma driver
+adapter over Hyperdrive). Details in `docs/deployment.md`.
 
 Cross-origin set-up that matters (API and web are on different domains):
 - `CLIENT_ORIGIN` — comma-separated list of web origins (production + `*.vercel.app` previews)
@@ -208,6 +213,7 @@ Cross-origin set-up that matters (API and web are on different domains):
 
 Server: `dev | build | start | lint | format | typecheck | test | db:generate | db:migrate | db:deploy | db:push | db:seed | db:studio | demo:seed`
 Client: `dev | build | start | lint | format | typecheck`
+Server (Cloudflare): `dev:worker` (wrangler dev) • `deploy` (wrangler deploy) • `cf:tail`
 E2E: `cd client/e2e && npm install && npm test`
 
 ## Phases

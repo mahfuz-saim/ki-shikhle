@@ -2,7 +2,7 @@ import { prisma } from '../../db/client';
 import { callAI, estimateCost } from '../../services/ai';
 import { getPlanLimits, canGenerateQuiz } from '../../services/entitlements';
 import { z } from 'zod';
-import crypto from 'crypto';
+import { sha256Hex } from '../../utils/crypto';
 import { badRequest, forbidden, notFound } from '../../utils/errors';
 import { env } from '../../config/env';
 
@@ -22,7 +22,7 @@ const quizOutputSchema = z.object({
 });
 
 function hashRequest(digests: string, settings: any) {
-  return crypto.createHash('sha256').update(digests + JSON.stringify(settings)).digest('hex');
+  return sha256Hex(digests + JSON.stringify(settings));
 }
 
 export async function generateQuiz(childId: string, parentId: string, input: any, createdBy: string) {

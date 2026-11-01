@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from '../../platform/express-compat';
 import * as svc from './dashboard.service';
 export const summary = async (req:Request,res:Response,next:NextFunction)=>{ try{ const d=await svc.summary(req.params.id, (req.user as any).userId); res.json({success:true,data:d,error:null}); }catch(e){next(e);} };
 export const studyTime = async (req:Request,res:Response,next:NextFunction)=>{ try{ const d=await svc.studyTime(req.params.id, (req.user as any).userId, req.query.range as string); res.json({success:true,data:d,error:null}); }catch(e){next(e);} };

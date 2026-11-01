@@ -4,6 +4,11 @@
 .env
 .env.*
 !.env.example
+# Wrangler local secrets (server/.dev.vars) and build output
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.wrangler/
 
 # Dependencies
 node_modules/

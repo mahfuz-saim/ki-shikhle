@@ -7,55 +7,106 @@ so install/run each app from inside its own folder (`cd server && npm install`, 
 
 ## 1. Database (PostgreSQL 16)
 
-Managed options: Neon, Supabase, RDS, Render Postgres. Create a database, copy the connection
-string into the server's `DATABASE_URL`.
+Managed Postgres: **Neon**, Supabase or RDS work from anywhere. On Cloudflare, front it with
+**Hyperdrive** so Workers (which cannot hold TCP pools) reuse connections:
+
+```bash
+cd server
+npx wrangler hyperdrive create ki-shikhle-pg --connection-string "$DATABASE_URL"
+# → returns an id; put it in wrangler.toml [[hyperdrive]] and use the connection string
+#   it prints as the DATABASE_URL secret
+```
 
 Local instead:
 ```bash
 cd server && docker compose up -d     # postgres:16 (5432) + redis (6379)
 ```
 
-## 2. Server (API) — Render / Railway / Fly.io / VPS
-
-| Setting | Value |
-|---------|-------|
-| Root directory | `server` |
-| Build command | `npm install && npx prisma generate && npx prisma migrate deploy && npm run build` |
-| Start command | `npm start` (or `npm run start`) |
-| Health check | `GET /api/v1/health` |
-| Node | 20.x |
-
-Environment variables (from `server/.env.example`):
-`NODE_ENV=production`, `PORT`, `DATABASE_URL`, `CLIENT_ORIGIN` (exact frontend origin, no trailing slash),
-`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TTL`, `REFRESH_TTL_DAYS`, `PASSWORD_PEPPER`,
-`ANTHROPIC_API_KEY`, `AI_MODEL_FAST`, `AI_MODEL_SMART`, `AI_MONTHLY_BUDGET_USD`, `SMTP_URL`,
-`STORAGE_DRIVER=s3` (+ `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`), `TRIAL_DAYS`.
-
-Notes:
-- Prisma migrations are **not** committed yet (the dev DB was never migrated in this environment).
-  Create them locally with `cd server && npm run db:migrate` and commit `server/prisma/migrations/`,
-  then `prisma migrate deploy` applies them in production. As a shortcut (no migration history) use
-  `npx prisma db push` against an empty database.
-- Refresh cookies are `httpOnly`/`secure`/`sameSite=none` in production — the API and web app are on
-  different domains, so serve both over HTTPS and keep `CLIENT_ORIGIN` exact.
-- File uploads: use `STORAGE_DRIVER=s3` (or any S3-compatible bucket) on platforms with ephemeral disks.
-- Cron jobs (trial reminders, expiry, 7-day account purge) run inside the server process via `node-cron`;
-  keep exactly one instance running, or move them to a scheduled job calling an admin endpoint later.
-
-## 3. Client (web) — Vercel / Netlify / Cloudflare Pages
+## 2. Web app → Vercel
 
 | Setting | Value |
 |---------|-------|
 | Root directory | `client` |
+| Install command | `npm install` |
 | Build command | `npm install && npm run build` |
-| Output | `.next` (Next.js default) |
-| Start (self-host) | `npm start` |
+| Output | `.next` (auto-detected) |
 
-Environment variables (from `client/.env.example`):
-- `NEXT_PUBLIC_API_BASE_URL` — e.g. `https://api.kishikhle.com/api/v1`
-- `NEXT_PUBLIC_SITE_URL` — e.g. `https://kishikhle.com`
+Environment variables:
+- `NEXT_PUBLIC_API_BASE_URL` — `https://<your-worker-host>/api/v1`
+- `NEXT_PUBLIC_SITE_URL` — `https://<your-web-host>`
 
-These are inlined at build time, so redeploy/rebuild after changing them.
+Both are inlined at build time → redeploy after changing them. Vercel preview deployments get a
+random `*.vercel.app` origin, so add the preview origin to the API's `CLIENT_ORIGIN` (in
+non-production the API also accepts any `*.vercel.app`).
+
+## 3. Server (API) → Cloudflare **Workers**
+
+`server/` already ships the Workers entry point (`src/worker.ts`), `wrangler.toml` and a
+Workers-safe dependency set — no Express, no native modules, no filesystem:
+
+| Replaced | Now |
+|---|---|
+| Express (+ helmet, cors, cookie-parser, multer, express-rate-limit) | **Hono** + a thin Express-compat layer so every controller/route file is unchanged |
+| `argon2` (native, needs node-gyp) | **`hash-wasm`** argon2id (WASM, same cost parameters) |
+| `pino` / `pino-http` (Node streams) | Small structured console logger (`src/utils/logger.ts`) |
+| `node:crypto` | Web Crypto + a synchronous SHA-256 (`src/utils/crypto.ts`) |
+| `node-cron` inside the process | **Cron Triggers** → the `scheduled()` handler (or `POST /api/v1/jobs/run`) |
+| Prisma Rust engine | `DATABASE_ADAPTER=pg` → `@prisma/adapter-pg` over **Hyperdrive** |
+| Local disk uploads | **R2** via the S3 API (`STORAGE_DRIVER=r2`) |
+
+### Deploy steps
+
+```bash
+cd server
+npm install
+
+# 1. Generate a Workers-friendly Prisma client (no Rust engine; uses the driver adapter)
+npx prisma generate --no-engine
+npx prisma migrate deploy            # apply migrations to the real database
+npm run db:seed                      # plans + NCTB subjects
+
+# 2. Secrets (never commit; `.dev.vars` is for `wrangler dev` only)
+npx wrangler secret put DATABASE_URL            # Hyperdrive connection string
+npx wrangler secret put JWT_ACCESS_SECRET
+npx wrangler secret put JWT_REFRESH_SECRET
+npx wrangler secret put PASSWORD_PEPPER
+npx wrangler secret put CRON_SECRET
+npx wrangler secret put R2_ENDPOINT             # https://<account-id>.r2.cloudflarestorage.com
+npx wrangler secret put R2_ACCESS_KEY_ID
+npx wrangler secret put R2_SECRET_ACCESS_KEY
+# optional: ANTHROPIC_API_KEY (omit → mock AI), SMTP_URL (omit → console email)
+
+# 3. Edit non-secret config in wrangler.toml [vars]:
+#    CLIENT_ORIGIN (comma-separated Vercel origins), R2_BUCKET, DATABASE_ADAPTER=pg,
+#    ENABLE_CRON=false, TRUST_PROXY=true
+
+# 4. Deploy
+npx wrangler deploy
+curl https://<worker-host>/api/v1/health
+```
+
+Local Workers run (workerd, closest to production):
+```bash
+cd server
+cp .dev.vars.example .dev.vars       # fill in locally
+npx prisma generate --no-engine
+npm run dev:worker                   # wrangler dev
+```
+Node run (default, easiest):
+```bash
+cd server && npm run dev             # @hono/node-server on :5000
+```
+
+### Notes that matter on Workers
+- `wrangler.toml` sets `nodejs_compat` **and** `nodejs_compat_populate_process_env`, so
+  `process.env` is filled from `[vars]` and secrets — that is how `src/config/env.ts` reads config.
+- The refresh cookie is `SameSite=None; Secure` in production (Vercel ↔ Workers are cross-site).
+- Uploads: the DB stores `/api/v1/files/<key>`; that route checks ownership and 302-redirects to a
+  short-lived R2 presigned URL. Nothing is served from disk.
+- Scheduled jobs run once daily via `[triggers].crons` → `scheduled()`; there is no in-process cron
+  (`ENABLE_CRON=false`).
+- Rate limiting is per-isolate in-memory; add Cloudflare WAF rate-limiting rules for global limits.
+- After a Workers deploy, regenerate the normal client for local work: `npx prisma generate`.
 
 ## 4. Post-deploy checklist
 - `GET https://<api>/api/v1/health` returns `{ "success": true }`
@@ -78,89 +129,10 @@ pooler), AI calls async with status polling, cron in a single instance. See `doc
 
 ---
 
-## Client → Vercel
+## Alternative: Cloudflare Containers
 
-| Setting | Value |
-|---------|-------|
-| Root directory | `client` |
-| Build command | `npm install && npm run build` |
-| Output | `.next` (auto-detected) |
-| Install command | `npm install` |
-
-Env (Project Settings → Environment Variables):
-- `NEXT_PUBLIC_API_BASE_URL` = `https://<your-api-host>/api/v1`
-- `NEXT_PUBLIC_SITE_URL` = `https://<your-web-host>`
-
-These are inlined at build time — redeploy after changing them. Preview deployments get a
-random `*.vercel.app` origin; add it to the API's `CLIENT_ORIGIN` (or allow `*.vercel.app` in
-non-production) or previews can't call the API.
-
-## Server → Cloudflare
-
-You have two targets, and they are very different amounts of work for this stack
-(Express + Prisma + argon2id + node-cron):
-
-### Option A — Cloudflare **Containers** (recommended, keeps the code as-is)
-
-Your app runs as a Docker container, so Express, Prisma, argon2 and node-cron all work unchanged.
-
-1. `cd server && docker build -t ki-shikhle-api .` (Dockerfile below)
-2. `wrangler.toml` (in `server/`) declares the container + routes:
-   ```toml
-   name = "ki-shikhle-api"
-   main = "src/worker.ts"        # thin proxy Worker → container
-   compatibility_date = "2026-01-01"
-
-   [[containers]]
-   class_name = "ApiContainer"
-   image = "./Dockerfile"
-   max_instances = 1            # single instance: cron + in-process jobs stay simple
-
-   [[durable_objects.bindings]]
-   name = "API_CONTAINER"
-   class_name = "ApiContainer"
-   ```
-3. Database: any managed Postgres (Neon/Supabase/RDS) — optionally front it with **Cloudflare
-   Hyperdrive** for connection pooling from the edge.
-4. Uploads: **R2** (`STORAGE_DRIVER=r2`, see README “File storage”). Container disks are not durable.
-5. Cron: `ENABLE_CRON=true` works as long as you keep `max_instances = 1`; otherwise set
-   `ENABLE_CRON=false` and add a Cron Trigger calling `POST /api/v1/jobs/run`.
-
-### Option B — Cloudflare **Workers** (serverless; requires porting)
-
-Workers have no filesystem, no long-lived process and no native modules, so these need replacing:
-
-| Today | On Workers |
-|---|---|
-| Express | Hono (or Express 5 with `nodejs_compat`) |
-| `argon2` (native) | Web Crypto PBKDF2 / `hash-wasm` argon2id (WASM) |
-| Prisma + TCP Postgres | Prisma driver adapter + Hyperdrive (`@prisma/adapter-pg`) |
-| `node-cron` | Cloudflare Cron Triggers → `POST /api/v1/jobs/run` |
-| multer + local disk | R2 (`STORAGE_DRIVER=r2`) — already supported |
-
-Everything else (modules, services, schemas, tests) stays the same.
-
-### Env on Cloudflare (either option)
-
-```bash
-npx wrangler secret put DATABASE_URL
-npx wrangler secret put JWT_ACCESS_SECRET
-npx wrangler secret put JWT_REFRESH_SECRET
-npx wrangler secret put PASSWORD_PEPPER
-npx wrangler secret put CRON_SECRET
-npx wrangler secret put R2_ACCESS_KEY_ID
-npx wrangler secret put R2_SECRET_ACCESS_KEY
-# non-secret values (NODE_ENV, PORT, CLIENT_ORIGIN, STORAGE_DRIVER, R2_BUCKET,
-# R2_ENDPOINT, R2_REGION, ENABLE_CRON, TRUST_PROXY) go in [vars] in wrangler.toml
-```
-
-`NODE_ENV=production` is required — it switches the refresh cookie to `SameSite=None; Secure`
-(needed because Vercel and Cloudflare are different domains) and enforces real secrets.
-
-### Post-deploy checks
-- `curl https://<api>/api/v1/health` → `{ "success": true }`
-- Log in from the Vercel app: the refresh cookie must be set (check `SameSite=None; Secure`
-  and that `CLIENT_ORIGIN` matches the Vercel origin exactly)
-- Upload a note photo → object appears in the R2 bucket, and `/api/v1/files/<key>` opens when
-  logged in (401 when not)
-- Run migrations once: `npx prisma migrate deploy`, then seed: `npm run db:seed`
+If you ever want the API to run as-is on Docker (Express, native modules, disk), Cloudflare
+Containers needs only a `Dockerfile` plus a `[[containers]]` block in `wrangler.toml`; the code in
+`server/` works there unchanged because `src/index.ts` serves the Hono app with
+`@hono/node-server` and `src/worker.ts` can proxy to the container. Keep `ENABLE_CRON=true` with
+`max_instances = 1` (or use the HTTP job trigger) and mount a volume **or** use R2 for uploads.

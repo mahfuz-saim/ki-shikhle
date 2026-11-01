@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from '../../platform/express-compat';
 import * as svc from './routines.service';
 export const list = async (req:Request,res:Response,next:NextFunction)=>{ try{ const d=await svc.listRoutines(req.params.id, (req.user as any).userId); res.json({success:true,data:d,error:null}); }catch(e){next(e);} };
 export const create = async (req:Request,res:Response,next:NextFunction)=>{ try{ const d=await svc.createRoutine(req.params.id, (req.user as any).userId, req.body); res.status(201).json({success:true,data:d,error:null}); }catch(e){next(e);} };

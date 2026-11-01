@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from '../platform/express-compat';
 import { badRequest } from '../utils/errors';
 
 type Shapes = { body?: z.ZodTypeAny; query?: z.ZodTypeAny; params?: z.ZodTypeAny };
@@ -10,7 +10,9 @@ type Shapes = { body?: z.ZodTypeAny; query?: z.ZodTypeAny; params?: z.ZodTypeAny
  * narrowed inside, so the route files stay untouched and `tsc` stays happy.
  */
 export function validate<S extends object>(schema: S) {
-  const shapes = schema as unknown as Shapes;
+  // `z.object({ body, params, query })` keeps those keys on `.shape`, not on the object
+  // itself — reading `schema.body` would be undefined and validation would silently no-op.
+  const shapes = (((schema as any).shape ?? schema) as unknown) as Shapes;
   return (req: Request, _res: Response, next: NextFunction) => {
     try {
       if (shapes.body) req.body = shapes.body.parse(req.body);

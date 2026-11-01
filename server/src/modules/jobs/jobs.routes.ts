@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request, type Response, type NextFunction } from '../../platform/express-compat';
 import { env } from '../../config/env';
 import { runAllJobs } from '../../jobs/cron';
 import { unauthorized } from '../../utils/errors';
@@ -14,7 +14,7 @@ import { unauthorized } from '../../utils/errors';
  */
 const router = Router();
 
-router.post('/jobs/run', async (req, res, next) => {
+router.post('/jobs/run', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const provided = String(req.header('x-cron-secret') || req.header('authorization') || '').replace(/^Bearer /, '');
     if (!env.CRON_SECRET) {

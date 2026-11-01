@@ -1,12 +1,12 @@
 import { prisma } from '../../db/client';
 import { storage } from '../../services/storage';
 import { callAI, estimateCost } from '../../services/ai';
-import crypto from 'crypto';
+import { sha256Hex } from '../../utils/crypto';
 import { notFound, forbidden } from '../../utils/errors';
 
 const memNotes: any[] = [];
 
-function hashText(t: string) { return crypto.createHash('sha256').update(t.trim()).digest('hex'); }
+function hashText(t: string) { return sha256Hex(t.trim()); }
 
 export async function createNote(childId: string, parentId: string, file: any, body: any) {
   await assertOwnership(parentId, childId);

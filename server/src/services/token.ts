@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import { randomHex, sha256Hex } from '../utils/crypto';
 import { env } from '../config/env';
 
 export function signAccessToken(payload: object): string {
@@ -12,8 +12,8 @@ export function verifyRefreshToken(token: string): any {
   return jwt.verify(token, env.JWT_REFRESH_SECRET);
 }
 export function generateRandomToken(bytes = 32): string {
-  return crypto.randomBytes(bytes).toString('hex');
+  return randomHex(bytes);
 }
 export function hashToken(token: string): string {
-  return crypto.createHash('sha256').update(token).digest('hex');
+  return sha256Hex(token);
 }

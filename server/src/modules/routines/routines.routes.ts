@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from '../../platform/express-compat';
 import { auth } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { createRoutineSchema, exceptionSchema } from './routines.schema';

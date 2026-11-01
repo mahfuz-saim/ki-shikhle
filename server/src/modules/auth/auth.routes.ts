@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from '../../platform/express-compat';
 import { validate } from '../../middleware/validate';
 import { auth } from '../../middleware/auth';
 import { authLimiter } from '../../middleware/rateLimit';

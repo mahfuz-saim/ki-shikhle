@@ -5,7 +5,7 @@ import { emailService } from '../../services/email';
 import { AppError, badRequest, conflict, notFound, unauthorized } from '../../utils/errors';
 import { env } from '../../config/env';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import { randomId } from '../../utils/crypto';
 
 const ACCESS_TTL = env.JWT_ACCESS_TTL;
 const TRIAL_DAYS = env.TRIAL_DAYS;
@@ -83,7 +83,7 @@ export async function loginUser(email: string, password: string, meta: { ip?: st
 }
 
 export async function createRefreshToken(userId: string, meta?: { ip?: string; userAgent?: string }) {
-  const familyId = crypto.randomUUID();
+  const familyId = randomId();
   const raw = jwt.sign({ userId, familyId, type: 'refresh' }, env.JWT_REFRESH_SECRET, { expiresIn: `${env.REFRESH_TTL_DAYS}d` as any });
   try {
     await prisma.refreshToken.create({

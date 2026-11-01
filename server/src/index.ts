@@ -1,13 +1,18 @@
+/**
+ * Node entry point (local dev / Docker / any Node host).
+ * On Cloudflare Workers the entry point is `src/worker.ts` instead.
+ */
+import './config/loadEnv'; // must come first: fills process.env from server/.env
+import { serve } from '@hono/node-server';
 import app from './app';
-import { env } from './config/env';
+import { env, clientOrigins } from './config/env';
 import { connectDb } from './db/client';
 import { startCrons } from './jobs/cron';
-import { clientOrigins } from './config/env';
 
 async function main() {
   await connectDb();
   startCrons();
-  app.listen(env.PORT, '0.0.0.0', () => {
+  serve({ fetch: app.fetch, port: env.PORT, hostname: '0.0.0.0' }, () => {
     console.log(`🚀 Server running on http://0.0.0.0:${env.PORT}`);
     console.log(`   Health:  http://localhost:${env.PORT}/api/v1/health`);
     console.log(`   Origins: ${clientOrigins.join(', ')}`);
@@ -16,4 +21,8 @@ async function main() {
     console.log(`   Cron:    ${env.ENABLE_CRON ? 'in-process node-cron' : 'disabled — use POST /api/v1/jobs/run'}`);
   });
 }
-main().catch((e) => { console.error(e); process.exit(1); });
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

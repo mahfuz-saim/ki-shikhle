@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from '../../platform/express-compat';
 import * as svc from './quizzes.service';
 export const generate = async (req:Request,res:Response,next:NextFunction)=>{ try{ const data=await svc.generateQuiz(req.params.id, (req.user as any).userId, req.body, (req.user as any).userId); res.status(201).json({success:true,data,error:null}); }catch(e){next(e);} };
 export const list = async (req:Request,res:Response,next:NextFunction)=>{ try{ const data=await svc.listQuizzes(req.params.id, (req.user as any).userId); res.json({success:true,data,error:null}); }catch(e){next(e);} };

@@ -1,5 +1,8 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // driverAdapters lets Prisma run on Cloudflare Workers via @prisma/adapter-pg
+  // (Hyperdrive) instead of the Rust query engine, which cannot run there.
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {

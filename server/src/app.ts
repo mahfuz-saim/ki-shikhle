@@ -1,45 +1,11 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import cookieParser from 'cookie-parser';
-import pinoHttp from 'pino-http';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { secureHeaders } from 'hono/secure-headers';
 import { env, clientOrigins } from './config/env';
 import { logger } from './utils/logger';
-import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { onError, notFound } from './middleware/errorHandler';
 import { generalLimiter } from './middleware/rateLimit';
-
-const app = express();
-
-// Behind Cloudflare/Vercel the real client IP and protocol come from proxy headers.
-if (env.TRUST_PROXY) app.set('trust proxy', true);
-
-app.use(helmet({ crossOriginResourcePolicy: false }));
-app.use(
-  cors({
-    // Comma-separated CLIENT_ORIGIN: allow the Vercel production URL plus preview URLs.
-    origin: (origin, cb) => {
-      if (!origin) return cb(null, true); // curl/health checks
-      if (clientOrigins.includes(origin) || clientOrigins.includes('*')) return cb(null, true);
-      if (/^https?:\/\/localhost(:\d+)?$/.test(origin) && env.NODE_ENV !== 'production') return cb(null, true);
-      if (/\.vercel\.app$/.test(origin) && env.NODE_ENV !== 'production') return cb(null, true);
-      return cb(new Error(`Origin ${origin} not allowed by CORS`));
-    },
-    credentials: true,
-  })
-);
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-app.use(pinoHttp({ logger }));
-app.use(generalLimiter);
-
-app.get('/api/v1/health', (req, res) => {
-  res.json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0', env: env.NODE_ENV }, error: null });
-});
-
-// Mounted before the module routers: several of them call router.use(auth()), which
-// would otherwise swallow this endpoint (it authenticates with x-cron-secret instead).
-app.use('/api/v1', jobsRouter); // POST /api/v1/jobs/run — platform cron trigger
+import { mountRouter, wrap } from './platform/express-compat';
 
 import authRouter from './modules/auth/auth.routes';
 import childrenRouter from './modules/children/children.routes';
@@ -56,21 +22,67 @@ import adminRouter from './modules/admin/admin.routes';
 import filesRouter from './modules/files/files.routes';
 import jobsRouter from './modules/jobs/jobs.routes';
 
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/children', childrenRouter);
-app.use('/api/v1/subjects', subjectsRouter);
-app.use('/api/v1', entriesRouter);
-app.use('/api/v1', routinesRouter);
-app.use('/api/v1', notesRouter);
-app.use('/api/v1', quizzesRouter);
-app.use('/api/v1', resultsRouter);
-app.use('/api/v1', dashboardRouter);
-app.use('/api/v1/billing', billingRouter);
-app.use('/api/v1/notifications', notificationsRouter);
-app.use('/api/v1/admin', adminRouter);
-app.use('/api/v1', filesRouter); // authenticated note files (local disk or R2 presigned redirect)
+/**
+ * Hono app — runs unchanged on Cloudflare Workers (`app.fetch`) and on Node
+ * (`@hono/node-server`). Express-style routers are mounted through the compat layer.
+ */
+export const app = new Hono();
 
-app.use(notFoundHandler);
-app.use(errorHandler);
+// Security headers (helmet equivalent)
+app.use('*', secureHeaders({ contentSecurityPolicy: undefined } as any));
+
+// CORS: explicit origins from CLIENT_ORIGIN (comma separated), localhost in dev
+app.use(
+  '*',
+  cors({
+    origin: (origin: string) => {
+      if (clientOrigins.includes(origin) || clientOrigins.includes('*')) return origin;
+      if (env.NODE_ENV !== 'production' && /^https?:\/\/localhost(:\d+)?$/.test(origin)) return origin;
+      if (env.NODE_ENV !== 'production' && /\.vercel\.app$/.test(origin)) return origin;
+      return null as any;
+    },
+    credentials: true,
+  })
+);
+
+app.use('*', async (c, next) => {
+  const started = Date.now();
+  await next();
+  logger.info(
+    { method: c.req.method, path: new URL(c.req.url).pathname, status: c.res.status, ms: Date.now() - started },
+    'request'
+  );
+});
+
+app.use('/api/v1/*', wrap(generalLimiter as any));
+
+app.get('/api/v1/health', (c) =>
+  c.json({
+    success: true,
+    data: { status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0', env: env.NODE_ENV },
+    error: null,
+  })
+);
+
+// Mounted first: several routers call router.use(auth()), which would otherwise
+// swallow this endpoint (it authenticates with x-cron-secret instead of a JWT).
+mountRouter(app, '/api/v1', jobsRouter);
+
+mountRouter(app, '/api/v1/auth', authRouter);
+mountRouter(app, '/api/v1/children', childrenRouter);
+mountRouter(app, '/api/v1/subjects', subjectsRouter);
+mountRouter(app, '/api/v1', entriesRouter);
+mountRouter(app, '/api/v1', routinesRouter);
+mountRouter(app, '/api/v1', notesRouter);
+mountRouter(app, '/api/v1', quizzesRouter);
+mountRouter(app, '/api/v1', resultsRouter);
+mountRouter(app, '/api/v1', dashboardRouter);
+mountRouter(app, '/api/v1/billing', billingRouter);
+mountRouter(app, '/api/v1/notifications', notificationsRouter);
+mountRouter(app, '/api/v1/admin', adminRouter);
+mountRouter(app, '/api/v1', filesRouter);
+
+app.notFound(notFound);
+app.onError(onError);
 
 export default app;

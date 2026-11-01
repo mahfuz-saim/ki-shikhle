@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
+import { randomHex } from '../utils/crypto';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
@@ -28,7 +28,7 @@ class LocalStorage implements StorageProvider {
   }
   async save(buffer: Buffer, originalName: string) {
     const ext = (path.extname(originalName) || '.bin').replace(/[^.\w-]/g, '').slice(0, 12);
-    const key = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
+    const key = `${Date.now()}-${randomHex(6)}${ext}`;
     fs.writeFileSync(path.join(this.dir, key), buffer);
     return { url: this.getUrl(key), key };
   }
@@ -87,7 +87,7 @@ class S3Storage implements StorageProvider {
   async save(buffer: Buffer, originalName: string, mime: string) {
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
     const ext = (path.extname(originalName) || '.bin').replace(/[^.\w-]/g, '').slice(0, 12);
-    const key = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
+    const key = `${Date.now()}-${randomHex(6)}${ext}`;
     const client = await this.client();
     await client.send(
       new PutObjectCommand({

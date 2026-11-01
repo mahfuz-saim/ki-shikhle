@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from '../../platform/express-compat';
 import * as service from './auth.service';
 import { env, cookieOptions } from '../../config/env';
 

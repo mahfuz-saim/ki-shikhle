@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from '../../platform/express-compat';
 import * as svc from './entries.service';
 export const list = async (req: Request, res: Response, next: NextFunction) => {
   try { const data = await svc.listEntries(req.params.id, (req.user as any).userId, req.query as any); res.json({ success: true, data, error: null }); } catch (e) { next(e); }

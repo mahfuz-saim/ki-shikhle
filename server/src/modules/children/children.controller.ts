@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from '../../platform/express-compat';
 import * as svc from './children.service';
 
 export const list = async (req: Request, res: Response, next: NextFunction) => {

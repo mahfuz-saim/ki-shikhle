@@ -1,0 +1,62 @@
+# Cloudflare Workers configuration for the Ki Shikhle? API
+# Docs: docs/deployment.md  •  Local: npm run dev:worker  •  Deploy: npm run deploy
+
+name = "ki-shikhle-api"
+main = "src/worker.ts"
+compatibility_date = "2026-09-01"
+
+# nodejs_compat: Node APIs (Buffer, crypto, streams) used by Prisma/pg/jsonwebtoken
+# nodejs_compat_populate_process_env: fills process.env from [vars] and secrets
+compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env"]
+
+# ---- Non-secret config -------------------------------------------------------
+[vars]
+NODE_ENV = "production"
+# Comma-separated web origins (Vercel production + preview URLs)
+CLIENT_ORIGIN = "https://kishikhle.vercel.app"
+PORT = "5000"
+TRUST_PROXY = "true"
+TRIAL_DAYS = "15"
+AI_MODEL_FAST = "claude-3-5-haiku-latest"
+AI_MODEL_SMART = "claude-sonnet-4-20250514"
+AI_MONTHLY_BUDGET_USD = "50"
+# Workers have no filesystem: uploads go to R2 (S3-compatible API)
+STORAGE_DRIVER = "r2"
+R2_BUCKET = "kishikhle-notes"
+R2_REGION = "auto"
+# R2_ENDPOINT = "https://<account-id>.r2.cloudflarestorage.com"   # or put it in [vars]
+# Workers have no long-lived process: cron runs through the scheduled() handler
+ENABLE_CRON = "false"
+# Prisma: use the node-postgres driver adapter (no Rust engine) over Hyperdrive
+DATABASE_ADAPTER = "pg"
+
+# ---- Postgres over Hyperdrive (connection pooling from the edge) --------------
+# 1. npx wrangler hyperdrive create ki-shikhle-pg --connection-string "<postgres-url>"
+# 2. paste the returned id below; put the Hyperdrive connection string in DATABASE_URL
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "<hyperdrive-id>"
+
+# ---- Optional: direct R2 binding (the app uses the S3 API, so this is not required)
+# [[r2_buckets]]
+# binding = "NOTES_BUCKET"
+# bucket_name = "kishikhle-notes"
+
+# ---- Scheduled jobs: trial reminders, trial expiry, 7-day account purge -------
+[triggers]
+crons = ["0 3 * * *"]
+
+[observability]
+enabled = true
+
+# Secrets (never commit) — set once per environment:
+#   npx wrangler secret put DATABASE_URL            # Hyperdrive connection string
+#   npx wrangler secret put JWT_ACCESS_SECRET
+#   npx wrangler secret put JWT_REFRESH_SECRET
+#   npx wrangler secret put PASSWORD_PEPPER
+#   npx wrangler secret put CRON_SECRET
+#   npx wrangler secret put R2_ACCESS_KEY_ID
+#   npx wrangler secret put R2_SECRET_ACCESS_KEY
+#   npx wrangler secret put R2_ENDPOINT
+#   npx wrangler secret put ANTHROPIC_API_KEY       # optional: omit → mock AI
+#   npx wrangler secret put SMTP_URL                # optional: omit → console email

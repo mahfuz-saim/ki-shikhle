@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from '../../platform/express-compat';
 import { auth } from '../../middleware/auth';
 import * as ctrl from './results.controller';
 const router = Router();

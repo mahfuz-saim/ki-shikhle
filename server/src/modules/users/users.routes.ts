@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from '../../platform/express-compat';
 const router = Router();
 // Stub - real implementation in later phases
 router.get('/', (req, res) => res.json({ success: true, data: { message: 'users - coming soon', module: 'users' }, error: null }));

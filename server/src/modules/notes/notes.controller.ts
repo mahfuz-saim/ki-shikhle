@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from '../../platform/express-compat';
 import * as svc from './notes.service';
 export const create = async (req:Request,res:Response,next:NextFunction)=>{
   try {

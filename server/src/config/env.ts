@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
+import { randomHex } from '../utils/crypto';
 import { z } from 'zod';
 
 // Load `server/.env` whether the process is started from `server/` (deploy, standalone)
@@ -141,6 +141,6 @@ export const cookieOptions = {
 };
 
 /** Random secret helper (used by scripts/tests). */
-export const randomSecret = () => crypto.randomBytes(32).toString('hex');
+export const randomSecret = () => randomHex(32);
 
 export const env = parsed;

@@ -1,0 +1,12 @@
+# Copy to `server/.dev.vars` for `wrangler dev` (gitignored).
+# In production these are set with `npx wrangler secret put <NAME>`.
+DATABASE_URL=postgresql://user:pass@your-neon-host/db?sslmode=require
+JWT_ACCESS_SECRET=dev_access_secret_kishikhle_local_only_0001
+JWT_REFRESH_SECRET=dev_refresh_secret_kishikhle_local_only_0001
+PASSWORD_PEPPER=dev_pepper_local_only
+CRON_SECRET=dev_cron_secret
+R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+# ANTHROPIC_API_KEY=
+# SMTP_URL=
