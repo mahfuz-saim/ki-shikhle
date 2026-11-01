@@ -2,40 +2,94 @@
 
 **NCTB-aware, Bangladesh-first, multi-country ready.** Parents see what their children actually learned; children log in under 1 minute; AI quizzes from real notes.
 
-[![CI](https://github.com/mahfuz-saim/ki-shikhle/actions/workflows/ci.yml/badge.svg)](https://github.com/mahfuz-saim/ki-shikhle/actions/workflows/ci.yml)
+## Repo layout — `client/` and `server/` are self-contained
 
-## Monorepo
+Each app owns **all** of its configuration so it can be deployed to a different platform
+(Vercel/Netlify for the web app, Render/Railway/Fly/VPS for the API) without anything from the repo root.
+
 ```
 ki-shikhle/
-├── client/  Next.js 14 + Tailwind + shadcn/ui + Recharts + next-intl + next-themes + Tesseract.js
-├── server/  Express + TypeScript + Prisma (PostgreSQL) + argon2id + JWT + Anthropic Claude
-├── docs/    PRD, decisions, security, deployment, load-test
-├── e2e/     Playwright tests
-└── docker-compose.yml (PostgreSQL 16 + Redis)
+├── client/                 # Next.js 14 web app — deploy this folder
+│   ├── .env.example        # NEXT_PUBLIC_API_BASE_URL, NEXT_PUBLIC_SITE_URL
+│   ├── .eslintrc.json      # next/core-web-vitals + prettier
+│   ├── .prettierrc / .prettierignore
+│   ├── .gitignore          # env + build ignores for this app
+│   ├── next.config.mjs, postcss.config.js, tailwind.config.ts, tsconfig.json
+│   ├── e2e/                # Playwright (drives the frontend, boots both apps locally)
+│   └── src/
+├── server/                 # Express + Prisma API — deploy this folder
+│   ├── .env.example        # DB, JWT, Anthropic, SMTP, storage, trial
+│   ├── .eslintrc.json      # @typescript-eslint + prettier
+│   ├── .prettierrc / .prettierignore
+│   ├── .gitignore
+│   ├── docker-compose.yml  # local PostgreSQL 16 + Redis (dev only)
+│   ├── tsconfig.json, vitest.config.ts
+│   ├── prisma/             # schema.prisma + seed.ts (run `db:migrate` to create migrations/)
+│   ├── scripts/            # demoSeed.ts
+│   └── src/
+├── docs/                   # PRD, decisions, security, deployment, load-test
+├── package.json            # root convenience only: runs both workspaces in dev
+└── .gitignore              # repo-wide ignores
 ```
 
-## Quick Start
+Nothing the apps need lives at the root: no root `tsconfig.json`, `.eslintrc`, `.prettierrc`,
+`.env.example`, or CI workflow. The root `package.json` is only a dev convenience (npm workspaces);
+you can delete it and run each app on its own.
+
+## Quick start (local, both apps)
+
 ```bash
-cp server/.env.example server/.env
+cp server/.env.example server/.env     # edit secrets
 cp client/.env.example client/.env.local
-docker-compose up -d postgres
-npm install
+
+cd server && docker compose up -d      # PostgreSQL 16 + Redis (dev infra) — or set DATABASE_URL to a managed DB
+cd .. && npm install                   # installs both workspaces (root convenience)
 npm run db:generate --workspace=server
-npm run db:migrate --workspace=server
-npm run db:seed --workspace=server   # plans + NCTB subjects
-npx tsx server/scripts/demoSeed.ts  # parent@demo.com / DemoPass1 + child Rahim + 5 entries + quiz
-npm run dev
-# Client: http://localhost:3000 → NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api/v1
-# Server: http://localhost:5000/api/v1/health
+npm run db:migrate --workspace=server  # creates prisma/migrations — commit them
+npm run db:seed --workspace=server     # plans + NCTB subjects
+npm run demo:seed --workspace=server   # optional: parent@demo.com / DemoPass1 + demo child
+
+npm run dev                            # server :5000  client :3000
 ```
+
+### Run / deploy each app on its own
+
+**Server**
+```bash
+cd server
+cp .env.example .env
+npm install
+npm run db:generate && npm run db:migrate   # locally; commit prisma/migrations
+npm run dev                                 # tsx watch
+npm run build && npm start                  # tsc + node dist/index.js
+```
+Health check: `GET /api/v1/health`.
+
+**Client**
+```bash
+cd client
+cp .env.example .env.local
+npm install
+npm run dev        # next dev
+npm run build && npm start
+```
+The client talks to the API only through `NEXT_PUBLIC_API_BASE_URL`; there are no hardcoded URLs.
+
+See `docs/deployment.md` for platform-specific steps (Vercel/Netlify + Render/Railway/Fly/VPS),
+env tables, migrations on deploy, CORS, backups and scaling.
 
 ## Env
-`server/.env.example` — JWT secrets, DATABASE_URL, ANTHROPIC_API_KEY, AI models (haiku/sonnet), SMTP, STORAGE_DRIVER local|s3, TRIAL_DAYS
-`client/.env.example` — NEXT_PUBLIC_API_BASE_URL
 
-No hardcoded URLs, secrets, plan prices or model names — all in env/DB. `.env` files are gitignored; examples are tracked.
+| App | Example file | Key variables |
+|-----|--------------|---------------|
+| server | `server/.env.example` | `DATABASE_URL`, `CLIENT_ORIGIN`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `PASSWORD_PEPPER`, `ANTHROPIC_API_KEY`, `AI_MODEL_FAST/SMART`, `SMTP_URL`, `STORAGE_DRIVER` (`local`\|`s3`), `TRIAL_DAYS` |
+| client | `client/.env.example` | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SITE_URL` |
+
+Secrets are never committed: `.env*` is ignored in the root, `client/` and `server/` ignore files;
+only the `.example` files are tracked.
 
 ## Pricing (per child/month, BDT)
+
 | Plan | Price | Includes |
 |------|-------|----------|
 | Trial | Free 15d | Full Standard, 2 kids |
@@ -43,24 +97,37 @@ No hardcoded URLs, secrets, plan prices or model names — all in env/DB. `.env`
 | Standard | ৳299 | 40 quizzes/mo, explanations, 12mo |
 | Premium | ৳499 | 120 quizzes/mo, vision OCR, unlimited |
 
-Sibling 25% off 2nd, 35% off 3rd+. Annual pay 10 get 12. AI cost <20% via `ai_usage_logs`.
+Sibling 25% off 2nd, 35% off 3rd+. Annual pay 10 get 12. Plans are seeded rows — prices are data, not code.
 
 ## API (envelope `{success,data,error}`)
-`GET /health` • `POST /auth/*` (register/login/refresh/verify/forgot/reset/change/me/export/delete) • `GET/POST /children` + PIN + enter/exit • `GET/POST /subjects` • `GET/POST /children/:id/entries` + verify • Routines + exceptions + `GET /children/:id/schedule?from=&to=` • Notes (multipart, Tesseract ben+eng) + `POST /notes/:id/ai-ocr` • Quizzes generate/list/get/patch/regenerate/assign/attempts/answers/submit/report • Results + explanation • Dashboards summary/study-time/subjects/scores/topics/consistency/overview • Billing plans/subscription/demo-checkout/cancel/invoices • Notifications • Admin metrics/ai-usage/users/extend-trial
 
-Every endpoint: zod + auth + ownership check + tests.
+`GET /health` • `POST /auth/*` (register/login/refresh/verify/forgot/reset/change/me/export/delete) •
+`GET/POST /children` + PIN + enter/exit • `GET/POST /subjects` • `GET/POST /children/:id/entries` + verify •
+Routines + exceptions + `GET /children/:id/schedule?from=&to=` • Notes (multipart, Tesseract ben+eng) +
+`POST /notes/:id/ai-ocr` • Quizzes generate/list/get/patch/regenerate/assign/attempts/answers/submit/report •
+Results + explanation • Dashboards summary/study-time/subjects/scores/topics/consistency/overview •
+Billing plans/subscription/demo-checkout/cancel/invoices • Notifications • Admin metrics/ai-usage/users/extend-trial
+
+Every endpoint: zod validation + auth + ownership check at the query level + tests.
 
 ## Theme & i18n
-Indigo `#4F46E5` primary, amber accent, red only for errors. Dark/light/system via next-themes, CSS variables, no flash. `en` + `bn` via next-intl, Noto Sans Bengali + Inter, Asia/Dhaka.
+Indigo `#4F46E5` primary, amber accent, red only for errors. Dark/light/system via next-themes, CSS variables, no flash.
+`en` + `bn` via next-intl, Noto Sans Bengali + Inter, Asia/Dhaka.
 
 ## Security
-argon2id + pepper, JWT 15m + rotating refresh (reuse revokes family), rate limits, helmet, CORS, zod, Prisma, file validation, audit logs. See `docs/security.md`.
+argon2id + pepper, JWT 15m + rotating refresh (reuse revokes family), rate limits, helmet, CORS allowlist, zod,
+Prisma parameterised queries, upload magic-byte validation, audit logs. See `docs/security.md`.
 
-## Performance & Reliability
-API p95 <300ms (non-AI), AI async with status, idempotency on quiz/checkout, retries/backoff, indexes on (child_id,date), stateless server, pino logging.
+## Performance & reliability
+API p95 <300ms (non-AI), AI async with status polling, idempotency on quiz generation/checkout,
+retries with backoff, indexes on `(child_id, date)`, stateless server, pino logging. See `docs/load-test.md`.
 
-## Scripts & CI
-`npm run dev | build | lint | typecheck | test` (workspaces) • `docker-compose up` • GitHub Actions CI (lint/typecheck/test/build) • Playwright e2e • k6 load test (docs/load-test.md)
+## Scripts
+
+Root (dev convenience): `npm run dev | build | start | typecheck | test`
+Server: `dev | build | start | lint | format | typecheck | test | db:generate | db:migrate | db:deploy | db:push | db:seed | db:studio | demo:seed`
+Client: `dev | build | start | lint | format | typecheck`
+E2E: `cd client/e2e && npm install && npm test`
 
 ## Phases
 - [x] 0 Foundations — monorepo, health, env, gitignore
@@ -72,13 +139,14 @@ API p95 <300ms (non-AI), AI async with status, idempotency on quiz/checkout, ret
 - [x] 6 Results & Dashboards — per-topic stats, cached explanation en/bn, Recharts (bar/donut/line/radar/heatmap)
 - [x] 7 Billing — plans, trial 15d, DemoProvider, entitlements, expiry read-only, cron
 - [x] 8 Notifications, Admin, Polish — bell, admin metrics, onboarding, a11y, demo seed
-- [x] 9 Hardening — security, Playwright, load, CI, Docker, privacy/terms
+- [x] 9 Hardening — security, Playwright, load, deployment docs, privacy/terms, per-app config split
 
 ## Decisions
 See `docs/decisions.md`.
 
-## Git & Branching
-Work is on `arena/ba64f1fa-ki-shikhle` (tracked session branch). Each phase committed + pushed in order (10 commits). `main` is upstream. PR from arena branch → main. `.gitignore` properly maintains env, build, logs, OS, IDE, uploads.
+## Git & branching
+Work is on `arena/ba64f1fa-ki-shikhle` (tracked session branch); each phase was committed and pushed in order.
+Open a PR from this branch into `main`.
 
 ## License
 Proprietary — demo for Parent Learning Tracker.

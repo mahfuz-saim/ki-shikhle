@@ -1,0 +1,18 @@
+# Env (deploy: set in platform dashboard)
+.env
+.env.*
+!.env.example
+
+# Build & deps
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local storage/uploads
+uploads/
+storage/
+
+# Logs
+logs/
+*.log

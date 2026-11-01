@@ -1,7 +1,14 @@
 import dotenv from 'dotenv';
+import fs from 'node:fs';
+import path from 'node:path';
 import { z } from 'zod';
 
-dotenv.config();
+// Load `server/.env` whether the process is started from `server/` (standalone deploy)
+// or from the repo root (`npm run dev --workspace=server`).
+const serverDir = path.resolve(__dirname, '..', '..');
+for (const file of [path.resolve(process.cwd(), '.env'), path.join(serverDir, '.env')]) {
+  if (fs.existsSync(file)) dotenv.config({ path: file });
+}
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

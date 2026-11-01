@@ -2,24 +2,17 @@
   "name": "ki-shikhle",
   "private": true,
   "version": "1.0.0",
-  "description": "Parent Learning Tracker - Ki Shikhle?",
-  "workspaces": ["client", "server", "packages/*"],
+  "description": "Parent Learning Tracker - Ki Shikhle? (monorepo dev convenience only; client/ and server/ deploy independently)",
+  "workspaces": ["client", "server"],
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
+    "dev": "concurrently -n server,client -c blue,magenta \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
     "build": "npm run build --workspaces",
-    "lint": "eslint . --ext .ts,.tsx",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "start": "concurrently -n server,client -c blue,magenta \"npm run start --workspace=server\" \"npm run start --workspace=client\"",
     "typecheck": "npm run typecheck --workspaces",
-    "test": "npm run test --workspaces",
-    "prepare": "echo 'husky ready'"
+    "test": "npm run test --workspaces"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "eslint": "^8.57.0",
-    "prettier": "^3.3.3",
-    "husky": "^9.1.6",
-    "lint-staged": "^15.2.10"
+    "concurrently": "^8.2.2"
   },
   "engines": {
     "node": ">=18.0.0",

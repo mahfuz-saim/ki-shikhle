@@ -11,15 +11,13 @@ out/
 coverage/
 *.tsbuildinfo
 
-# Env files
+# Env files (per-app env examples live in client/ and server/)
 .env
 .env.local
+.env.*.local
 .env.development.local
 .env.test.local
 .env.production.local
-server/.env
-client/.env
-client/.env.local
 
 # Logs
 logs/
@@ -44,17 +42,16 @@ Thumbs.db
 *.sln
 *.sw?
 
-# Prisma
-prisma/migrations/
-
-# Uploads & Storage
+# Uploads & local storage
 server/uploads/
 server/storage/
 uploads/
+storage/
 
 # Testing
 .nyc_output/
-coverage/
+playwright-report/
+test-results/
 
 # Misc
 .tmp/
@@ -62,7 +59,3 @@ coverage/
 .cache/
 .parcel-cache/
 .turbo/
-
-# Husky (keep hook but ignore maybe)
-# Keep .husky
-

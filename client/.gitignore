@@ -1,0 +1,21 @@
+# Env (deploy: set in platform dashboard, e.g. Vercel/Netlify)
+.env
+.env.*
+!.env.example
+
+# Build & deps
+node_modules/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Test output
+playwright-report/
+test-results/
+
+# Logs & OS
+*.log
+.DS_Store
