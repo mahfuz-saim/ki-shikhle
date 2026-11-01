@@ -1,7 +1,83 @@
 import { prisma } from '../../db/client';
 import { notFound, forbidden } from '../../utils/errors';
 
-const memRoutines: any[] = [];
+export const memRoutines: any[] = [
+  // Rahim (Class 8)
+  {
+    id: 'routine-rahim-1',
+    childId: 'demo-child-1',
+    name: 'Math Coaching – Mastermind Tuition',
+    source: 'tuition',
+    weekdays: [0, 2, 4], // Sun, Tue, Thu
+    startTime: '16:00',
+    durationMin: 90,
+    startsOn: new Date(Date.now() - 60 * 86400000),
+    active: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'routine-rahim-2',
+    childId: 'demo-child-1',
+    name: 'Science & ICT Coaching',
+    source: 'tuition',
+    weekdays: [1, 3], // Mon, Wed
+    startTime: '17:30',
+    durationMin: 75,
+    startsOn: new Date(Date.now() - 60 * 86400000),
+    active: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'routine-rahim-3',
+    childId: 'demo-child-1',
+    name: 'Dhaka Residential Model School',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4], // Sun to Thu
+    startTime: '08:00',
+    durationMin: 300,
+    startsOn: new Date(Date.now() - 90 * 86400000),
+    active: true,
+    createdAt: new Date().toISOString(),
+  },
+
+  // Tasnim (Class 5)
+  {
+    id: 'routine-tasnim-1',
+    childId: 'demo-child-2',
+    name: 'Viqarunnisa Noon School',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4], // Sun to Thu
+    startTime: '08:30',
+    durationMin: 270,
+    startsOn: new Date(Date.now() - 90 * 86400000),
+    active: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'routine-tasnim-2',
+    childId: 'demo-child-2',
+    name: 'Primary Math & English Tuition',
+    source: 'tuition',
+    weekdays: [0, 2, 5], // Sun, Tue, Fri
+    startTime: '16:30',
+    durationMin: 60,
+    startsOn: new Date(Date.now() - 60 * 86400000),
+    active: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'routine-tasnim-3',
+    childId: 'demo-child-2',
+    name: 'Evening Self-Study & Homework',
+    source: 'self_study',
+    weekdays: [0, 1, 2, 3, 4, 5, 6], // Daily
+    startTime: '18:30',
+    durationMin: 75,
+    startsOn: new Date(Date.now() - 60 * 86400000),
+    active: true,
+    createdAt: new Date().toISOString(),
+  },
+];
 const memExceptions: any[] = [];
 
 export async function listRoutines(childId: string, parentId: string) {

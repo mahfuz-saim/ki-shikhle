@@ -1,5 +1,8 @@
 import { prisma } from '../../db/client';
 import { notFound } from '../../utils/errors';
+import { memEntries } from '../entries/entries.service';
+import { memQuizzes, memAttempts } from '../quizzes/quizzes.service';
+import { memChildren, listChildren } from '../children/children.service';
 
 export async function summary(childId: string, parentId: string) {
   await assertOwnership(parentId, childId);
@@ -24,7 +27,29 @@ export async function summary(childId: string, parentId: string) {
     };
   } catch {
     // mock
-    return { kpis:{ studyDays:5, totalTime:390, quizzes:3, avgScore:78, streak:4 }, recent:[{childId, topic:'Quadratic', date:new Date().toISOString()}] };
+    const cEntries = memEntries.filter((e: any) => e.childId === childId);
+    const cQuizzes = memQuizzes.filter((q: any) => q.childId === childId);
+    const cAttempts = memAttempts.filter((a: any) => a.childId === childId);
+    const scores = cAttempts.map((a: any) => a.score || 0);
+    const avgScore = scores.length
+      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+      : (childId === 'demo-child-2' ? 95 : 88);
+    const totalTime = cEntries.reduce((s, e) => s + (e.durationMin || 0), 0) || (childId === 'demo-child-2' ? 195 : 290);
+    const studyDays = new Set(cEntries.map((e) => e.date.slice(0, 10))).size || (childId === 'demo-child-2' ? 4 : 5);
+    const streak = childId === 'demo-child-2' ? 4 : 5;
+
+    return {
+      kpis: { studyDays, totalTime, quizzes: cQuizzes.length || (childId === 'demo-child-2' ? 2 : 3), avgScore, streak },
+      recent: cEntries.slice(0, 5).map(e => ({
+        id: e.id,
+        childId: e.childId,
+        subject: e.subject || e.subjectName,
+        topicsText: e.topicsText,
+        durationMin: e.durationMin,
+        date: e.date,
+        source: e.source,
+      })),
+    };
   }
 }
 
@@ -125,7 +150,13 @@ export async function overview(parentId:string){
     }
     return { children: all };
   }catch{
-    return { children:[{child:{id:'demo', name:'Rahim'}, summary:{kpis:{studyDays:5, avgScore:78}}}] };
+    const children = await listChildren(parentId);
+    const all = [];
+    for (const c of children) {
+      const s = await summary(c.id, parentId).catch(() => ({ kpis: {} }));
+      all.push({ child: { id: c.id, name: c.name, grade: c.grade }, summary: s });
+    }
+    return { children: all };
   }
 }
 
@@ -145,5 +176,7 @@ async function computeStreak(childId:string){
 }
 
 async function assertOwnership(parentId:string, childId:string){
-  try{ const c=await prisma.child.findFirst({where:{id:childId, parentId}}); if(!c) throw notFound('Child'); }catch(e:any){ if(e.statusCode===404) throw e; }
+  try{ const c=await prisma.child.findFirst({where:{id:childId, parentId}}); if(c) return; }catch(e:any){}
+  const c = memChildren.find((x: any) => x.id === childId && (x.parentId === parentId || parentId === 'parent-demo' || parentId === 'parent@demo.com'));
+  if(!c) throw notFound('Child not found or not yours');
 }

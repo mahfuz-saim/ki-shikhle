@@ -2,30 +2,81 @@ import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/services/password';
 const prisma = new PrismaClient();
 
-async function main(){
-  console.log('🌱 Demo seed...');
-  const pw = await hashPassword('DemoPass1');
+async function main() {
+  console.log('🌱 Demo seed starting...');
+  const pw = await hashPassword('Password123!');
+
+  // 1. Parent Account
   const parent = await prisma.user.upsert({
-    where:{ email:'parent@demo.com'},
-    update:{},
-    create:{ name:'Demo Parent', email:'parent@demo.com', passwordHash: pw, language:'en', trialEndsAt: new Date(Date.now()+15*86400000)}
+    where: { email: 'parent@demo.com' },
+    update: { name: 'Rafiqul Islam', passwordHash: pw },
+    create: {
+      name: 'Rafiqul Islam',
+      email: 'parent@demo.com',
+      passwordHash: pw,
+      role: 'parent',
+      language: 'en',
+      country: 'BD',
+      timezone: 'Asia/Dhaka',
+      trialEndsAt: new Date(Date.now() + 15 * 86400000),
+    },
   });
-  const plan = await prisma.plan.findUnique({where:{code:'trial'}});
-  if(plan){
-    await prisma.subscription.upsert({ where:{ id: parent.id+'-sub'}, update:{}, create:{ id: parent.id+'-sub', userId: parent.id, planId: plan.id, status:'trialing', childSlots:2, currentPeriodEnd: new Date(Date.now()+15*86400000)}});
+
+  // 2. Subscription
+  const plan = await prisma.plan.findUnique({ where: { code: 'trial' } });
+  if (plan) {
+    await prisma.subscription.upsert({
+      where: { id: parent.id + '-sub' },
+      update: {},
+      create: {
+        id: parent.id + '-sub',
+        userId: parent.id,
+        planId: plan.id,
+        status: 'trialing',
+        childSlots: 5,
+        currentPeriodEnd: new Date(Date.now() + 15 * 86400000),
+      },
+    });
   }
-  const child = await prisma.child.upsert({
-    where:{ id: 'demo-child-1'},
-    update:{},
-    create:{ id:'demo-child-1', parentId: parent.id, name:'Rahim', nickname:'Rah', grade:'6', curriculum:'NCTB', medium:'Bangla'}
+
+  // 3. Child 1: Rahim Ahmed (Class 8)
+  const child1 = await prisma.child.upsert({
+    where: { id: 'demo-child-1' },
+    update: { email: 'rahim@demo.com', passwordHash: pw },
+    create: {
+      id: 'demo-child-1',
+      parentId: parent.id,
+      name: 'Rahim Ahmed',
+      nickname: 'Rahim',
+      email: 'rahim@demo.com',
+      passwordHash: pw,
+      grade: 'Class 8',
+      curriculum: 'NCTB',
+      medium: 'Bangla',
+    },
   });
-  const subject = await prisma.subject.findFirst();
-  if(subject){
-    for(let i=0;i<5;i++){
-      await prisma.learningEntry.create({ data:{ childId: child.id, subjectId: subject.id, source:'tuition', date: new Date(Date.now()-i*86400000), topicsText: `Topic ${i+1}: Quadratic & Photosynthesis`, durationMin:60, confidence:4 }});
-    }
-    await prisma.quiz.create({ data:{ childId: child.id, createdBy: parent.id, title:'Demo Quiz - Last 7 days', scopeJson:{scope:'last7'}, settingsJson:{numQuestions:10}, status:'assigned', timeLimitMin:15}});
-  }
-  console.log('✅ Demo data inserted: parent@demo.com / DemoPass1, child Rahim');
+
+  // 4. Child 2: Tasnim Islam (Class 5)
+  const child2 = await prisma.child.upsert({
+    where: { id: 'demo-child-2' },
+    update: { email: 'tasnim@demo.com', passwordHash: pw },
+    create: {
+      id: 'demo-child-2',
+      parentId: parent.id,
+      name: 'Tasnim Islam',
+      nickname: 'Tasnim',
+      email: 'tasnim@demo.com',
+      passwordHash: pw,
+      grade: 'Class 5',
+      curriculum: 'NCTB',
+      medium: 'Bangla',
+    },
+  });
+
+  console.log('✅ Demo Seed Complete:');
+  console.log('  Parent: Rafiqul Islam (parent@demo.com / Password123!)');
+  console.log('  Child 1: Rahim Ahmed (rahim@demo.com / Password123! - Class 8)');
+  console.log('  Child 2: Tasnim Islam (tasnim@demo.com / Password123! - Class 5)');
 }
-main().finally(()=> prisma.$disconnect());
+
+main().finally(() => prisma.$disconnect());

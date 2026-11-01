@@ -63,7 +63,25 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
   try { const r = await service.changePassword((req.user as any).userId, req.body.currentPassword, req.body.newPassword); res.json({ success: true, data: r, error: null }); } catch (e) { next(e); }
 };
 export const me = async (req: Request, res: Response, next: NextFunction) => {
-  try { const r = await service.getMe((req.user as any).userId); res.json({ success: true, data: r, error: null }); } catch (e) { next(e); }
+  try {
+    const u = req.user as any;
+    const targetId = (u?.role === 'child' && u?.childId) ? u.childId : u?.userId;
+    const r = await service.getMe(targetId);
+    if (u?.role === 'child') {
+      res.json({
+        success: true,
+        data: {
+          ...r,
+          role: 'child',
+          childId: u.childId || (r as any).childId || targetId,
+          email: u.email || (r as any).email,
+        },
+        error: null,
+      });
+      return;
+    }
+    res.json({ success: true, data: r, error: null });
+  } catch (e) { next(e); }
 };
 export const deleteAccount = async (req: Request, res: Response, next: NextFunction) => {
   try { const r = await service.deleteAccount((req.user as any).userId); res.json({ success: true, data: r, error: null }); } catch (e) { next(e); }
