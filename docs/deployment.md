@@ -75,3 +75,92 @@ These are inlined at build time, so redeploy/rebuild after changing them.
 ## Scaling
 Stateless API (scale horizontally), files in object storage, DB connection pooling (PgBouncer or provider
 pooler), AI calls async with status polling, cron in a single instance. See `docs/load-test.md`.
+
+---
+
+## Client → Vercel
+
+| Setting | Value |
+|---------|-------|
+| Root directory | `client` |
+| Build command | `npm install && npm run build` |
+| Output | `.next` (auto-detected) |
+| Install command | `npm install` |
+
+Env (Project Settings → Environment Variables):
+- `NEXT_PUBLIC_API_BASE_URL` = `https://<your-api-host>/api/v1`
+- `NEXT_PUBLIC_SITE_URL` = `https://<your-web-host>`
+
+These are inlined at build time — redeploy after changing them. Preview deployments get a
+random `*.vercel.app` origin; add it to the API's `CLIENT_ORIGIN` (or allow `*.vercel.app` in
+non-production) or previews can't call the API.
+
+## Server → Cloudflare
+
+You have two targets, and they are very different amounts of work for this stack
+(Express + Prisma + argon2id + node-cron):
+
+### Option A — Cloudflare **Containers** (recommended, keeps the code as-is)
+
+Your app runs as a Docker container, so Express, Prisma, argon2 and node-cron all work unchanged.
+
+1. `cd server && docker build -t ki-shikhle-api .` (Dockerfile below)
+2. `wrangler.toml` (in `server/`) declares the container + routes:
+   ```toml
+   name = "ki-shikhle-api"
+   main = "src/worker.ts"        # thin proxy Worker → container
+   compatibility_date = "2026-01-01"
+
+   [[containers]]
+   class_name = "ApiContainer"
+   image = "./Dockerfile"
+   max_instances = 1            # single instance: cron + in-process jobs stay simple
+
+   [[durable_objects.bindings]]
+   name = "API_CONTAINER"
+   class_name = "ApiContainer"
+   ```
+3. Database: any managed Postgres (Neon/Supabase/RDS) — optionally front it with **Cloudflare
+   Hyperdrive** for connection pooling from the edge.
+4. Uploads: **R2** (`STORAGE_DRIVER=r2`, see README “File storage”). Container disks are not durable.
+5. Cron: `ENABLE_CRON=true` works as long as you keep `max_instances = 1`; otherwise set
+   `ENABLE_CRON=false` and add a Cron Trigger calling `POST /api/v1/jobs/run`.
+
+### Option B — Cloudflare **Workers** (serverless; requires porting)
+
+Workers have no filesystem, no long-lived process and no native modules, so these need replacing:
+
+| Today | On Workers |
+|---|---|
+| Express | Hono (or Express 5 with `nodejs_compat`) |
+| `argon2` (native) | Web Crypto PBKDF2 / `hash-wasm` argon2id (WASM) |
+| Prisma + TCP Postgres | Prisma driver adapter + Hyperdrive (`@prisma/adapter-pg`) |
+| `node-cron` | Cloudflare Cron Triggers → `POST /api/v1/jobs/run` |
+| multer + local disk | R2 (`STORAGE_DRIVER=r2`) — already supported |
+
+Everything else (modules, services, schemas, tests) stays the same.
+
+### Env on Cloudflare (either option)
+
+```bash
+npx wrangler secret put DATABASE_URL
+npx wrangler secret put JWT_ACCESS_SECRET
+npx wrangler secret put JWT_REFRESH_SECRET
+npx wrangler secret put PASSWORD_PEPPER
+npx wrangler secret put CRON_SECRET
+npx wrangler secret put R2_ACCESS_KEY_ID
+npx wrangler secret put R2_SECRET_ACCESS_KEY
+# non-secret values (NODE_ENV, PORT, CLIENT_ORIGIN, STORAGE_DRIVER, R2_BUCKET,
+# R2_ENDPOINT, R2_REGION, ENABLE_CRON, TRUST_PROXY) go in [vars] in wrangler.toml
+```
+
+`NODE_ENV=production` is required — it switches the refresh cookie to `SameSite=None; Secure`
+(needed because Vercel and Cloudflare are different domains) and enforces real secrets.
+
+### Post-deploy checks
+- `curl https://<api>/api/v1/health` → `{ "success": true }`
+- Log in from the Vercel app: the refresh cookie must be set (check `SameSite=None; Secure`
+  and that `CLIENT_ORIGIN` matches the Vercel origin exactly)
+- Upload a note photo → object appears in the R2 bucket, and `/api/v1/files/<key>` opens when
+  logged in (401 when not)
+- Run migrations once: `npx prisma migrate deploy`, then seed: `npm run db:seed`

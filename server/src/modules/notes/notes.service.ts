@@ -52,7 +52,10 @@ export async function updateNote(noteId: string, parentId: string, data: any) {
 }
 
 export async function deleteNote(noteId: string, parentId: string) {
-  await findNote(noteId, parentId);
+  const note: any = await findNote(noteId, parentId);
+  // best-effort: remove the stored file too (local disk or R2 object)
+  const key = typeof note.fileUrl === 'string' ? note.fileUrl.split('/').pop() : null;
+  if (key) await storage.delete(key).catch(() => {});
   try { await prisma.note.delete({ where:{id:noteId}}); } catch { const idx=memNotes.findIndex((x:any)=>x.id===noteId); if(idx>=0) memNotes.splice(idx,1); }
   return { message: 'Deleted' };
 }

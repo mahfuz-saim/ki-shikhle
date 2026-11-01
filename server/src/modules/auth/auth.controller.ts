@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import * as service from './auth.service';
-import { env } from '../../config/env';
+import { env, cookieOptions } from '../../config/env';
 
 function setRefreshCookie(res: Response, token: string) {
   res.cookie('refreshToken', token, {
-    httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    ...cookieOptions,
+    // SameSite=None + Secure in production: the API (Cloudflare) and the web app
+    // (Vercel) are on different domains, so the refresh cookie is cross-site.
     maxAge: env.REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000,
     path: '/api/v1/auth',
   });

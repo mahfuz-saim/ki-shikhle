@@ -69,6 +69,45 @@ cd server && npm ci && npm run build && npm start   # tsc → dist/index.js
 # client
 cd client && npm ci && npm run build && npm start   # .next
 ```
+
+## Local development with **no env file at all**
+
+Both apps ship with working defaults, so you can clone and run without configuring anything.
+Anything you leave unset degrades instead of crashing:
+
+| Left unset | What happens |
+|---|---|
+| `server/.env` (nothing set) | Dev JWT secrets/pepper are used automatically; `DATABASE_URL` defaults to the docker-compose Postgres |
+| Postgres not running | `⚠️ DB connection failed (running without DB)` — the API still serves `/api/v1/health`, and modules fall back to in-memory data |
+| Prisma client not generated | Same fallback, with a hint to run `npm run db:generate` |
+| `ANTHROPIC_API_KEY` | AI returns deterministic **mock** digests/quizzes/explanations (logged as `AI mock response`) — perfect for UI work, costs nothing |
+| `SMTP_URL` | Emails are printed to the server console instead of sent |
+| `STORAGE_DRIVER` | `local` — uploads go to `server/uploads/` |
+| `client/.env.local` | The client defaults to `http://localhost:5000/api/v1` |
+
+Zero-config run (no database, mock AI):
+```bash
+cd server && npm install && npm run db:generate && npm run dev   # http://localhost:5000/api/v1/health
+cd client && npm install && npm run dev                          # http://localhost:3000
+```
+
+With a real database (recommended as soon as you touch data):
+```bash
+cd server
+npm run setup                 # writes .env with fresh random JWT secrets (never overwrites)
+docker compose up -d          # PostgreSQL 16 + Redis
+npm run db:generate && npm run db:migrate && npm run db:seed
+npm run demo:seed             # parent@demo.com / DemoPass1 + demo child
+npm run dev
+```
+
+Add real services only when you need them — edit `server/.env`:
+```bash
+ANTHROPIC_API_KEY=sk-ant-...      # real AI
+SMTP_URL=smtp://user:pass@host:587
+STORAGE_DRIVER=r2                 # Cloudflare R2 / any S3-compatible bucket
+CRON_SECRET=$(openssl rand -hex 32)
+```
 Health check: `GET /api/v1/health`. The client talks to the API only through
 `NEXT_PUBLIC_API_BASE_URL`; there are no hardcoded URLs.
 
@@ -80,7 +119,9 @@ env tables, migrations on deploy, CORS, backups and scaling.
 | App | Example file | Key variables |
 |-----|--------------|---------------|
 | server | `server/.env.example` | `DATABASE_URL`, `CLIENT_ORIGIN`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `PASSWORD_PEPPER`, `ANTHROPIC_API_KEY`, `AI_MODEL_FAST/SMART`, `SMTP_URL`, `STORAGE_DRIVER` (`local`\|`s3`), `TRIAL_DAYS` |
-| client | `client/.env.example` | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SITE_URL` |
+| client | `client/.env.example` | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SITE_URL` (both optional locally) |
+| storage | `server/.env.example` | `STORAGE_DRIVER=local\|r2\|s3`, `R2_BUCKET`, `R2_ENDPOINT`, `R2_REGION`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_URL` |
+| jobs/net | `server/.env.example` | `ENABLE_CRON`, `CRON_SECRET`, `TRUST_PROXY`, `COOKIE_DOMAIN` |
 
 Secrets are never committed: `client/.gitignore` and `server/.gitignore` ignore `.env*` in their own
 folder (with `!.env.example`), so only the example files are tracked.
@@ -118,6 +159,50 @@ Prisma parameterised queries, upload magic-byte validation, audit logs. See `doc
 ## Performance & reliability
 API p95 <300ms (non-AI), AI async with status polling, idempotency on quiz generation/checkout,
 retries with backoff, indexes on `(child_id, date)`, stateless server, pino logging. See `docs/load-test.md`.
+
+## File storage (note uploads)
+
+Uploads (notebook photos/PDFs) go through one `StorageProvider` interface
+(`server/src/services/storage.ts`):
+
+- `STORAGE_DRIVER=local` (default) — writes to `server/uploads/`. Good for local dev and
+  any host with a persistent disk.
+- `STORAGE_DRIVER=r2` (or `s3`) — any S3-compatible bucket: Cloudflare R2, AWS S3,
+  Backblaze B2, MinIO, DO Spaces. Uses `@aws-sdk/client-s3` (optional dependency, imported
+  lazily) so nothing is loaded when you stay on `local`.
+
+Either way files are **private**: the DB stores `/api/v1/files/<key>`, and that route
+checks the note belongs to your child before streaming the file (local) or redirecting to a
+short-lived presigned URL (R2). There is no public `/uploads` folder.
+
+```bash
+# .env for R2 (create the bucket + API token in the Cloudflare dashboard)
+STORAGE_DRIVER=r2
+R2_BUCKET=kishikhle-notes
+R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+R2_REGION=auto
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+# R2_PUBLIC_URL=https://cdn.example.com   # only if the bucket is public
+```
+
+## Deployment: web on Vercel, API on Cloudflare
+
+See `docs/deployment.md` for the full walkthrough. The short version:
+
+| | Vercel (client) | Cloudflare (server) |
+|---|---|---|
+| Root directory | `client` | `server` |
+| Build | `npm install && npm run build` | `npm install && npx prisma generate && npx prisma migrate deploy && npm run build` |
+| Start | (Next.js managed) | `npm start` |
+| Env | `NEXT_PUBLIC_API_BASE_URL=https://<api-host>/api/v1`, `NEXT_PUBLIC_SITE_URL` | see `server/.env.example` |
+
+Cross-origin set-up that matters (API and web are on different domains):
+- `CLIENT_ORIGIN` — comma-separated list of web origins (production + `*.vercel.app` previews)
+- Refresh cookie is `SameSite=None; Secure` automatically when `NODE_ENV=production`
+- `TRUST_PROXY=true` so `req.ip`/protocol come from Cloudflare's headers
+- Scheduled jobs: keep in-process cron (`ENABLE_CRON=true`) **or** disable it and call
+  `POST /api/v1/jobs/run` with header `x-cron-secret: $CRON_SECRET` from a Cloudflare Cron Trigger
 
 ## Scripts (run from inside each folder)
 

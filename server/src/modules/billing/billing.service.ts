@@ -8,7 +8,7 @@ const memPayments: any[] = [];
 
 export async function getPlans(){
   try { return await prisma.plan.findMany({ where:{active:true}}); }
-  catch { return Object.entries(PLANS).map(([code,v])=> ({code, name:v.name, priceBdt:v.priceBdt, priceUsd:v.priceUsd, limitsJson:v.limits, active:true})); }
+  catch { return Object.entries(PLANS).map(([code,v])=> ({code, name:v.name, priceBdt:v.priceBDT, priceUsd:v.priceUSD, limitsJson:v.limits, active:true})); }
 }
 
 export async function getSubscription(userId:string){
