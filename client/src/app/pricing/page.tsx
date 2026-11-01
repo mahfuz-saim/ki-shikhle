@@ -146,8 +146,12 @@ export default function PricingPage() {
       </main>
 
       <footer className="border-t py-8 text-center text-xs text-muted-foreground bg-card/40">
-        <div className="container max-w-6xl mx-auto px-4">
-          <p>Ki Shikhle? — Parent Learning Tracker • Indigo & Amber Palette • Bangladesh NCTB</p>
+        <div className="container max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>Ki Shikhle? — Parent Learning Tracker</p>
+          <div className="flex gap-4">
+            <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+            <Link href="/terms" className="hover:underline">Terms of Service</Link>
+          </div>
         </div>
       </footer>
     </div>

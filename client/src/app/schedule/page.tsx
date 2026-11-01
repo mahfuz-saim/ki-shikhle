@@ -75,28 +75,93 @@ export default function SchedulePage() {
 
   // Load routines
   const loadRoutines = async () => {
+    const isTasnim = childId === 'demo-child-2';
     try {
       const r = await api.get(`/children/${childId}/routines`);
-      setRoutines(r.data.data || []);
+      const list = r.data?.data || [];
+      if (list && list.length > 0) {
+        setRoutines(list);
+      } else {
+        setRoutines(
+          isTasnim
+            ? [
+                {
+                  id: 'r-t1',
+                  name: isBn ? 'প্রাথমিক গণিত প্রাইভেট' : 'Elementary Math Tuition',
+                  source: 'tuition',
+                  weekdays: [0, 2, 4],
+                  startTime: '16:00',
+                  durationMin: 60,
+                },
+                {
+                  id: 'r-t2',
+                  name: isBn ? 'ইংরেজি টিউটর' : 'English Tutor',
+                  source: 'tuition',
+                  weekdays: [1, 3],
+                  startTime: '17:30',
+                  durationMin: 45,
+                },
+              ]
+            : [
+                {
+                  id: 'r1',
+                  name: isBn ? 'গণিত প্রাইভেট — রহিম স্যার' : 'Math Tuition – Rahim Sir',
+                  source: 'tuition',
+                  weekdays: [0, 2, 5],
+                  startTime: '16:00',
+                  durationMin: 90,
+                },
+                {
+                  id: 'r2',
+                  name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching',
+                  source: 'tuition',
+                  weekdays: [1, 3],
+                  startTime: '17:30',
+                  durationMin: 60,
+                },
+              ]
+        );
+      }
     } catch {
-      setRoutines([
-        {
-          id: 'r1',
-          name: isBn ? 'গণিত প্রাইভেট — রহিম স্যার' : 'Math Tuition – Rahim Sir',
-          source: 'tuition',
-          weekdays: [0, 2, 5],
-          startTime: '16:00',
-          durationMin: 90,
-        },
-        {
-          id: 'r2',
-          name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching',
-          source: 'tuition',
-          weekdays: [1, 3],
-          startTime: '17:30',
-          durationMin: 60,
-        },
-      ]);
+      setRoutines(
+        isTasnim
+          ? [
+              {
+                id: 'r-t1',
+                name: isBn ? 'প্রাথমিক গণিত প্রাইভেট' : 'Elementary Math Tuition',
+                source: 'tuition',
+                weekdays: [0, 2, 4],
+                startTime: '16:00',
+                durationMin: 60,
+              },
+              {
+                id: 'r-t2',
+                name: isBn ? 'ইংরেজি টিউটর' : 'English Tutor',
+                source: 'tuition',
+                weekdays: [1, 3],
+                startTime: '17:30',
+                durationMin: 45,
+              },
+            ]
+          : [
+              {
+                id: 'r1',
+                name: isBn ? 'গণিত প্রাইভেট — রহিম স্যার' : 'Math Tuition – Rahim Sir',
+                source: 'tuition',
+                weekdays: [0, 2, 5],
+                startTime: '16:00',
+                durationMin: 90,
+              },
+              {
+                id: 'r2',
+                name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching',
+                source: 'tuition',
+                weekdays: [1, 3],
+                startTime: '17:30',
+                durationMin: 60,
+              },
+            ]
+      );
     }
   };
 

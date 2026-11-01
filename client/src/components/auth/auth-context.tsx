@@ -112,10 +112,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return list;
       }
-      // If user has no children yet (newly registered parent)
-      setChildrenList([]);
-      setActiveChildState(null);
-      return [];
+      // If user is demo parent or no children in DB yet, fallback to default demo children
+      setChildrenList(DEFAULT_DEMO_CHILDREN);
+      setActiveChildState(DEFAULT_DEMO_CHILDREN[0]);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('active_child_id', DEFAULT_DEMO_CHILDREN[0].id);
+        localStorage.setItem('activeChild', DEFAULT_DEMO_CHILDREN[0].id);
+      }
+      return DEFAULT_DEMO_CHILDREN;
     } catch {
       // Fallback demo children if offline
       setChildrenList(DEFAULT_DEMO_CHILDREN);

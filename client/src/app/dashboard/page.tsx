@@ -43,7 +43,7 @@ export default function DashboardPage() {
   const [topics, setTopics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const childId = activeChild?.id || 'demo-child';
+  const childId = activeChild?.id || childrenList[0]?.id || 'demo-child-1';
 
   useEffect(() => {
     if (!childId) return;
@@ -58,107 +58,183 @@ export default function DashboardPage() {
       api.get(`/children/${childId}/dashboard/consistency`),
       api.get(`/children/${childId}/dashboard/topics`),
     ]).then(([sumRes, stRes, subjRes, scrRes, mastRes, consRes, topRes]) => {
+      const isTasnim = childId === 'demo-child-2';
+
       // Summary
-      if (sumRes.status === 'fulfilled' && sumRes.value.data?.data) {
+      if (sumRes.status === 'fulfilled' && sumRes.value.data?.data && (sumRes.value.data.data.kpis?.totalTime > 0 || sumRes.value.data.data.kpis?.studyDays > 0)) {
         setSummary(sumRes.value.data.data);
       } else {
-        setSummary({
-          kpis: { studyDays: 5, totalTime: 420, quizzes: 4, avgScore: 82, streak: 4 },
-          recent: [
-            { date: new Date().toISOString(), topicsText: 'Algebra - Quadratic Equations Formula', source: 'tuition' },
-            { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'Physics - Newton Laws of Motion', source: 'school' },
-            { date: new Date(Date.now() - 172800000).toISOString(), topicsText: 'Biology - Photosynthesis & Chloroplast', source: 'self_study' },
-          ],
-        });
+        setSummary(
+          isTasnim
+            ? {
+                kpis: { studyDays: 6, totalTime: 360, quizzes: 6, avgScore: 95, streak: 6 },
+                recent: [
+                  { date: new Date().toISOString(), topicsText: 'Mathematics - Fractions & Decimals (লসাগু ও গসাগু)', source: 'tuition' },
+                  { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'Primary Science - Living & Non-living Things', source: 'school' },
+                  { date: new Date(Date.now() - 172800000).toISOString(), topicsText: 'English for Today - Lesson 4 Story Reading', source: 'self_study' },
+                  { date: new Date(Date.now() - 259200000).toISOString(), topicsText: 'BGS - Liberation War 1971 History', source: 'tuition' },
+                  { date: new Date(Date.now() - 345600000).toISOString(), topicsText: 'Bangla - হাতি আর শিয়ালের গল্প ও শব্দার্থ', source: 'school' },
+                ],
+              }
+            : {
+                kpis: { studyDays: 5, totalTime: 420, quizzes: 4, avgScore: 88, streak: 5 },
+                recent: [
+                  { date: new Date().toISOString(), topicsText: 'Algebra - Quadratic Equations Formula (বর্গের সূত্রাবলী)', source: 'tuition' },
+                  { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'Physics - Newton Laws of Motion & Acceleration', source: 'school' },
+                  { date: new Date(Date.now() - 172800000).toISOString(), topicsText: 'English - Right Forms of Verbs & Prepositions', source: 'self_study' },
+                  { date: new Date(Date.now() - 259200000).toISOString(), topicsText: 'ICT - Spreadsheet Formulas in Excel', source: 'tuition' },
+                  { date: new Date(Date.now() - 345600000).toISOString(), topicsText: 'Bangla - বঙ্গভূমির প্রতি কবিতা ও ভাবসম্প্রসারণ', source: 'self_study' },
+                ],
+              }
+        );
       }
 
       // Study time
-      if (stRes.status === 'fulfilled' && stRes.value.data?.data?.length) {
+      if (stRes.status === 'fulfilled' && stRes.value.data?.data?.length && stRes.value.data.data.some((x: any) => (x.school || 0) + (x.tuition || 0) + (x.self_study || 0) > 0)) {
         setStudyTime(stRes.value.data.data);
       } else {
-        setStudyTime([
-          { date: 'Sat', school: 60, tuition: 60, self_study: 30 },
-          { date: 'Sun', school: 45, tuition: 90, self_study: 40 },
-          { date: 'Mon', school: 60, tuition: 45, self_study: 20 },
-          { date: 'Tue', school: 45, tuition: 60, self_study: 35 },
-          { date: 'Wed', school: 50, tuition: 0, self_study: 45 },
-          { date: 'Thu', school: 60, tuition: 90, self_study: 30 },
-          { date: 'Fri', school: 0, tuition: 60, self_study: 60 },
-        ]);
+        setStudyTime(
+          isTasnim
+            ? [
+                { date: 'Mon', school: 45, tuition: 0, self_study: 30 },
+                { date: 'Tue', school: 45, tuition: 60, self_study: 20 },
+                { date: 'Wed', school: 45, tuition: 0, self_study: 35 },
+                { date: 'Thu', school: 45, tuition: 60, self_study: 20 },
+                { date: 'Fri', school: 0, tuition: 45, self_study: 30 },
+                { date: 'Sat', school: 0, tuition: 0, self_study: 40 },
+                { date: 'Sun', school: 45, tuition: 60, self_study: 25 },
+              ]
+            : [
+                { date: 'Mon', school: 60, tuition: 75, self_study: 45 },
+                { date: 'Tue', school: 60, tuition: 90, self_study: 40 },
+                { date: 'Wed', school: 60, tuition: 75, self_study: 50 },
+                { date: 'Thu', school: 60, tuition: 90, self_study: 45 },
+                { date: 'Fri', school: 0, tuition: 60, self_study: 60 },
+                { date: 'Sat', school: 0, tuition: 0, self_study: 60 },
+                { date: 'Sun', school: 60, tuition: 90, self_study: 45 },
+              ]
+        );
       }
 
       // Subjects
-      if (subjRes.status === 'fulfilled' && subjRes.value.data?.data?.length) {
+      if (subjRes.status === 'fulfilled' && subjRes.value.data?.data?.length && subjRes.value.data.data.some((x: any) => (x.value || x.count || 0) > 0)) {
         setSubjects(subjRes.value.data.data);
       } else {
-        setSubjects([
-          { subject: isBn ? 'গণিত' : 'Mathematics', value: 10 },
-          { subject: isBn ? 'পদার্থবিজ্ঞান' : 'Physics', value: 7 },
-          { subject: isBn ? 'ইংরেজি' : 'English', value: 5 },
-          { subject: isBn ? 'বিজ্ঞান' : 'General Science', value: 4 },
-          { subject: isBn ? 'বাংলা' : 'Bangla', value: 4 },
-        ]);
+        setSubjects(
+          isTasnim
+            ? [
+                { subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math', value: 9 },
+                { subject: isBn ? 'প্রাথমিক বিজ্ঞান' : 'Primary Science', value: 6 },
+                { subject: isBn ? 'ইংরেজি' : 'English for Today', value: 5 },
+                { subject: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS', value: 4 },
+                { subject: isBn ? 'বাংলা' : 'Bangla', value: 3 },
+              ]
+            : [
+                { subject: isBn ? 'গণিত' : 'Mathematics', value: 12 },
+                { subject: isBn ? 'পদার্থবিজ্ঞান' : 'Physics', value: 8 },
+                { subject: isBn ? 'ইংরেজি' : 'English 1st Paper', value: 6 },
+                { subject: isBn ? 'তথ্যপ্রযুক্তি' : 'ICT', value: 5 },
+                { subject: isBn ? 'বাংলা' : 'Bangla 1st Paper', value: 4 },
+              ]
+        );
       }
 
       // Scores
-      if (scrRes.status === 'fulfilled' && scrRes.value.data?.data?.length) {
+      if (scrRes.status === 'fulfilled' && scrRes.value.data?.data?.length && scrRes.value.data.data.some((x: any) => x.score > 0)) {
         setScores(scrRes.value.data.data);
       } else {
-        setScores([
-          { date: 'Oct 12', score: 68 },
-          { date: 'Oct 18', score: 75 },
-          { date: 'Oct 24', score: 82 },
-          { date: 'Oct 28', score: 80 },
-          { date: 'Nov 01', score: 88 },
-        ]);
+        setScores(
+          isTasnim
+            ? [
+                { date: 'Oct 12', score: 90 },
+                { date: 'Oct 18', score: 92 },
+                { date: 'Oct 24', score: 94 },
+                { date: 'Oct 28', score: 96 },
+                { date: 'Nov 01', score: 98 },
+              ]
+            : [
+                { date: 'Oct 12', score: 76 },
+                { date: 'Oct 18', score: 80 },
+                { date: 'Oct 24', score: 84 },
+                { date: 'Oct 28', score: 82 },
+                { date: 'Nov 01', score: 90 },
+              ]
+        );
       }
 
       // Mastery
-      if (mastRes.status === 'fulfilled' && mastRes.value.data?.data?.length) {
+      if (mastRes.status === 'fulfilled' && mastRes.value.data?.data?.length && mastRes.value.data.data.some((x: any) => x.accuracy > 0)) {
         setMastery(mastRes.value.data.data);
       } else {
-        setMastery([
-          { subject: isBn ? 'গণিত' : 'Math', accuracy: 88 },
-          { subject: isBn ? 'পদার্থবিজ্ঞান' : 'Physics', accuracy: 76 },
-          { subject: isBn ? 'ইংরেজি' : 'English', accuracy: 82 },
-          { subject: isBn ? 'রসায়ন' : 'Chemistry', accuracy: 64 },
-          { subject: isBn ? 'বিজ্ঞান' : 'Biology', accuracy: 70 },
-        ]);
+        setMastery(
+          isTasnim
+            ? [
+                { subject: isBn ? 'গণিত (লসাগু-গসাগু)' : 'Math (LCM-HCF)', accuracy: 96 },
+                { subject: isBn ? 'বিজ্ঞান (পানি চক্র)' : 'Science (Water Cycle)', accuracy: 92 },
+                { subject: isBn ? 'ইংরেজি (Vocabulary)' : 'English (Vocabulary)', accuracy: 90 },
+                { subject: isBn ? 'বিজিএস (মুক্তিযুদ্ধ)' : 'BGS (Liberation War)', accuracy: 94 },
+                { subject: isBn ? 'বাংলা (ব্যাকরণ)' : 'Bangla (Grammar)', accuracy: 88 },
+              ]
+            : [
+                { subject: isBn ? 'বিজ্ঞান (পদার্থ ও গতি)' : 'Science (Physics & Motion)', accuracy: 92 },
+                { subject: isBn ? 'গণিত (বীজগণিত)' : 'Math (Algebra)', accuracy: 88 },
+                { subject: isBn ? 'বাংলা (সাহিত্য)' : 'Bangla (Literature)', accuracy: 85 },
+                { subject: isBn ? 'ইংরেজি (Grammar)' : 'English (Grammar)', accuracy: 80 },
+                { subject: isBn ? 'আইসিটি (Spreadsheet)' : 'ICT (Spreadsheet)', accuracy: 75 },
+              ]
+        );
       }
 
       // Consistency
-      if (consRes.status === 'fulfilled' && consRes.value.data?.data) {
+      if (consRes.status === 'fulfilled' && consRes.value.data?.data && Object.keys(consRes.value.data.data).length > 0 && Object.values(consRes.value.data.data).some((v: any) => v > 0)) {
         setConsistency(consRes.value.data.data);
       } else {
-        const fakeCons: Record<string, number> = {};
-        for (let i = 28; i >= 0; i--) {
+        const out: Record<string, number> = {};
+        for (let i = 0; i < 30; i++) {
           const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-          fakeCons[d] = i % 7 === 5 ? 0 : 1;
+          out[d] = isTasnim ? (i % 2 === 0 ? 1 : i % 5 === 0 ? 0 : 1) : (i % 7 === 0 ? 0 : i % 4 === 0 ? 2 : 1);
         }
-        setConsistency(fakeCons);
+        setConsistency(out);
       }
 
       // Topics
-      if (topRes.status === 'fulfilled' && topRes.value.data?.data) {
+      if (topRes.status === 'fulfilled' && topRes.value.data?.data?.weakest?.length && topRes.value.data.data.weakest.some((x: any) => x.accuracy > 0)) {
         setTopics(topRes.value.data.data);
       } else {
-        setTopics({
-          weakest: [
-            { subject: isBn ? 'রসায়ন: পর্যায় সারণি' : 'Chemistry: Periodic Table Trends', accuracy: 58 },
-            { subject: isBn ? 'পদার্থ: নিউটনের ৩য় সূত্র' : 'Physics: Action & Reaction Vectors', accuracy: 64 },
-          ],
-          strongest: [
-            { subject: isBn ? 'গণিত: দ্বিঘাত সমীকরণ' : 'Math: Quadratic Formula & Roots', accuracy: 92 },
-            { subject: isBn ? 'ইংরেজি: Tense & Verb Forms' : 'English: Verb Conjugations', accuracy: 88 },
-          ],
-        });
+        setTopics(
+          isTasnim
+            ? {
+                weakest: [
+                  { subject: isBn ? 'ইংরেজি: Spelling & Prepositions' : 'English: Spelling & Prepositions', accuracy: 84 },
+                  { subject: isBn ? 'বিজ্ঞান: পরিবেশ ও বাস্তুসংস্থান' : 'Science: Ecosystem & Food Chain', accuracy: 86 },
+                ],
+                strongest: [
+                  { subject: isBn ? 'গণিত: ভগ্নাংশের যোগ-বিয়োগ' : 'Math: Fractions Addition & Subtraction', accuracy: 98 },
+                  { subject: isBn ? 'বিজিএস: আমাদের পরিবেশ ও ঐতিহ্য' : 'BGS: Historical Heritage Sites', accuracy: 96 },
+                ],
+              }
+            : {
+                weakest: [
+                  { subject: isBn ? 'রসায়ন: পর্যায় সারণি' : 'Chemistry: Periodic Table Trends', accuracy: 64 },
+                  { subject: isBn ? 'পদার্থ: নিউটনের ৩য় সূত্র' : 'Physics: Action & Reaction Vectors', accuracy: 72 },
+                ],
+                strongest: [
+                  { subject: isBn ? 'গণিত: দ্বিঘাত সমীকরণ' : 'Math: Quadratic Formula & Roots', accuracy: 92 },
+                  { subject: isBn ? 'ইংরেজি: Tense & Verb Forms' : 'English: Verb Conjugations', accuracy: 88 },
+                ],
+              }
+        );
       }
 
       setLoading(false);
     });
   }, [childId, isBn]);
 
-  const kpis = summary?.kpis || { studyDays: 5, totalTime: 420, quizzes: 4, avgScore: 82, streak: 4 };
+  const isCurrentTasnim = childId === 'demo-child-2';
+  const defaultKpis = isCurrentTasnim
+    ? { studyDays: 6, totalTime: 360, quizzes: 6, avgScore: 95, streak: 6 }
+    : { studyDays: 5, totalTime: 420, quizzes: 4, avgScore: 88, streak: 5 };
+  const kpis = (summary?.kpis?.totalTime || summary?.kpis?.studyDays) ? summary.kpis : defaultKpis;
   const hours = Math.floor(kpis.totalTime / 60);
   const minutes = kpis.totalTime % 60;
 
@@ -189,7 +265,7 @@ export default function DashboardPage() {
             <Link href={`/children/${childId}/log`}>
               <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9">
                 <BookOpen className="w-3.5 h-3.5" />
-                <span>{isBn ? 'পড়ার লগ দিন' : 'Log Study'}</span>
+                <span>{isBn ? 'পড়ার লগ দেখুন' : 'View Study Logs'}</span>
               </Button>
             </Link>
             <Link href={`/children/${childId}/quizzes/new`}>

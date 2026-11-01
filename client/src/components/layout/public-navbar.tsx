@@ -7,14 +7,24 @@ import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sun, Moon, Globe, ArrowRight, LayoutDashboard } from 'lucide-react';
+import { Sun, Moon, Globe, LayoutDashboard } from 'lucide-react';
 
 export function PublicNavbar() {
   const { theme, setTheme } = useTheme();
   const { user, token } = useAuth();
   const { locale, toggleLocale, isBn } = useI18n();
 
-  const isLoggedIn = !!token || (user && user.id !== 'parent-demo');
+  const handleScrollTo = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    if (typeof window !== 'undefined') {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.location.href = `/#${id}`;
+      }
+    }
+  };
 
   return (
     <header className="border-b bg-background/80 backdrop-blur-xl sticky top-0 z-50">
@@ -39,17 +49,29 @@ export function PublicNavbar() {
           </div>
         </Link>
 
-        {/* Center links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-muted-foreground">
-          <Link href="/pricing" className="hover:text-foreground transition-colors">
-            {isBn ? 'মূল্য ও প্ল্যান' : 'Pricing & Plans'}
-          </Link>
-          <Link href="/privacy" className="hover:text-foreground transition-colors">
-            {isBn ? 'গোপনীয়তা' : 'Privacy'}
-          </Link>
-          <Link href="/terms" className="hover:text-foreground transition-colors">
-            {isBn ? 'শর্তাবলী' : 'Terms'}
-          </Link>
+        {/* Center links with smooth scrolling */}
+        <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-muted-foreground">
+          <a
+            href="#features"
+            onClick={(e) => handleScrollTo(e, 'features')}
+            className="hover:text-primary transition-colors cursor-pointer"
+          >
+            {isBn ? 'ফিচারসমূহ' : 'Features'}
+          </a>
+          <a
+            href="#how-it-works"
+            onClick={(e) => handleScrollTo(e, 'how-it-works')}
+            className="hover:text-primary transition-colors cursor-pointer"
+          >
+            {isBn ? 'কীভাবে কাজ করে' : 'How It Works'}
+          </a>
+          <a
+            href="#pricing"
+            onClick={(e) => handleScrollTo(e, 'pricing')}
+            className="hover:text-primary transition-colors cursor-pointer"
+          >
+            {isBn ? 'মূল্য ও প্ল্যান' : 'Pricing'}
+          </a>
         </nav>
 
         {/* Right actions */}
@@ -105,3 +127,5 @@ export function PublicNavbar() {
     </header>
   );
 }
+
+export default PublicNavbar;

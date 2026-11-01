@@ -26,7 +26,46 @@ export default function NotificationsPage() {
   const loadNotifications = async () => {
     try {
       const res = await api.get('/notifications');
-      setList(res.data.data || []);
+      const data = res.data?.data;
+      if (data && data.length > 0) {
+        setList(data);
+      } else {
+        setList([
+          {
+            id: 'n1',
+            type: 'quiz_completed',
+            title: isBn ? 'কুইজ সম্পন্ন হয়েছে' : 'Quiz Completed',
+            message: isBn
+              ? 'রহিম "পদার্থবিজ্ঞান ও বলবিদ্যা অধ্যায় কুইজ"-এ ৮/১০ স্কোর করেছে। ফলাফল ও এআই বিশ্লেষণ প্রস্তুত।'
+              : 'Rahim completed "Physics & Newton Laws Chapter Quiz" with score 8/10. AI Explanation is ready.',
+            link: '/quizzes',
+            readAt: null,
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: 'n2',
+            type: 'trial_reminder',
+            title: isBn ? 'ট্রায়াল রিমাইন্ডার' : 'Trial Ending Soon',
+            message: isBn
+              ? 'আপনার ১৫ দিনের ফ্রি ট্রায়ালের ১২ দিন বাকি আছে। পূর্ণ সুবিধায় রাখতে প্ল্যান নির্বাচন করুন।'
+              : '12 days left in your 15-day free trial. Choose a plan to keep unlimited AI quizzes.',
+            link: '/billing',
+            readAt: null,
+            createdAt: new Date(Date.now() - 3600000).toISOString(),
+          },
+          {
+            id: 'n3',
+            type: 'missed_session',
+            title: isBn ? 'পড়ার লগ মিস হয়েছে' : 'Missed Routine Session',
+            message: isBn
+              ? 'গতকাল বিকাল ৫:৩০ মিনিটে নির্ধারিত গণিত প্রাইভেটের কোনো লগ পাওয়া যায়নি।'
+              : 'Yesterday\'s 5:30 PM Math Tuition has no recorded learning log.',
+            link: '/schedule',
+            readAt: new Date(Date.now() - 86400000).toISOString(),
+            createdAt: new Date(Date.now() - 86400000).toISOString(),
+          },
+        ]);
+      }
     } catch {
       setList([
         {

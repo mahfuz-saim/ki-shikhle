@@ -49,32 +49,109 @@ export default function NotesPage() {
   ];
 
   const loadNotes = async () => {
+    const isTasnim = childId === 'demo-child-2';
     try {
       const res = await api.get(`/children/${childId}/notes`);
-      setNotes(res.data.data || []);
+      const list = res.data?.data || [];
+      if (list && list.length > 0) {
+        setNotes(list);
+      } else {
+        setNotes(
+          isTasnim
+            ? [
+                {
+                  id: 'n-t1',
+                  subject: 'Elementary Mathematics',
+                  textClean: isBn
+                    ? 'প্রাথমিক গণিত অধ্যায় ৫: গুণনীয়ক ও গুণিতক। যে সংখ্যা দিয়ে কোনো সংখ্যা নিঃশেষে বিভাজ্য হয় তা হলো ঐ সংখ্যার গুণনীয়ক বা উৎপাদক।'
+                    : 'Elementary Math Chapter 5: Factors & Multiples. A number that divides another number evenly without remainder is a factor.',
+                  ocrConfidence: 0.94,
+                  date: new Date().toISOString().slice(0, 10),
+                  fileUrl: '/uploads/sample-math.jpg',
+                },
+                {
+                  id: 'n-t2',
+                  subject: 'Primary Science',
+                  textClean: isBn
+                    ? 'প্রাথমিক বিজ্ঞান অধ্যায় ৩: জীবনের জন্য পানি। পানি বিশুদ্ধ করার সবচেয়ে সহজ উপায় হলো ২০ মিনিট ধরে ফোটানো।'
+                    : 'Primary Science Chapter 3: Water for Life. Boiling water for 20 minutes kills all harmful bacteria and germs.',
+                  ocrConfidence: 0.91,
+                  date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+                  fileUrl: null,
+                },
+              ]
+            : [
+                {
+                  id: 'n1',
+                  subject: 'Physics',
+                  textClean: isBn
+                    ? 'পদার্থবিজ্ঞান অধ্যায় ৩: বল ও ত্বরণ। নিউটনের ২য় সূত্র: কোনো বস্তুর ভরবেগের পরিবর্তনের হার তার উপর প্রযুক্ত বলের সমানুপাতিক। F = ma'
+                    : 'Physics Chapter 3: Force & Motion. Newton\'s Second Law: Force equals mass times acceleration (F = ma). Net force accelerates an object.',
+                  ocrConfidence: 0.92,
+                  date: new Date().toISOString().slice(0, 10),
+                  fileUrl: '/uploads/sample-physics.jpg',
+                },
+                {
+                  id: 'n2',
+                  subject: 'Mathematics',
+                  textClean: isBn
+                    ? 'গণিত অধ্যায় ৫: দ্বিঘাত সমীকরণ ax² + bx + c = 0। মূল নির্ণয়ের সূত্র: x = [-b ± √(b² - 4ac)] / 2a'
+                    : 'Mathematics Chapter 5: Quadratic Equations ax² + bx + c = 0. Quadratic formula: x = [-b ± √(b² - 4ac)] / 2a.',
+                  ocrConfidence: 0.88,
+                  date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+                  fileUrl: null,
+                },
+              ]
+        );
+      }
     } catch {
-      setNotes([
-        {
-          id: 'n1',
-          subject: 'Physics',
-          textClean: isBn
-            ? 'পদার্থবিজ্ঞান অধ্যায় ৩: বল ও ত্বরণ। নিউটনের ২য় সূত্র: কোনো বস্তুর ভরবেগের পরিবর্তনের হার তার উপর প্রযুক্ত বলের সমানুপাতিক। F = ma'
-            : 'Physics Chapter 3: Force & Motion. Newton\'s Second Law: Force equals mass times acceleration (F = ma). Net force accelerates an object.',
-          ocrConfidence: 0.92,
-          date: new Date().toISOString().slice(0, 10),
-          fileUrl: '/uploads/sample-physics.jpg',
-        },
-        {
-          id: 'n2',
-          subject: 'Mathematics',
-          textClean: isBn
-            ? 'গণিত অধ্যায় ৫: দ্বিঘাত সমীকরণ ax² + bx + c = 0। মূল নির্ণয়ের সূত্র: x = [-b ± √(b² - 4ac)] / 2a'
-            : 'Mathematics Chapter 5: Quadratic Equations ax² + bx + c = 0. Quadratic formula: x = [-b ± √(b² - 4ac)] / 2a.',
-          ocrConfidence: 0.88,
-          date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
-          fileUrl: null,
-        },
-      ]);
+      setNotes(
+        isTasnim
+          ? [
+              {
+                id: 'n-t1',
+                subject: 'Elementary Mathematics',
+                textClean: isBn
+                  ? 'প্রাথমিক গণিত অধ্যায় ৫: গুণনীয়ক ও গুণিতক। যে সংখ্যা দিয়ে কোনো সংখ্যা নিঃশেষে বিভাজ্য হয় তা হলো ঐ সংখ্যার গুণনীয়ক বা উৎপাদক।'
+                  : 'Elementary Math Chapter 5: Factors & Multiples. A number that divides another number evenly without remainder is a factor.',
+                ocrConfidence: 0.94,
+                date: new Date().toISOString().slice(0, 10),
+                fileUrl: '/uploads/sample-math.jpg',
+              },
+              {
+                id: 'n-t2',
+                subject: 'Primary Science',
+                textClean: isBn
+                  ? 'প্রাথমিক বিজ্ঞান অধ্যায় ৩: জীবনের জন্য পানি। পানি বিশুদ্ধ করার সবচেয়ে সহজ উপায় হলো ২০ মিনিট ধরে ফোটানো।'
+                  : 'Primary Science Chapter 3: Water for Life. Boiling water for 20 minutes kills all harmful bacteria and germs.',
+                ocrConfidence: 0.91,
+                date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+                fileUrl: null,
+              },
+            ]
+          : [
+              {
+                id: 'n1',
+                subject: 'Physics',
+                textClean: isBn
+                  ? 'পদার্থবিজ্ঞান অধ্যায় ৩: বল ও ত্বরণ। নিউটনের ২য় সূত্র: কোনো বস্তুর ভরবেগের পরিবর্তনের হার তার উপর প্রযুক্ত বলের সমানুপাতিক। F = ma'
+                  : 'Physics Chapter 3: Force & Motion. Newton\'s Second Law: Force equals mass times acceleration (F = ma). Net force accelerates an object.',
+                ocrConfidence: 0.92,
+                date: new Date().toISOString().slice(0, 10),
+                fileUrl: '/uploads/sample-physics.jpg',
+              },
+              {
+                id: 'n2',
+                subject: 'Mathematics',
+                textClean: isBn
+                  ? 'গণিত অধ্যায় ৫: দ্বিঘাত সমীকরণ ax² + bx + c = 0। মূল নির্ণয়ের সূত্র: x = [-b ± √(b² - 4ac)] / 2a'
+                  : 'Mathematics Chapter 5: Quadratic Equations ax² + bx + c = 0. Quadratic formula: x = [-b ± √(b² - 4ac)] / 2a.',
+                ocrConfidence: 0.88,
+                date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+                fileUrl: null,
+              },
+            ]
+      );
     }
   };
 

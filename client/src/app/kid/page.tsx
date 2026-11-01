@@ -23,10 +23,11 @@ import {
 } from 'lucide-react';
 
 export default function KidDashboard() {
-  const { activeChild } = useAuth();
+  const { activeChild, user } = useAuth();
   const { isBn } = useI18n();
 
-  const childId = activeChild?.id || 'demo-child';
+  const childId = activeChild?.id || (user as any)?.childId || user?.id || 'demo-child-1';
+  const isTasnim = childId === 'demo-child-2' || user?.email?.includes('tasnim') || activeChild?.name?.includes('Tasnim');
 
   const [summary, setSummary] = useState<any>(null);
   const [quizzes, setQuizzes] = useState<any[]>([]);
@@ -34,25 +35,126 @@ export default function KidDashboard() {
   useEffect(() => {
     api
       .get(`/children/${childId}/dashboard/summary`)
-      .then((r) => setSummary(r.data.data))
-      .catch(() => setSummary({ kpis: { streak: 4, quizzes: 3, avgScore: 85 } }));
+      .then((r) => {
+        if (r.data?.data && (r.data.data.kpis?.totalTime > 0 || r.data.data.kpis?.streak > 0)) {
+          setSummary(r.data.data);
+        } else {
+          setSummary({
+            kpis: isTasnim
+              ? { streak: 6, quizzes: 6, avgScore: 95 }
+              : { streak: 5, quizzes: 4, avgScore: 88 },
+          });
+        }
+      })
+      .catch(() =>
+        setSummary({
+          kpis: isTasnim
+            ? { streak: 6, quizzes: 6, avgScore: 95 }
+            : { streak: 5, quizzes: 4, avgScore: 88 },
+        })
+      );
 
     api
       .get(`/children/${childId}/quizzes`)
-      .then((r) => setQuizzes(r.data.data || []))
+      .then((r) => {
+        const list = r.data?.data;
+        if (list && list.length > 0) {
+          setQuizzes(list);
+        } else {
+          setQuizzes(
+            isTasnim
+              ? [
+                  {
+                    id: 'q-t1',
+                    title: isBn ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু কুইজ' : 'Primary Math: Factors & LCM-HCF Quiz',
+                    status: 'completed',
+                    questionCount: 5,
+                    score: 95,
+                  },
+                  {
+                    id: 'q-t2',
+                    title: isBn ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification',
+                    status: 'assigned',
+                    questionCount: 5,
+                    score: null,
+                  },
+                ]
+              : [
+                  {
+                    id: 'q-r1',
+                    title: isBn ? 'গণিত: বীজগাণিতিক সূত্রাবলী ও প্রয়োগ কুইজ' : 'Class 8 Math: Algebraic Formulae Quiz',
+                    status: 'completed',
+                    questionCount: 5,
+                    score: 85,
+                  },
+                  {
+                    id: 'q-r2',
+                    title: isBn ? 'পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ' : 'Physics: Equations of Motion & Acceleration',
+                    status: 'completed',
+                    questionCount: 5,
+                    score: 90,
+                  },
+                  {
+                    id: 'q-r3',
+                    title: isBn ? 'ইংরেজি: Right Forms of Verbs & Prepositions' : 'English: Right Forms of Verbs & Prepositions',
+                    status: 'assigned',
+                    questionCount: 5,
+                    score: null,
+                  },
+                ]
+          );
+        }
+      })
       .catch(() =>
-        setQuizzes([
-          {
-            id: 'q1',
-            title: isBn ? 'পদার্থবিজ্ঞান ও নিউটনের সূত্র কুইজ' : 'Physics & Mechanics Chapter Quiz',
-            status: 'assigned',
-            questionCount: 10,
-          },
-        ])
+        setQuizzes(
+          isTasnim
+            ? [
+                {
+                  id: 'q-t1',
+                  title: isBn ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু কুইজ' : 'Primary Math: Factors & LCM-HCF Quiz',
+                  status: 'completed',
+                  questionCount: 5,
+                  score: 95,
+                },
+                {
+                  id: 'q-t2',
+                  title: isBn ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification',
+                  status: 'assigned',
+                  questionCount: 5,
+                  score: null,
+                },
+              ]
+            : [
+                {
+                  id: 'q-r1',
+                  title: isBn ? 'গণিত: বীজগাণিতিক সূত্রাবলী ও প্রয়োগ কুইজ' : 'Class 8 Math: Algebraic Formulae Quiz',
+                  status: 'completed',
+                  questionCount: 5,
+                  score: 85,
+                },
+                {
+                  id: 'q-r2',
+                  title: isBn ? 'পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ' : 'Physics: Equations of Motion & Acceleration',
+                  status: 'completed',
+                  questionCount: 5,
+                  score: 90,
+                },
+                {
+                  id: 'q-r3',
+                  title: isBn ? 'ইংরেজি: Right Forms of Verbs & Prepositions' : 'English: Right Forms of Verbs & Prepositions',
+                  status: 'assigned',
+                  questionCount: 5,
+                  score: null,
+                },
+              ]
+        )
       );
-  }, [childId, isBn]);
+  }, [childId, isBn, isTasnim]);
 
-  const kpis = summary?.kpis || { streak: 4, quizzes: 3, avgScore: 85 };
+  const defaultKpis = isTasnim
+    ? { streak: 6, quizzes: 6, avgScore: 95 }
+    : { streak: 5, quizzes: 4, avgScore: 88 };
+  const kpis = summary?.kpis?.streak ? summary.kpis : defaultKpis;
 
   return (
     <KidShell>
@@ -135,10 +237,14 @@ export default function KidDashboard() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-foreground">
-                    {isBn ? 'গণিত প্রাইভেট — বিকাল ৪:০০' : 'Math Tuition – 4:00 PM'}
+                    {isTasnim
+                      ? (isBn ? 'প্রাথমিক গণিত প্রাইভেট — বিকাল ৪:০০' : 'Elementary Math Tuition – 4:00 PM')
+                      : (isBn ? 'গণিত প্রাইভেট — বিকাল ৪:০০' : 'Math Tuition – 4:00 PM')}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    {isBn ? 'রহিম স্যার • ৯০ মিনিট' : 'Rahim Sir • 90 mins'}
+                    {isTasnim
+                      ? (isBn ? 'ম্যাথ টিউটর • ৬০ মিনিট' : 'Math Tutor • 60 mins')
+                      : (isBn ? 'রহিম স্যার • ৯০ মিনিট' : 'Rahim Sir • 90 mins')}
                   </p>
                 </div>
               </div>
@@ -158,10 +264,14 @@ export default function KidDashboard() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-foreground">
-                    {isBn ? 'পদার্থবিজ্ঞান ক্লাস — স্কুল' : 'Physics Class – School'}
+                    {isTasnim
+                      ? (isBn ? 'প্রাথমিক বিজ্ঞান ক্লাস — স্কুল' : 'Primary Science – School')
+                      : (isBn ? 'পদার্থবিজ্ঞান ক্লাস — স্কুল' : 'Physics Class – School')}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    {isBn ? 'অধ্যায় ৩: বলবিদ্যা • ৪৫ মিনিট' : 'Chapter 3: Dynamics • 45 mins'}
+                    {isTasnim
+                      ? (isBn ? 'অধ্যায় ৩: জীবনের জন্য পানি • ৪৫ মিনিট' : 'Chapter 3: Safe Water • 45 mins')
+                      : (isBn ? 'অধ্যায় ৩: বলবিদ্যা • ৪৫ মিনিট' : 'Chapter 3: Dynamics • 45 mins')}
                   </p>
                 </div>
               </div>

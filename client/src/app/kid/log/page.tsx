@@ -35,12 +35,21 @@ export default function KidLogPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const presets = [
-    { label: isBn ? 'গণিত: দ্বিঘাত সমীকরণ' : 'Math: Quadratic Equations', source: 'tuition', subject: 'Mathematics' },
-    { label: isBn ? 'পদার্থবিজ্ঞান: বল ও ভরবেগ' : 'Physics: Newton\'s 2nd Law F=ma', source: 'school', subject: 'Physics' },
-    { label: isBn ? 'রসায়ন: পর্যায় সারণি' : 'Chemistry: Periodic Table Group Trends', source: 'tuition', subject: 'Chemistry' },
-    { label: isBn ? 'ইংরেজি: Tense ও Voice Change' : 'English: Active & Passive Voice', source: 'self_study', subject: 'English' },
-  ];
+  const isTasnim = childId === 'demo-child-2' || activeChild?.name?.toLowerCase().includes('tasnim');
+
+  const presets = isTasnim
+    ? [
+        { label: isBn ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু' : 'Math: Factors & Multiples (LCM/HCF)', source: 'tuition', subject: 'Elementary Math' },
+        { label: isBn ? 'প্রাথমিক বিজ্ঞান: নিরাপদ পানি ও বিশুদ্ধকরণ' : 'Science: Safe Water & Purification', source: 'school', subject: 'Primary Science' },
+        { label: isBn ? 'ইংরেজি: Eat Healthy — Food Pyramid' : 'English: Eat Healthy – Food Pyramid', source: 'tuition', subject: 'English' },
+        { label: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়: আমাদের মুক্তিযুদ্ধ' : 'BGS: Our Liberation War History', source: 'self_study', subject: 'BGS' },
+      ]
+    : [
+        { label: isBn ? 'গণিত: বীজগণিতীয় সূত্রাবলী (a+b)^2' : 'Math: Algebraic Formulae (a+b)^2', source: 'tuition', subject: 'Mathematics' },
+        { label: isBn ? 'পদার্থবিজ্ঞান: বল ও নিউটনের ২য় সূত্র' : 'Physics: Force & Newton\'s 2nd Law F=ma', source: 'school', subject: 'Physics' },
+        { label: isBn ? 'রসায়ন: পর্যায় সারণি ও মৌলের ধর্ম' : 'Chemistry: Periodic Table Group Trends', source: 'tuition', subject: 'Chemistry' },
+        { label: isBn ? 'তথ্যপ্রযুক্তি: স্প্রেডশিটে গাণিতিক হিসাব' : 'ICT: Formulas in Spreadsheets', source: 'self_study', subject: 'ICT' },
+      ];
 
   const handleSelectPreset = (p: any) => {
     setTopic(p.label);

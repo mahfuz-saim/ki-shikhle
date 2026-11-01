@@ -16,7 +16,6 @@ import {
   Plus,
   Edit2,
   Trash2,
-  Sparkles,
   KeyRound,
   Mail,
   Lock,
@@ -284,10 +283,7 @@ export default function ChildrenPage() {
                         {c.grade}
                       </Badge>
                       <Badge variant="outline" className="font-medium text-[11px]">
-                        {c.curriculum}
-                      </Badge>
-                      <Badge variant="outline" className="font-medium text-[11px]">
-                        {c.medium} Medium
+                        {c.medium === 'English' ? (isBn ? 'ইংলিশ ভার্সন' : 'English Version') : (isBn ? 'বাংলা মাধ্যম' : 'Bangla Version')}
                       </Badge>
                     </div>
 
@@ -304,18 +300,6 @@ export default function ChildrenPage() {
 
                     {/* Actions */}
                     <div className="space-y-2 pt-2 border-t">
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setActiveChild(c);
-                          router.push('/kid');
-                        }}
-                        className="w-full h-8 text-xs font-semibold gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 text-white shadow-sm"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                        <span>{isBn ? 'শিক্ষার্থী পোর্টাল দেখুন' : 'Preview Student Portal'}</span>
-                      </Button>
-
                       <div className="grid grid-cols-3 gap-1.5">
                         <Button
                           size="sm"
@@ -370,12 +354,12 @@ export default function ChildrenPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold">
-                  {isBn ? 'বিষয় তালিকা ও পাঠ্যক্রম' : 'Curriculum Subjects (NCTB & Custom)'}
+                  {isBn ? 'বিষয় তালিকা' : 'Subjects List'}
                 </CardTitle>
                 <CardDescription className="text-xs">
                   {isBn
-                    ? 'প্রাক-নির্ধারিত পাঠ্যক্রমের বিষয়সমূহ এবং প্রয়োজন অনুসারে কাস্টম বিষয় যোগ করুন'
-                    : 'Preloaded subjects with bilingual names. You can add custom subjects (e.g. Arabic, Quranic Studies, Arts).'}
+                    ? 'প্রাক-নির্ধারিত বিষয়সমূহ এবং প্রয়োজন অনুসারে নতুন বিষয় যোগ করুন'
+                    : 'Preloaded subjects with bilingual names. You can add custom subjects.'}
                 </CardDescription>
               </div>
             </div>
@@ -439,31 +423,16 @@ export default function ChildrenPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs font-semibold">{t('child.curriculum', 'Curriculum')}</Label>
-              <select
-                value={form.curriculum}
-                onChange={(e) => setForm({ ...form, curriculum: e.target.value })}
-                className="h-10 w-full border rounded-xl px-3 bg-background text-sm mt-1"
-              >
-                <option value="NCTB">NCTB (National Board)</option>
-                <option value="English Version">English Version (NCTB)</option>
-                <option value="Madrasa">Madrasa (Dakhil / Alim)</option>
-                <option value="Cambridge / Edexcel">Cambridge / Edexcel (O/A Level)</option>
-              </select>
-            </div>
-            <div>
-              <Label className="text-xs font-semibold">{t('child.medium', 'Medium')}</Label>
-              <select
-                value={form.medium}
-                onChange={(e) => setForm({ ...form, medium: e.target.value })}
-                className="h-10 w-full border rounded-xl px-3 bg-background text-sm mt-1"
-              >
-                <option value="Bangla">বাংলা (Bangla)</option>
-                <option value="English">English</option>
-              </select>
-            </div>
+          <div>
+            <Label className="text-xs font-semibold">{t('child.version', 'Version / Medium of Education')}</Label>
+            <select
+              value={form.medium}
+              onChange={(e) => setForm({ ...form, medium: e.target.value, curriculum: 'NCTB' })}
+              className="h-10 w-full border rounded-xl px-3 bg-background text-sm mt-1"
+            >
+              <option value="Bangla">Bangla Version (বাংলা মাধ্যম)</option>
+              <option value="English">English Version (ইংলিশ ভার্সন)</option>
+            </select>
           </div>
 
           {/* Student Login Credentials */}
@@ -566,31 +535,16 @@ export default function ChildrenPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs font-semibold">{t('child.curriculum', 'Curriculum')}</Label>
-              <select
-                value={form.curriculum}
-                onChange={(e) => setForm({ ...form, curriculum: e.target.value })}
-                className="h-10 w-full border rounded-xl px-3 bg-background text-sm mt-1"
-              >
-                <option value="NCTB">NCTB (National Board)</option>
-                <option value="English Version">English Version (NCTB)</option>
-                <option value="Madrasa">Madrasa</option>
-                <option value="Cambridge / Edexcel">Cambridge / Edexcel</option>
-              </select>
-            </div>
-            <div>
-              <Label className="text-xs font-semibold">{t('child.medium', 'Medium')}</Label>
-              <select
-                value={form.medium}
-                onChange={(e) => setForm({ ...form, medium: e.target.value })}
-                className="h-10 w-full border rounded-xl px-3 bg-background text-sm mt-1"
-              >
-                <option value="Bangla">বাংলা (Bangla)</option>
-                <option value="English">English</option>
-              </select>
-            </div>
+          <div>
+            <Label className="text-xs font-semibold">{t('child.version', 'Version / Medium of Education')}</Label>
+            <select
+              value={form.medium}
+              onChange={(e) => setForm({ ...form, medium: e.target.value, curriculum: 'NCTB' })}
+              className="h-10 w-full border rounded-xl px-3 bg-background text-sm mt-1"
+            >
+              <option value="Bangla">Bangla Version (বাংলা মাধ্যম)</option>
+              <option value="English">English Version (ইংলিশ ভার্সন)</option>
+            </select>
           </div>
 
           <div>

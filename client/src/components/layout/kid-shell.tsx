@@ -54,7 +54,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
   const studentName = activeChild?.name || user?.name || (isBn ? 'শিক্ষার্থী' : 'Student');
   const studentEmail = activeChild?.email || user?.email;
   const gradeLabel = activeChild?.grade || (user as any)?.grade || 'Class 8';
-  const curriculumLabel = activeChild?.curriculum || (user as any)?.curriculum || 'NCTB';
+  const mediumLabel = activeChild?.medium || (user as any)?.medium || 'Bangla';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50/50 via-background to-amber-50/30 dark:from-background dark:to-background flex flex-col">
@@ -75,7 +75,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
               </span>
             </div>
             <p className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-              <span>{gradeLabel} • {curriculumLabel}</span>
+              <span>{gradeLabel} • {mediumLabel === 'English' ? (isBn ? 'ইংলিশ ভার্সন' : 'English Version') : (isBn ? 'বাংলা মাধ্যম' : 'Bangla Version')}</span>
               {studentEmail && (
                 <span className="hidden md:inline text-[11px] text-muted-foreground/80">
                   ({studentEmail})

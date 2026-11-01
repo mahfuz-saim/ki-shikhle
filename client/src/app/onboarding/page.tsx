@@ -156,20 +156,36 @@ export default function Onboarding() {
                 />
               </div>
 
-              <div>
-                <Label className="text-xs font-semibold">Grade / Class</Label>
-                <select
-                  value={child.grade}
-                  onChange={(e) => setChild({ ...child, grade: e.target.value })}
-                  className="w-full h-10 border rounded-xl px-3 bg-background text-xs mt-1"
-                >
-                  <option value="Class 6">Class 6</option>
-                  <option value="Class 7">Class 7</option>
-                  <option value="Class 8">Class 8 (JSC)</option>
-                  <option value="Class 9">Class 9</option>
-                  <option value="Class 10">Class 10 (SSC)</option>
-                  <option value="Class 11">Class 11 (HSC)</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-semibold">Grade / Class</Label>
+                  <select
+                    value={child.grade}
+                    onChange={(e) => setChild({ ...child, grade: e.target.value })}
+                    className="w-full h-10 border rounded-xl px-3 bg-background text-xs mt-1"
+                  >
+                    <option value="Class 4">Class 4</option>
+                    <option value="Class 5">Class 5 (PEC)</option>
+                    <option value="Class 6">Class 6</option>
+                    <option value="Class 7">Class 7</option>
+                    <option value="Class 8">Class 8 (JSC)</option>
+                    <option value="Class 9">Class 9 (SSC)</option>
+                    <option value="Class 10">Class 10 (SSC)</option>
+                    <option value="Class 11">Class 11 (HSC)</option>
+                    <option value="Class 12">Class 12 (HSC)</option>
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">Version / Medium</Label>
+                  <select
+                    value={child.medium}
+                    onChange={(e) => setChild({ ...child, medium: e.target.value })}
+                    className="w-full h-10 border rounded-xl px-3 bg-background text-xs mt-1"
+                  >
+                    <option value="Bangla">Bangla Version</option>
+                    <option value="English">English Version</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

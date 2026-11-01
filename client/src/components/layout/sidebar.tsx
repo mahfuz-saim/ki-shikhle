@@ -12,8 +12,6 @@ import {
   Brain,
   CreditCard,
   Settings,
-  Bell,
-  Sparkles,
   ShieldCheck,
   LogOut,
 } from 'lucide-react';
@@ -36,7 +34,6 @@ export function Sidebar() {
     { href: '/notes', label: t('nav.notes', 'Notes & OCR'), icon: Camera },
     { href: '/quizzes', label: t('nav.quizzes', 'AI Quizzes'), icon: Brain },
     { href: '/billing', label: t('nav.billing', 'Billing & Plans'), icon: CreditCard },
-    { href: '/notifications', label: t('nav.notifications', 'Notifications'), icon: Bell },
     { href: '/settings', label: t('nav.settings', 'Settings'), icon: Settings },
     ...(user?.role === 'admin'
       ? [{ href: '/admin', label: t('nav.admin', 'Admin Portal'), icon: ShieldCheck }]
@@ -61,37 +58,6 @@ export function Sidebar() {
           </div>
         </Link>
       </div>
-
-      {/* Active Child Switcher Quick Card */}
-      {activeChild && (
-        <div className="p-3 mx-3 my-2.5 rounded-2xl bg-muted/40 border">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                {t('child.selected', 'Active Student')}
-              </p>
-              <p className="font-bold text-xs truncate text-foreground">{activeChild.name}</p>
-              <p className="text-[11px] text-muted-foreground">
-                {activeChild.grade} • {activeChild.curriculum}
-              </p>
-            </div>
-            <Link
-              href="/children"
-              className="text-[11px] text-primary hover:underline font-semibold shrink-0 ml-2"
-            >
-              {t('common.switch', 'Manage')}
-            </Link>
-          </div>
-
-          <Link
-            href="/kid"
-            className="w-full mt-2.5 h-8 text-xs font-semibold rounded-xl border border-primary/30 hover:border-primary text-primary hover:bg-primary/5 flex items-center justify-center gap-1.5 transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>{isBn ? 'শিক্ষার্থী পোর্টাল দেখুন' : 'Preview Student View'}</span>
-          </Link>
-        </div>
-      )}
 
       {/* Navigation items */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">

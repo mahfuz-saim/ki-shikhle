@@ -34,50 +34,153 @@ export default function QuizzesPage() {
 
   const loadQuizzes = async () => {
     setLoading(true);
+    const isTasnim = childId === 'demo-child-2';
     try {
       const res = await api.get(`/children/${childId}/quizzes`);
-      setQuizzes(res.data.data || []);
+      const list = res.data?.data || [];
+      if (list && list.length > 0) {
+        setQuizzes(list);
+      } else {
+        setQuizzes(
+          isTasnim
+            ? [
+                {
+                  id: 'q-t1',
+                  title: isBn ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু কুইজ' : 'Primary Math: Factors & LCM-HCF Quiz',
+                  subject: 'Elementary Math',
+                  questionCount: 5,
+                  difficulty: 'easy',
+                  status: 'completed',
+                  score: 5,
+                  maxScore: 5,
+                  attemptId: 'att-t1',
+                  timeLimitMin: 10,
+                  createdAt: new Date().toISOString(),
+                },
+                {
+                  id: 'q-t2',
+                  title: isBn ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification',
+                  subject: 'Primary Science',
+                  questionCount: 5,
+                  difficulty: 'easy',
+                  status: 'assigned',
+                  score: null,
+                  maxScore: 5,
+                  timeLimitMin: 10,
+                  createdAt: new Date(Date.now() - 86400000).toISOString(),
+                },
+                {
+                  id: 'q-t3',
+                  title: isBn ? 'ইংরেজি: Unit 6 Eat Healthy Vocabulary' : 'English: Unit 6 Eat Healthy Vocabulary',
+                  subject: 'English for Today',
+                  questionCount: 5,
+                  difficulty: 'easy',
+                  status: 'draft',
+                  score: null,
+                  maxScore: 5,
+                  timeLimitMin: null,
+                  createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+                },
+              ]
+            : [
+                {
+                  id: 'q1',
+                  title: isBn ? 'পদার্থবিজ্ঞান ও বলবিদ্যা অধ্যায় কুইজ' : 'Physics & Newton Laws Chapter Quiz',
+                  subject: 'Physics',
+                  questionCount: 10,
+                  difficulty: 'mixed',
+                  status: 'completed',
+                  score: 9,
+                  maxScore: 10,
+                  attemptId: 'att-1',
+                  timeLimitMin: 15,
+                  createdAt: new Date().toISOString(),
+                },
+                {
+                  id: 'q2',
+                  title: isBn ? 'গণিত: বীজগাণিতিক সূত্রাবলী ও প্রয়োগ' : 'Mathematics: Algebraic Formulae Revision',
+                  subject: 'Mathematics',
+                  questionCount: 10,
+                  difficulty: 'easy',
+                  status: 'assigned',
+                  score: null,
+                  maxScore: 10,
+                  timeLimitMin: 10,
+                  createdAt: new Date(Date.now() - 86400000).toISOString(),
+                },
+                {
+                  id: 'q3',
+                  title: isBn ? 'রসায়ন: পর্যায় সারণি ও পরমাণু' : 'Chemistry: Periodic Table & Atoms',
+                  subject: 'Chemistry',
+                  questionCount: 5,
+                  difficulty: 'mixed',
+                  status: 'draft',
+                  score: null,
+                  maxScore: 5,
+                  timeLimitMin: null,
+                  createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+                },
+              ]
+        );
+      }
     } catch {
-      // Mock realistic quizzes for demo
-      setQuizzes([
-        {
-          id: 'q1',
-          title: isBn ? 'পদার্থবিজ্ঞান ও বলবিদ্যা অধ্যায় কুইজ' : 'Physics & Newton Laws Chapter Quiz',
-          subject: 'Physics',
-          questionCount: 10,
-          difficulty: 'mixed',
-          status: 'completed',
-          score: 8,
-          maxScore: 10,
-          attemptId: 'att-1',
-          timeLimitMin: 15,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'q2',
-          title: isBn ? 'গণিত: দ্বিঘাত সমীকরণ রিভিশন' : 'Mathematics: Quadratic Equations Revision',
-          subject: 'Mathematics',
-          questionCount: 10,
-          difficulty: 'easy',
-          status: 'assigned',
-          score: null,
-          maxScore: 10,
-          timeLimitMin: 10,
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-          id: 'q3',
-          title: isBn ? 'রসায়ন: পর্যায় সারণি ও যৌগ' : 'Chemistry: Periodic Table & Bonding',
-          subject: 'Chemistry',
-          questionCount: 5,
-          difficulty: 'mixed',
-          status: 'draft',
-          score: null,
-          maxScore: 5,
-          timeLimitMin: null,
-          createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
-        },
-      ]);
+      setQuizzes(
+        isTasnim
+          ? [
+              {
+                id: 'q-t1',
+                title: isBn ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু কুইজ' : 'Primary Math: Factors & LCM-HCF Quiz',
+                subject: 'Elementary Math',
+                questionCount: 5,
+                difficulty: 'easy',
+                status: 'completed',
+                score: 5,
+                maxScore: 5,
+                attemptId: 'att-t1',
+                timeLimitMin: 10,
+                createdAt: new Date().toISOString(),
+              },
+              {
+                id: 'q-t2',
+                title: isBn ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification',
+                subject: 'Primary Science',
+                questionCount: 5,
+                difficulty: 'easy',
+                status: 'assigned',
+                score: null,
+                maxScore: 5,
+                timeLimitMin: 10,
+                createdAt: new Date(Date.now() - 86400000).toISOString(),
+              },
+            ]
+          : [
+              {
+                id: 'q1',
+                title: isBn ? 'পদার্থবিজ্ঞান ও বলবিদ্যা অধ্যায় কুইজ' : 'Physics & Newton Laws Chapter Quiz',
+                subject: 'Physics',
+                questionCount: 10,
+                difficulty: 'mixed',
+                status: 'completed',
+                score: 9,
+                maxScore: 10,
+                attemptId: 'att-1',
+                timeLimitMin: 15,
+                createdAt: new Date().toISOString(),
+              },
+              {
+                id: 'q2',
+                title: isBn ? 'গণিত: বীজগাণিতিক সূত্রাবলী ও প্রয়োগ' : 'Mathematics: Algebraic Formulae Revision',
+                subject: 'Mathematics',
+                questionCount: 10,
+                difficulty: 'easy',
+                status: 'assigned',
+                score: null,
+                maxScore: 10,
+                timeLimitMin: 10,
+                createdAt: new Date(Date.now() - 86400000).toISOString(),
+              },
+            ]
+      );
     } finally {
       setLoading(false);
     }

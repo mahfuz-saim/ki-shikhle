@@ -115,16 +115,6 @@ export function Header() {
             </div>
           </Link>
 
-          {/* Student Mode Preview Button */}
-          <Link
-            href="/kid"
-            className="hidden sm:flex items-center gap-1.5 text-xs h-8 px-2.5 rounded-lg border border-primary/30 hover:border-primary text-primary hover:bg-primary/10 transition-colors font-medium"
-            title="Preview Student Portal"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>{isBn ? 'শিক্ষার্থী পোর্টাল' : 'Student Portal'}</span>
-          </Link>
-
           {/* Notifications */}
           <Link href="/notifications">
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg relative" aria-label="Notifications">
