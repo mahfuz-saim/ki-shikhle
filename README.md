@@ -27,13 +27,16 @@ ki-shikhle/
 │   ├── prisma/             # schema.prisma + seed.ts (run `db:migrate` to create migrations/)
 │   ├── scripts/            # demoSeed.ts
 │   └── src/
-├── docs/                   # PRD, decisions, security, deployment, load-test
-└── .gitignore              # repo-wide ignores
+└── docs/                   # PRD, decisions, security, deployment, load-test
 ```
 
-There is **no `package.json` at the root**: `client/` and `server/` are two independent apps with no
-shared npm workspace. Install and run each one from its own folder. The root also has no
-`tsconfig.json`, `.eslintrc`, `.prettierrc`, `.env.example` or CI workflow — only docs and `.gitignore`.
+There is **no `package.json` and no `.gitignore` at the root**: `client/` and `server/` are two
+independent apps, each with its own dependencies, scripts, `.gitignore`, `tsconfig`, eslint/prettier
+config and `.env.example`. Install and run each one from its own folder. The root holds only
+`README.md` and `docs/`.
+
+Each app's `.gitignore` covers its own env files, `node_modules`, build output, uploads, logs,
+caches and OS/IDE files, so secrets and artifacts stay out of Git with no repo-root rules.
 
 ## Quick start (two terminals — no root install)
 
@@ -79,8 +82,8 @@ env tables, migrations on deploy, CORS, backups and scaling.
 | server | `server/.env.example` | `DATABASE_URL`, `CLIENT_ORIGIN`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `PASSWORD_PEPPER`, `ANTHROPIC_API_KEY`, `AI_MODEL_FAST/SMART`, `SMTP_URL`, `STORAGE_DRIVER` (`local`\|`s3`), `TRIAL_DAYS` |
 | client | `client/.env.example` | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SITE_URL` |
 
-Secrets are never committed: `.env*` is ignored in the root, `client/` and `server/` ignore files;
-only the `.example` files are tracked.
+Secrets are never committed: `client/.gitignore` and `server/.gitignore` ignore `.env*` in their own
+folder (with `!.env.example`), so only the example files are tracked.
 
 ## Pricing (per child/month, BDT)
 
@@ -123,7 +126,7 @@ Client: `dev | build | start | lint | format | typecheck`
 E2E: `cd client/e2e && npm install && npm test`
 
 ## Phases
-- [x] 0 Foundations — monorepo, health, env, gitignore
+- [x] 0 Foundations — app folders, health, env examples, per-app gitignore
 - [x] 1 Auth & Accounts — argon2id, JWT, verify/reset, 7d purge
 - [x] 2 Children, Subjects, App Shell — PIN, seeded NCTB, sidebar/bottom nav
 - [x] 3 Learning Log & Routines — entries+revisions, weekday+exceptions, schedule compute, missed

@@ -11,7 +11,8 @@
 | 2026-10-31 | Monorepo layout (`client/` + `server/`) | Simple folder split, matches PRD |
 | 2026-10-31 | Phase 1 auth: argon2id + pepper, JWT 15m + rotating refresh httpOnly lax cookie, reuse detection revokes family | Security & UX |
 | 2026-10-31 | Forgot/reset tokens single-use hashed, 60m expiry, soft-delete 7-day grace | PRD 5.1 |
-| 2026-11-01 | Client and server keep their own config (`.env.example`, `.eslintrc.json`, `.prettierrc`, `.gitignore`, `tsconfig.json`, `docker-compose.yml`, `e2e/`); root keeps only `.gitignore` and `docs/` | Frontend and backend are deployed to different platforms, so each folder must build and run standalone without root-level files |
+| 2026-11-01 | Client and server keep their own config (`.env.example`, `.eslintrc.json`, `.prettierrc`, `.gitignore`, `tsconfig.json`, `docker-compose.yml`, `e2e/`); root keeps only `README.md` and `docs/` | Frontend and backend are deployed to different platforms, so each folder must build and run standalone without root-level files |
 | 2026-11-01 | No GitHub Actions CI workflow (removed `.github/workflows/ci.yml`) | Builds are done on the deploy platforms, not on GitHub, per request |
 | 2026-11-01 | Server loads `.env` from its own directory as well as cwd | Works when started from `server/` (platform) or from the repo root |
 | 2026-11-01 | Removed the root `package.json` (no npm workspaces): install and run `client/` and `server/` independently; Playwright in `client/e2e` starts each app from its own folder | The two apps are deployed and run separately, so a shared root install/scripts added nothing |
+| 2026-11-01 | Removed the repo-root `.gitignore`; `client/.gitignore` and `server/.gitignore` each cover env, deps, build output, uploads, logs, caches and OS/IDE files | Each app is installed and deployed on its own, so ignore rules belong to the app; verified no tracked file becomes ignored |

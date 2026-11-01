@@ -1,10 +1,16 @@
-# Env (deploy: set in platform dashboard, e.g. Vercel/Netlify)
+# ---- Client (Next.js 14) — deploy this folder ----
+
+# Env (set these in the platform dashboard; never commit real values)
 .env
 .env.*
 !.env.example
 
-# Build & deps
+# Dependencies
 node_modules/
+.pnp/
+.pnp.js
+
+# Build output
 .next/
 out/
 build/
@@ -12,10 +18,34 @@ coverage/
 *.tsbuildinfo
 next-env.d.ts
 
-# Test output
+# Test output (Playwright lives in client/e2e)
 playwright-report/
 test-results/
+blob-report/
+.nyc_output/
 
-# Logs & OS
+# Logs
+logs/
 *.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Caches
+.cache/
+.turbo/
+.tmp/
+.temp/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.suo
+*.sw?
