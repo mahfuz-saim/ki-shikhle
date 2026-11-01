@@ -2,7 +2,8 @@
 
 `client/` and `server/` are self-contained: each folder has its own `package.json`, `tsconfig`,
 eslint/prettier config, `.env.example` and `.gitignore`. Point each platform at one folder as its
-**root directory** and nothing from the repo root is required.
+**root directory** and nothing from the repo root is required — there is no root `package.json`,
+so install/run each app from inside its own folder (`cd server && npm install`, `cd client && npm install`).
 
 ## 1. Database (PostgreSQL 16)
 

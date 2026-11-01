@@ -28,52 +28,46 @@ ki-shikhle/
 │   ├── scripts/            # demoSeed.ts
 │   └── src/
 ├── docs/                   # PRD, decisions, security, deployment, load-test
-├── package.json            # root convenience only: runs both workspaces in dev
 └── .gitignore              # repo-wide ignores
 ```
 
-Nothing the apps need lives at the root: no root `tsconfig.json`, `.eslintrc`, `.prettierrc`,
-`.env.example`, or CI workflow. The root `package.json` is only a dev convenience (npm workspaces);
-you can delete it and run each app on its own.
+There is **no `package.json` at the root**: `client/` and `server/` are two independent apps with no
+shared npm workspace. Install and run each one from its own folder. The root also has no
+`tsconfig.json`, `.eslintrc`, `.prettierrc`, `.env.example` or CI workflow — only docs and `.gitignore`.
 
-## Quick start (local, both apps)
+## Quick start (two terminals — no root install)
 
-```bash
-cp server/.env.example server/.env     # edit secrets
-cp client/.env.example client/.env.local
-
-cd server && docker compose up -d      # PostgreSQL 16 + Redis (dev infra) — or set DATABASE_URL to a managed DB
-cd .. && npm install                   # installs both workspaces (root convenience)
-npm run db:generate --workspace=server
-npm run db:migrate --workspace=server  # creates prisma/migrations — commit them
-npm run db:seed --workspace=server     # plans + NCTB subjects
-npm run demo:seed --workspace=server   # optional: parent@demo.com / DemoPass1 + demo child
-
-npm run dev                            # server :5000  client :3000
-```
-
-### Run / deploy each app on its own
-
-**Server**
+**Terminal 1 — API**
 ```bash
 cd server
-cp .env.example .env
+cp .env.example .env           # edit secrets (DATABASE_URL, JWT_*, ANTHROPIC_API_KEY…)
 npm install
-npm run db:generate && npm run db:migrate   # locally; commit prisma/migrations
-npm run dev                                 # tsx watch
-npm run build && npm start                  # tsc + node dist/index.js
+docker compose up -d           # local PostgreSQL 16 + Redis — or point DATABASE_URL at a managed DB
+npm run db:generate
+npm run db:migrate             # creates prisma/migrations — commit them
+npm run db:seed                # plans + NCTB subjects
+npm run demo:seed              # optional: parent@demo.com / DemoPass1 + demo child
+npm run dev                    # http://localhost:5000/api/v1/health
 ```
-Health check: `GET /api/v1/health`.
 
-**Client**
+**Terminal 2 — Web**
 ```bash
 cd client
-cp .env.example .env.local
+cp .env.example .env.local     # NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api/v1
 npm install
-npm run dev        # next dev
-npm run build && npm start
+npm run dev                    # http://localhost:3000
 ```
-The client talks to the API only through `NEXT_PUBLIC_API_BASE_URL`; there are no hardcoded URLs.
+
+### Production build
+
+```bash
+# server
+cd server && npm ci && npm run build && npm start   # tsc → dist/index.js
+# client
+cd client && npm ci && npm run build && npm start   # .next
+```
+Health check: `GET /api/v1/health`. The client talks to the API only through
+`NEXT_PUBLIC_API_BASE_URL`; there are no hardcoded URLs.
 
 See `docs/deployment.md` for platform-specific steps (Vercel/Netlify + Render/Railway/Fly/VPS),
 env tables, migrations on deploy, CORS, backups and scaling.
@@ -122,9 +116,8 @@ Prisma parameterised queries, upload magic-byte validation, audit logs. See `doc
 API p95 <300ms (non-AI), AI async with status polling, idempotency on quiz generation/checkout,
 retries with backoff, indexes on `(child_id, date)`, stateless server, pino logging. See `docs/load-test.md`.
 
-## Scripts
+## Scripts (run from inside each folder)
 
-Root (dev convenience): `npm run dev | build | start | typecheck | test`
 Server: `dev | build | start | lint | format | typecheck | test | db:generate | db:migrate | db:deploy | db:push | db:seed | db:studio | demo:seed`
 Client: `dev | build | start | lint | format | typecheck`
 E2E: `cd client/e2e && npm install && npm test`

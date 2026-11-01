@@ -8,9 +8,10 @@
 | 2026-10-31 | Tesseract.js client-side first | Cost saving, privacy; AI vision only fallback |
 | 2026-10-31 | Anthropic Claude haiku for digests/quizzes, sonnet for explanations | Cost control, env-configurable |
 | 2026-10-31 | Indigo primary + amber accent, red only for errors | Trust/focus, avoids alarm fatigue for parents |
-| 2026-10-31 | Monorepo with npm workspaces | Simple, no extra tooling, matches PRD |
+| 2026-10-31 | Monorepo layout (`client/` + `server/`) | Simple folder split, matches PRD |
 | 2026-10-31 | Phase 1 auth: argon2id + pepper, JWT 15m + rotating refresh httpOnly lax cookie, reuse detection revokes family | Security & UX |
 | 2026-10-31 | Forgot/reset tokens single-use hashed, 60m expiry, soft-delete 7-day grace | PRD 5.1 |
-| 2026-11-01 | Client and server keep their own config (`.env.example`, `.eslintrc.json`, `.prettierrc`, `.gitignore`, `tsconfig.json`, `docker-compose.yml`, `e2e/`); root keeps only workspaces `package.json`, `.gitignore`, `README.md`, `docs/` | Frontend and backend are deployed to different platforms, so each folder must build and run standalone without root-level files |
+| 2026-11-01 | Client and server keep their own config (`.env.example`, `.eslintrc.json`, `.prettierrc`, `.gitignore`, `tsconfig.json`, `docker-compose.yml`, `e2e/`); root keeps only `.gitignore` and `docs/` | Frontend and backend are deployed to different platforms, so each folder must build and run standalone without root-level files |
 | 2026-11-01 | No GitHub Actions CI workflow (removed `.github/workflows/ci.yml`) | Builds are done on the deploy platforms, not on GitHub, per request |
-| 2026-11-01 | Server loads `.env` from its own directory as well as cwd | Works when started from `server/` (platform) or repo root (`npm run dev --workspace=server`) |
+| 2026-11-01 | Server loads `.env` from its own directory as well as cwd | Works when started from `server/` (platform) or from the repo root |
+| 2026-11-01 | Removed the root `package.json` (no npm workspaces): install and run `client/` and `server/` independently; Playwright in `client/e2e` starts each app from its own folder | The two apps are deployed and run separately, so a shared root install/scripts added nothing |

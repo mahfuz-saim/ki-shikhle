@@ -1,6 +1,8 @@
 # E2E (Playwright)
 
-Lives inside `client/` because it drives the frontend; it boots both apps locally.
+Lives in `client/` because it drives the frontend. There is no root `package.json` — the config
+starts each app from its own folder (`../../server` and `..`), so both apps must be installed
+(`npm install` in `server/` and `client/`) and have their `.env` in place.
 
 ```bash
 cd client/e2e
@@ -8,4 +10,5 @@ npm install
 npx playwright install
 npm test
 ```
-Set `NEXT_PUBLIC_API_BASE_URL` (client) and server env first; `reuseExistingServer: true` will reuse running dev servers if present.
+
+`reuseExistingServer: true` will attach to dev servers you already have running.
