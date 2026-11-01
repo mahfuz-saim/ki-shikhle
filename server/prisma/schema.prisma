@@ -133,7 +133,7 @@ model Child {
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
   parent User @relation(fields: [parentId], references: [id], onDelete: Cascade)
-  subjects Subject[] // via join? simplified
+  subjects Subject[] // subjects this child studies (seeded by grade + custom)
   learningEntries LearningEntry[]
   routines Routine[]
   notes Note[]
@@ -157,6 +157,8 @@ model Subject {
   createdAt  DateTime @default(now()) @map("created_at")
 
   customOwner User? @relation("CustomSubjects", fields: [parentId], references: [id])
+  // implicit many-to-many: which children study this subject
+  children Child[]
 
   @@index([curriculum, grade])
   @@map("subjects")
