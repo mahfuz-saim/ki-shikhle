@@ -31,11 +31,9 @@ ENABLE_CRON = "false"
 DATABASE_ADAPTER = "pg"
 
 # ---- Postgres over Hyperdrive (connection pooling from the edge) --------------
-# 1. npx wrangler hyperdrive create ki-shikhle-pg --connection-string "<postgres-url>"
-# 2. paste the returned id below; put the Hyperdrive connection string in DATABASE_URL
-# [[hyperdrive]]
-# binding = "HYPERDRIVE"
-# id = "<hyperdrive-id>"
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "daa6a2c04818411fa8ff7a5000891537"
 
 # ---- Optional: direct R2 binding (the app uses the S3 API, so this is not required)
 # [[r2_buckets]]
