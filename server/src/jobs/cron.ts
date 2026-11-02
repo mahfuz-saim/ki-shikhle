@@ -5,7 +5,6 @@
  * the `scheduled` handler in `src/worker.ts`. That is why this file is imported only by
  * `src/index.ts` and never by `src/worker.ts`.
  */
-import cron from 'node-cron';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { runAllJobs, runCleanup, runTrialReminders } from './jobs';
@@ -15,6 +14,8 @@ export function startCrons() {
     logger.info('⏰ In-process cron disabled (ENABLE_CRON=false) — use POST /api/v1/jobs/run');
     return;
   }
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const cron = require('node-cron');
   cron.schedule('0 3 * * *', async () => {
     try {
       logger.info(await runTrialReminders(), 'trial reminder cron');

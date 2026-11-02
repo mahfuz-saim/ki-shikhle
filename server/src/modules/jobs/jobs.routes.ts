@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from '../../platform/express-compat';
 import { env } from '../../config/env';
-import { runAllJobs } from '../../jobs/cron';
+import { runAllJobs } from '../../jobs/jobs';
 import { unauthorized } from '../../utils/errors';
 
 /**
