@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -115,8 +116,23 @@ export default function LoginPage() {
 
         <Card className="rounded-3xl border shadow-xl bg-card">
           <CardHeader className="text-center pb-2">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white font-black text-2xl flex items-center justify-center mx-auto shadow-md shadow-indigo-600/20 mb-2">
-              কি
+            <div className="flex justify-center mb-2.5">
+              <Image
+                src="/logo-light.png"
+                alt="কি শিখলে?"
+                width={260}
+                height={112}
+                priority
+                className="h-12 w-auto object-contain dark:hidden"
+              />
+              <Image
+                src="/logo-dark.png"
+                alt="কি শিখলে?"
+                width={260}
+                height={112}
+                priority
+                className="h-12 w-auto object-contain hidden dark:block"
+              />
             </div>
             <CardTitle className="text-2xl font-black text-foreground">
               {isBn ? 'লগইন করুন' : 'Welcome Back'}

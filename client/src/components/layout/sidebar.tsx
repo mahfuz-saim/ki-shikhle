@@ -45,18 +45,23 @@ export function Sidebar() {
     <aside className="hidden md:flex flex-col w-64 border-r bg-card/60 backdrop-blur-md sticky top-0 h-screen select-none z-30">
       {/* Brand Header */}
       <div className="p-4 border-b flex items-center justify-between">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white font-black text-lg shadow-md shadow-indigo-600/25">
-            কি
-          </div>
-          <div>
-            <span className="font-extrabold text-base tracking-tight text-foreground">
-              কি শিখলে?
-            </span>
-            <span className="block text-[10px] font-semibold text-primary uppercase tracking-wider">
-              {isBn ? 'অভিভাবক ড্যাশবোর্ড' : 'Parent Tracker'}
-            </span>
-          </div>
+        <Link href="/dashboard" className="flex items-center group py-0.5">
+          <Image
+            src="/logo-light.png"
+            alt="কি শিখলে?"
+            width={240}
+            height={103}
+            priority
+            className="h-12 md:h-13 w-auto object-contain dark:hidden group-hover:scale-105 transition-transform"
+          />
+          <Image
+            src="/logo-dark.png"
+            alt="কি শিখলে?"
+            width={240}
+            height={103}
+            priority
+            className="h-12 md:h-13 w-auto object-contain hidden dark:block group-hover:scale-105 transition-transform"
+          />
         </Link>
       </div>
 

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import {
   Bell,
@@ -36,10 +37,21 @@ export function Header() {
       <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-md px-4 md:px-6 py-2.5 flex items-center justify-between gap-3">
         {/* Mobile brand & Left section */}
         <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="md:hidden flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white font-black text-sm">
-              কি
-            </div>
+          <Link href="/dashboard" className="md:hidden flex items-center">
+            <Image
+              src="/logo-light.png"
+              alt="কি শিখলে?"
+              width={180}
+              height={77}
+              className="h-9 w-auto object-contain dark:hidden"
+            />
+            <Image
+              src="/logo-dark.png"
+              alt="কি শিখলে?"
+              width={180}
+              height={77}
+              className="h-9 w-auto object-contain hidden dark:block"
+            />
           </Link>
 
           {/* Active Child Selector Dropdown */}

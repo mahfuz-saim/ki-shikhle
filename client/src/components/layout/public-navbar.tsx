@@ -44,23 +44,26 @@ export function PublicNavbar() {
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
         {/* Brand & Hackathon Sticker */}
         <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white font-black text-xl shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-              কি
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-lg tracking-tight text-foreground">
-                  {isBn ? 'কি শিখলে?' : 'Ki Shikhle?'}
-                </span>
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium">
-                  Beta
-                </Badge>
-              </div>
-              <p className="text-[10px] text-muted-foreground font-medium hidden sm:block">
-                {isBn ? 'অভিভাবকদের লার্নিং ট্র্যাকার' : 'Parent Learning Tracker'}
-              </p>
-            </div>
+          <Link href="/" className="flex items-center gap-2 group py-0.5">
+            <Image
+              src="/logo-light.png"
+              alt="কি শিখলে?"
+              width={260}
+              height={112}
+              priority
+              className="h-9 sm:h-10 w-auto object-contain transition-transform group-hover:scale-105 dark:hidden"
+            />
+            <Image
+              src="/logo-dark.png"
+              alt="কি শিখলে?"
+              width={260}
+              height={112}
+              priority
+              className="h-9 sm:h-10 w-auto object-contain transition-transform group-hover:scale-105 hidden dark:block"
+            />
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium hidden sm:inline-flex self-center">
+              Beta
+            </Badge>
           </Link>
 
           {/* Desktop/Tablet Hackathon Sticker (No link) */}
