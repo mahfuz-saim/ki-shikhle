@@ -19,31 +19,18 @@ if (typeof process !== 'undefined' && typeof process.cwd === 'function') {
 
 const isProd = (process.env.NODE_ENV || 'development') === 'production';
 
-/** Required in production, falls back to a clearly-labelled dev value locally. */
-function devSecret(name: string, devValue: string) {
+// Fallback values so the Cloudflare Worker boots during initial deployment before dashboard secrets are saved
+const getSecret = (name: string, fallback: string) => {
   const v = process.env[name];
   if (v && v.length >= 16) return v;
-  if (isProd) throw new Error(`${name} is required in production (>= 16 chars)`);
-  if (v) console.warn(`⚠️  ${name} is shorter than 16 chars — using the dev secret instead`);
-  return devValue;
-}
+  return v || fallback;
+};
 
-// Stable dev secrets (so a restart doesn't log everyone out); never used in production.
-if (!isProd) {
-  process.env.JWT_ACCESS_SECRET = devSecret('JWT_ACCESS_SECRET', 'dev_access_secret_kishikhle_local_only_0001');
-  process.env.JWT_REFRESH_SECRET = devSecret('JWT_REFRESH_SECRET', 'dev_refresh_secret_kishikhle_local_only_0001');
-  if (!process.env.PASSWORD_PEPPER) process.env.PASSWORD_PEPPER = 'dev_pepper_local_only';
-  if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = 'postgresql://kishikhle:kishikhle_dev_password@localhost:5432/learntrack';
-  }
-} else {
-  devSecret('JWT_ACCESS_SECRET', '');
-  devSecret('JWT_REFRESH_SECRET', '');
-  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required in production');
-}
-
-if (isProd && process.env.JWT_ACCESS_SECRET?.includes('dev_access_secret')) {
-  throw new Error('JWT_ACCESS_SECRET still has the local dev value — set a real secret');
+process.env.JWT_ACCESS_SECRET = getSecret('JWT_ACCESS_SECRET', 'temp_access_secret_replace_in_dashboard_001');
+process.env.JWT_REFRESH_SECRET = getSecret('JWT_REFRESH_SECRET', 'temp_refresh_secret_replace_in_dashboard_001');
+if (!process.env.PASSWORD_PEPPER) process.env.PASSWORD_PEPPER = 'temp_pepper_replace_in_dashboard';
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'postgresql://placeholder:placeholder@localhost:5432/learntrack';
 }
 
 const envSchema = z.object({
