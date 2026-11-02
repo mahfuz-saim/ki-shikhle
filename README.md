@@ -1,6 +1,6 @@
 # Ki Shikhle? — Parent Learning Tracker
 
-**NCTB-aware, Bangladesh-first, multi-country ready.** Parents see what their children actually learned; children log in under 1 minute; AI quizzes from real notes.
+Parents see what their children actually learned; children log in under 1 minute; AI quizzes from real notes.
 
 ## Repo layout — `client/` and `server/` are self-contained
 
@@ -41,6 +41,7 @@ caches and OS/IDE files, so secrets and artifacts stay out of Git with no repo-r
 ## Quick start (two terminals — no root install)
 
 **Terminal 1 — API**
+
 ```bash
 cd server
 cp .env.example .env           # edit secrets (DATABASE_URL, JWT_*, ANTHROPIC_API_KEY…)
@@ -54,6 +55,7 @@ npm run dev                    # http://localhost:5000/api/v1/health
 ```
 
 **Terminal 2 — Web**
+
 ```bash
 cd client
 cp .env.example .env.local     # NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api/v1
@@ -75,23 +77,25 @@ cd client && npm ci && npm run build && npm start   # .next
 Both apps ship with working defaults, so you can clone and run without configuring anything.
 Anything you leave unset degrades instead of crashing:
 
-| Left unset | What happens |
-|---|---|
-| `server/.env` (nothing set) | Dev JWT secrets/pepper are used automatically; `DATABASE_URL` defaults to the docker-compose Postgres |
-| Postgres not running | `⚠️ DB connection failed (running without DB)` — the API still serves `/api/v1/health`, and modules fall back to in-memory data |
-| Prisma client not generated | Same fallback, with a hint to run `npm run db:generate` |
-| `ANTHROPIC_API_KEY` | AI returns deterministic **mock** digests/quizzes/explanations (logged as `AI mock response`) — perfect for UI work, costs nothing |
-| `SMTP_URL` | Emails are printed to the server console instead of sent |
-| `STORAGE_DRIVER` | `local` — uploads go to `server/uploads/` |
-| `client/.env.local` | The client defaults to `http://localhost:5000/api/v1` |
+| Left unset                  | What happens                                                                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `server/.env` (nothing set) | Dev JWT secrets/pepper are used automatically; `DATABASE_URL` defaults to the docker-compose Postgres                              |
+| Postgres not running        | `⚠️ DB connection failed (running without DB)` — the API still serves `/api/v1/health`, and modules fall back to in-memory data    |
+| Prisma client not generated | Same fallback, with a hint to run `npm run db:generate`                                                                            |
+| `ANTHROPIC_API_KEY`         | AI returns deterministic **mock** digests/quizzes/explanations (logged as `AI mock response`) — perfect for UI work, costs nothing |
+| `SMTP_URL`                  | Emails are printed to the server console instead of sent                                                                           |
+| `STORAGE_DRIVER`            | `local` — uploads go to `server/uploads/`                                                                                          |
+| `client/.env.local`         | The client defaults to `http://localhost:5000/api/v1`                                                                              |
 
 Zero-config run (no database, mock AI):
+
 ```bash
 cd server && npm install && npm run db:generate && npm run dev   # http://localhost:5000/api/v1/health
 cd client && npm install && npm run dev                          # http://localhost:3000
 ```
 
 With a real database (recommended as soon as you touch data):
+
 ```bash
 cd server
 npm run setup                 # writes .env with fresh random JWT secrets (never overwrites)
@@ -102,12 +106,14 @@ npm run dev
 ```
 
 Add real services only when you need them — edit `server/.env`:
+
 ```bash
 ANTHROPIC_API_KEY=sk-ant-...      # real AI
 SMTP_URL=smtp://user:pass@host:587
 STORAGE_DRIVER=r2                 # Cloudflare R2 / any S3-compatible bucket
 CRON_SECRET=$(openssl rand -hex 32)
 ```
+
 Health check: `GET /api/v1/health`. The client talks to the API only through
 `NEXT_PUBLIC_API_BASE_URL`; there are no hardcoded URLs.
 
@@ -116,24 +122,24 @@ env tables, migrations on deploy, CORS, backups and scaling.
 
 ## Env
 
-| App | Example file | Key variables |
-|-----|--------------|---------------|
-| server | `server/.env.example` | `DATABASE_URL`, `CLIENT_ORIGIN`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `PASSWORD_PEPPER`, `ANTHROPIC_API_KEY`, `AI_MODEL_FAST/SMART`, `SMTP_URL`, `STORAGE_DRIVER` (`local`\|`s3`), `TRIAL_DAYS` |
-| client | `client/.env.example` | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SITE_URL` (both optional locally) |
-| storage | `server/.env.example` | `STORAGE_DRIVER=local\|r2\|s3`, `R2_BUCKET`, `R2_ENDPOINT`, `R2_REGION`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_URL` |
-| jobs/net | `server/.env.example` | `ENABLE_CRON`, `CRON_SECRET`, `TRUST_PROXY`, `COOKIE_DOMAIN` |
+| App      | Example file          | Key variables                                                                                                                                                                                         |
+| -------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| server   | `server/.env.example` | `DATABASE_URL`, `CLIENT_ORIGIN`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `PASSWORD_PEPPER`, `ANTHROPIC_API_KEY`, `AI_MODEL_FAST/SMART`, `SMTP_URL`, `STORAGE_DRIVER` (`local`\|`s3`), `TRIAL_DAYS` |
+| client   | `client/.env.example` | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SITE_URL` (both optional locally)                                                                                                                            |
+| storage  | `server/.env.example` | `STORAGE_DRIVER=local\|r2\|s3`, `R2_BUCKET`, `R2_ENDPOINT`, `R2_REGION`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_URL`                                                                  |
+| jobs/net | `server/.env.example` | `ENABLE_CRON`, `CRON_SECRET`, `TRUST_PROXY`, `COOKIE_DOMAIN`                                                                                                                                          |
 
 Secrets are never committed: `client/.gitignore` and `server/.gitignore` ignore `.env*` in their own
 folder (with `!.env.example`), so only the example files are tracked.
 
 ## Pricing (per child/month, BDT)
 
-| Plan | Price | Includes |
-|------|-------|----------|
-| Trial | Free 15d | Full Standard, 2 kids |
-| Starter | ৳149 | 10 quizzes/mo, 3mo history |
-| Standard | ৳299 | 40 quizzes/mo, explanations, 12mo |
-| Premium | ৳499 | 120 quizzes/mo, vision OCR, unlimited |
+| Plan     | Price    | Includes                              |
+| -------- | -------- | ------------------------------------- |
+| Trial    | Free 15d | Full Standard, 2 kids                 |
+| Starter  | ৳149     | 10 quizzes/mo, 3mo history            |
+| Standard | ৳299     | 40 quizzes/mo, explanations, 12mo     |
+| Premium  | ৳499     | 120 quizzes/mo, vision OCR, unlimited |
 
 Sibling 25% off 2nd, 35% off 3rd+. Annual pay 10 get 12. Plans are seeded rows — prices are data, not code.
 
@@ -149,14 +155,17 @@ Billing plans/subscription/demo-checkout/cancel/invoices • Notifications • A
 Every endpoint: zod validation + auth + ownership check at the query level + tests.
 
 ## Theme & i18n
+
 Indigo `#4F46E5` primary, amber accent, red only for errors. Dark/light/system via next-themes, CSS variables, no flash.
 `en` + `bn` via next-intl, Noto Sans Bengali + Inter, Asia/Dhaka.
 
 ## Security
+
 argon2id + pepper, JWT 15m + rotating refresh (reuse revokes family), rate limits, helmet, CORS allowlist, zod,
 Prisma parameterised queries, upload magic-byte validation, audit logs. See `docs/security.md`.
 
 ## Performance & reliability
+
 API p95 <300ms (non-AI), AI async with status polling, idempotency on quiz generation/checkout,
 retries with backoff, indexes on `(child_id, date)`, stateless server, pino logging. See `docs/load-test.md`.
 
@@ -190,12 +199,12 @@ R2_SECRET_ACCESS_KEY=...
 
 See `docs/deployment.md` for the full walkthrough. The short version:
 
-| | Vercel (client) | Cloudflare **Workers** (server) |
-|---|---|---|
-| Root directory | `client` | `server` |
-| Build | `npm install && npm run build` | `npx prisma generate --no-engine` then `npx wrangler deploy` |
-| Start | (Next.js managed) | handled by Cloudflare (`src/worker.ts`) |
-| Env | `NEXT_PUBLIC_API_BASE_URL=https://<worker-host>/api/v1`, `NEXT_PUBLIC_SITE_URL` | `[vars]` in `wrangler.toml` + `wrangler secret put` (see `server/.dev.vars.example`) |
+|                | Vercel (client)                                                                 | Cloudflare **Workers** (server)                                                      |
+| -------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Root directory | `client`                                                                        | `server`                                                                             |
+| Build          | `npm install && npm run build`                                                  | `npx prisma generate --no-engine` then `npx wrangler deploy`                         |
+| Start          | (Next.js managed)                                                               | handled by Cloudflare (`src/worker.ts`)                                              |
+| Env            | `NEXT_PUBLIC_API_BASE_URL=https://<worker-host>/api/v1`, `NEXT_PUBLIC_SITE_URL` | `[vars]` in `wrangler.toml` + `wrangler secret put` (see `server/.dev.vars.example`) |
 
 The API runs on Hono with a small Express-compatibility layer, so it also runs on plain Node
 (`cd server && npm run dev`) — Express, `argon2` (native), pino, multer and `node-cron` were
@@ -203,6 +212,7 @@ replaced with Workers-safe equivalents (`hash-wasm`, Web Crypto, R2, Cron Trigge
 adapter over Hyperdrive). Details in `docs/deployment.md`.
 
 Cross-origin set-up that matters (API and web are on different domains):
+
 - `CLIENT_ORIGIN` — comma-separated list of web origins (production + `*.vercel.app` previews)
 - Refresh cookie is `SameSite=None; Secure` automatically when `NODE_ENV=production`
 - `TRUST_PROXY=true` so `req.ip`/protocol come from Cloudflare's headers
@@ -217,6 +227,7 @@ Server (Cloudflare): `dev:worker` (wrangler dev) • `deploy` (wrangler deploy) 
 E2E: `cd client/e2e && npm install && npm test`
 
 ## Phases
+
 - [x] 0 Foundations — app folders, health, env examples, per-app gitignore
 - [x] 1 Auth & Accounts — argon2id, JWT, verify/reset, 7d purge
 - [x] 2 Children, Subjects, App Shell — PIN, seeded NCTB, sidebar/bottom nav
@@ -229,11 +240,14 @@ E2E: `cd client/e2e && npm install && npm test`
 - [x] 9 Hardening — security, Playwright, load, deployment docs, privacy/terms, per-app config split
 
 ## Decisions
+
 See `docs/decisions.md`.
 
 ## Git & branching
+
 Work is on `arena/ba64f1fa-ki-shikhle` (tracked session branch); each phase was committed and pushed in order.
 Open a PR from this branch into `main`.
 
 ## License
+
 Proprietary — demo for Parent Learning Tracker.
