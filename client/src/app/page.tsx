@@ -16,7 +16,6 @@ import {
   Camera,
   CheckCircle2,
   ArrowRight,
-  Flame,
   Award,
   Clock,
   ShieldCheck,
@@ -49,16 +48,6 @@ export default function HomePage() {
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[350px] bg-gradient-to-tr from-indigo-500/15 via-purple-500/10 to-amber-500/10 blur-3xl pointer-events-none rounded-full -z-10" />
 
           <div className="container max-w-6xl mx-auto px-4 sm:px-6 text-center space-y-7">
-            {/* Top Pill */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 text-xs font-semibold shadow-xs animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>
-                {isBn
-                  ? 'স্মার্ট লার্নিং ও প্রাইভেট টিউশন প্রগ্রেস ট্র্যাকার'
-                  : 'Intelligent Study & Tuition Progress Tracker'}
-              </span>
-            </div>
-
             {/* Headline */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-foreground leading-[1.16] max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-3 duration-700">
               {isBn ? (
@@ -111,110 +100,6 @@ export default function HomePage() {
               </span>
             </div>
 
-            {/* Interactive Showcase Mockup Card */}
-            <div className="pt-10 max-w-4xl mx-auto">
-              <div className="relative rounded-3xl border bg-card/80 backdrop-blur-xl shadow-2xl p-4 sm:p-6 text-left transition-all hover:shadow-indigo-500/10">
-                {/* Header of showcase */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-                      কি
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground">
-                        {isBn ? 'আজকের লার্নিং স্ট্যাটাস' : "Today's Study Snapshot"}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {isBn ? 'রহিম আহমেদ • ৮ম শ্রেণি' : 'Rahim Ahmed • Class 8'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1">
-                      <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                      5-Day Streak
-                    </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs">
-                      88% Avg Score
-                    </span>
-                  </div>
-                </div>
-
-                {/* Body mockup grid */}
-                <div className="grid sm:grid-cols-3 gap-3.5 pt-4">
-                  {/* Card 1: Today's log */}
-                  <div className="p-3.5 rounded-2xl bg-muted/40 border space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-foreground flex items-center gap-1.5">
-                        <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
-                        {isBn ? 'টিউশন লগ' : 'Tuition Log'}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">4:30 PM</span>
-                    </div>
-                    <p className="text-xs font-bold text-foreground truncate">
-                      Algebra: Quadratic Equations
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {isBn ? 'সূত্র প্রয়োগ ও অনুশীলনী ৩.১' : 'Formula application & exercise 3.1'}
-                    </p>
-                    <div className="pt-1 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                        Logged in 45 sec
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Card 2: AI Quiz generated */}
-                  <div className="p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/50 dark:border-indigo-800/40 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
-                        <Brain className="w-3.5 h-3.5" />
-                        {isBn ? 'এআই কুইজ প্রস্তুত' : 'AI Quiz Ready'}
-                      </span>
-                      <Badge variant="outline" className="text-[10px] bg-background">
-                        4 MCQs
-                      </Badge>
-                    </div>
-                    <p className="text-xs font-bold text-foreground">
-                      Concept Check: Roots of Quadratic
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {isBn ? 'খাতার সূত্র থেকে স্বয়ংক্রিয় প্রশ্ন' : 'Generated from notebook photo'}
-                    </p>
-                    <div className="pt-1">
-                      <div className="h-1.5 w-full bg-indigo-200/60 dark:bg-indigo-900 rounded-full overflow-hidden">
-                        <div className="h-full bg-indigo-600 rounded-full w-[88%]" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card 3: Weekly breakdown */}
-                  <div className="p-3.5 rounded-2xl bg-muted/40 border space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-foreground flex items-center gap-1.5">
-                        <BarChart3 className="w-3.5 h-3.5 text-amber-500" />
-                        {isBn ? 'সাপ্তাহিক স্টাডি' : 'Weekly Time'}
-                      </span>
-                      <span className="text-[11px] font-bold text-foreground">7.5 hrs</span>
-                    </div>
-                    <div className="space-y-1.5 pt-1 text-[11px]">
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>Math & Science</span>
-                        <span className="font-semibold text-foreground">65%</span>
-                      </div>
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>English & ICT</span>
-                        <span className="font-semibold text-foreground">35%</span>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold pt-1">
-                      ✓ Routine on track
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 

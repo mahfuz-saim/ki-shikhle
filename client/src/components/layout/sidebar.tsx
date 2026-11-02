@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -81,6 +82,17 @@ export function Sidebar() {
             </Link>
           );
         })}
+      </div>
+
+      {/* Buildathon Sticker (No background link) */}
+      <div className="px-3.5 py-2.5 border-t bg-muted/20">
+        <Image
+          src="/built-for-aignite.png"
+          alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
+          width={240}
+          height={85}
+          className="w-full h-auto object-contain"
+        />
       </div>
 
       {/* User profile & footer */}

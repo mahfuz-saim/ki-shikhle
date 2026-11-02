@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
@@ -28,26 +29,52 @@ export function PublicNavbar() {
 
   return (
     <header className="border-b bg-background/80 backdrop-blur-xl sticky top-0 z-50">
+      {/* Mobile Hackathon Sticker Strip */}
+      <div className="sm:hidden border-b bg-background/95 py-1.5 px-4 flex items-center justify-center">
+        <Image
+          src="/built-for-aignite.png"
+          alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
+          width={180}
+          height={64}
+          priority
+          className="h-6 w-auto object-contain"
+        />
+      </div>
+
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
-        {/* Brand */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white font-black text-xl shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-            কি
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-lg tracking-tight text-foreground">
-                {isBn ? 'কি শিখলে?' : 'Ki Shikhle?'}
-              </span>
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium">
-                Beta
-              </Badge>
+        {/* Brand & Hackathon Sticker */}
+        <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white font-black text-xl shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+              কি
             </div>
-            <p className="text-[10px] text-muted-foreground font-medium hidden sm:block">
-              {isBn ? 'অভিভাবকদের লার্নিং ট্র্যাকার' : 'Parent Learning Tracker'}
-            </p>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-lg tracking-tight text-foreground">
+                  {isBn ? 'কি শিখলে?' : 'Ki Shikhle?'}
+                </span>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium">
+                  Beta
+                </Badge>
+              </div>
+              <p className="text-[10px] text-muted-foreground font-medium hidden sm:block">
+                {isBn ? 'অভিভাবকদের লার্নিং ট্র্যাকার' : 'Parent Learning Tracker'}
+              </p>
+            </div>
+          </Link>
+
+          {/* Desktop/Tablet Hackathon Sticker (No link) */}
+          <div className="hidden sm:flex items-center pl-3 border-l border-border/60">
+            <Image
+              src="/built-for-aignite.png"
+              alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
+              width={220}
+              height={78}
+              priority
+              className="h-8 md:h-9 w-auto object-contain"
+            />
           </div>
-        </Link>
+        </div>
 
         {/* Center links with smooth scrolling */}
         <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-muted-foreground">
