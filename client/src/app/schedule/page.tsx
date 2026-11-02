@@ -43,7 +43,6 @@ export default function SchedulePage() {
   const [schedule, setSchedule] = useState<any>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
-  const [quickLogModalOpen, setQuickLogModalOpen] = useState(false);
   const [selectedRoutine, setSelectedRoutine] = useState<any>(null);
 
   // Form for new routine
@@ -63,12 +62,6 @@ export default function SchedulePage() {
     newStartTime: '16:00',
   });
 
-  // Quick log form
-  const [quickLogForm, setQuickLogForm] = useState({
-    topic: '',
-    source: 'tuition',
-    duration: 60,
-  });
 
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
@@ -294,25 +287,6 @@ export default function SchedulePage() {
     }
   };
 
-  const handleQuickLog = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await api.post(`/children/${childId}/entries`, {
-        source: quickLogForm.source,
-        topicsText: quickLogForm.topic,
-        durationMin: quickLogForm.duration,
-        date: new Date().toISOString().slice(0, 10),
-      });
-      setQuickLogModalOpen(false);
-      setQuickLogForm({ topic: '', source: 'tuition', duration: 60 });
-      setMsg(isBn ? 'পড়ার লগ সংরক্ষিত হয়েছে!' : 'Study log recorded successfully!');
-    } catch {
-      setQuickLogModalOpen(false);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <AppShell>
@@ -331,18 +305,6 @@ export default function SchedulePage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => {
-                setQuickLogForm({ topic: '', source: 'tuition', duration: 60 });
-                setQuickLogModalOpen(true);
-              }}
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs h-9"
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>{isBn ? 'কুইক লগ' : 'Quick Log'}</span>
-            </Button>
             <Button
               onClick={() => setCreateModalOpen(true)}
               size="sm"
@@ -685,61 +647,6 @@ export default function SchedulePage() {
         </form>
       </Modal>
 
-      {/* Quick Log Modal */}
-      <Modal
-        isOpen={quickLogModalOpen}
-        onClose={() => setQuickLogModalOpen(false)}
-        title="Quick Log Lesson"
-        description="Log today's study topic in under 1 minute."
-        maxWidth="sm"
-      >
-        <form onSubmit={handleQuickLog} className="space-y-4 pt-1">
-          <div>
-            <Label className="text-xs font-semibold">What was learned today? (Topic)</Label>
-            <Input
-              value={quickLogForm.topic}
-              onChange={(e) => setQuickLogForm({ ...quickLogForm, topic: e.target.value })}
-              placeholder={isBn ? 'যেমন: ত্রিভুজের ক্ষেত্রফল সূত্র' : 'e.g. Newton 2nd Law F=ma'}
-              required
-              className="mt-1"
-              autoFocus
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs font-semibold">Source</Label>
-              <select
-                value={quickLogForm.source}
-                onChange={(e) => setQuickLogForm({ ...quickLogForm, source: e.target.value })}
-                className="h-10 w-full border rounded-xl px-3 bg-background text-sm mt-1"
-              >
-                <option value="tuition">Tuition</option>
-                <option value="school">School</option>
-                <option value="self_study">Self-Study</option>
-              </select>
-            </div>
-            <div>
-              <Label className="text-xs font-semibold">Duration (min)</Label>
-              <Input
-                type="number"
-                value={quickLogForm.duration}
-                onChange={(e) => setQuickLogForm({ ...quickLogForm, duration: parseInt(e.target.value) || 60 })}
-                className="mt-1"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" size="sm" onClick={() => setQuickLogModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" disabled={loading || !quickLogForm.topic}>
-              {loading ? 'Saving...' : 'Save Log'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </AppShell>
   );
 }

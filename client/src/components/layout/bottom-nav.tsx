@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Calendar, Camera, Brain } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, FileText, Brain } from 'lucide-react';
 import { useI18n } from '@/lib/i18n-context';
 
 export function BottomNav() {
@@ -14,7 +14,7 @@ export function BottomNav() {
     { href: '/dashboard', label: t('nav.dashboard', 'Dashboard'), icon: LayoutDashboard },
     { href: '/children', label: t('nav.children', 'Children'), icon: Users },
     { href: '/schedule', label: t('nav.schedule', 'Schedule'), icon: Calendar },
-    { href: '/notes', label: t('nav.notes', 'Notes'), icon: Camera },
+    { href: '/notes', label: t('nav.notes', 'Notes'), icon: FileText },
     { href: '/quizzes', label: t('nav.quizzes', 'Quizzes'), icon: Brain },
   ];
 

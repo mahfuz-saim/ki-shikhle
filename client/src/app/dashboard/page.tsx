@@ -14,7 +14,7 @@ import {
   ScoreTrendChart,
   SubjectDonut,
   MasteryRadar,
-  Heatmap,
+  MonthlyActivityCalendar,
 } from '@/components/charts/study-time-chart';
 import {
   Clock,
@@ -190,7 +190,7 @@ export default function DashboardPage() {
         setConsistency(consRes.value.data.data);
       } else {
         const out: Record<string, number> = {};
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < 180; i++) {
           const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
           out[d] = isTasnim ? (i % 2 === 0 ? 1 : i % 5 === 0 ? 0 : 1) : (i % 7 === 0 ? 0 : i % 4 === 0 ? 2 : 1);
         }
@@ -244,16 +244,9 @@ export default function DashboardPage() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                {isBn ? 'লার্নিং ওভারভিউ' : 'Learning Overview'}
-              </h1>
-              {activeChild && (
-                <Badge variant="secondary" className="text-xs px-2.5 py-0.5">
-                  {activeChild.name} • {activeChild.grade}
-                </Badge>
-              )}
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+              {isBn ? 'লার্নিং ওভারভিউ' : 'Learning Overview'}
+            </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {isBn
                 ? 'এক নজরে সন্তানের পড়ার অগ্রগতি, সময় ও কুইজ ফলাফল'
@@ -436,18 +429,20 @@ export default function DashboardPage() {
 
         {/* Consistency Heatmap & Topic Breakdown */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Consistency Heatmap */}
+          {/* Monthly Activity Consistency Calendar */}
           <Card className="rounded-2xl border shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold">
-                {t('dashboard.consistency', 'Study Consistency (Last 30 Days)')}
+                {isBn ? 'মাসিক পড়ার ধারাবাহিকতা ক্যালেন্ডার' : 'Monthly Study Consistency Calendar'}
               </CardTitle>
               <CardDescription className="text-xs">
-                {isBn ? 'যেসব দিন সন্তান পড়াশোনা ও লগ সম্পন্ন করেছে' : 'Daily habit visualization — highlighted days show completed study logs'}
+                {isBn
+                  ? 'প্রতি মাসের দৈনিক পাঠ সম্পন্ন ও মিসের হিসাব — হালকা সবুজ: সম্পন্ন, হালকা লাল: মিস'
+                  : 'Monthly activity tracking — soft green indicates completed study logs, soft red indicates missed sessions'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Heatmap data={consistency} />
+              <MonthlyActivityCalendar data={consistency} isBn={isBn} />
             </CardContent>
           </Card>
 

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { Suspense, useState, useEffect } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +24,7 @@ import {
   FileCheck,
 } from 'lucide-react';
 
-export default function QuizBuilder() {
+function QuizBuilderContent() {
   const params = useParams();
   const router = useRouter();
   const { activeChild, childrenList } = useAuth();
@@ -33,15 +33,45 @@ export default function QuizBuilder() {
   const childId = (params as any)?.id || activeChild?.id || 'demo-child';
   const childObj = childrenList.find((c) => c.id === childId) || activeChild;
 
+  const searchParams = useSearchParams();
+  const queryTopic = searchParams.get('topic') || '';
+  const querySubject = searchParams.get('subject') || '';
+  const queryTitle = searchParams.get('title') || '';
+
+  const mapSubjectToId = (s: string) => {
+    if (!s) return null;
+    const lower = s.toLowerCase();
+    if (lower.includes('math') || lower.includes('গণিত') || lower.includes('algebra') || lower.includes('বীজগণিত')) return 'math';
+    if (lower.includes('phys') || lower.includes('পদার্থ')) return 'phys';
+    if (lower.includes('chem') || lower.includes('রসায়ন')) return 'chem';
+    if (lower.includes('bio') || lower.includes('জীব')) return 'bio';
+    if (lower.includes('eng') || lower.includes('ইংরেজি')) return 'eng';
+    if (lower.includes('bn') || lower.includes('bangla') || lower.includes('বাংলা')) return 'bn';
+    if (lower.includes('ict') || lower.includes('তথ্য')) return 'phys';
+    if (lower.includes('science') || lower.includes('বিজ্ঞান')) return 'phys';
+    return null;
+  };
+
+  const initialSubjectId = mapSubjectToId(querySubject) || mapSubjectToId(queryTopic);
+  const initialSelectedSubjects = initialSubjectId ? [initialSubjectId] : ['phys', 'math'];
+
+  const initialTitle = queryTitle
+    ? queryTitle
+    : queryTopic
+    ? `${queryTopic} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`
+    : querySubject
+    ? `${querySubject} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`
+    : '';
+
   const [form, setForm] = useState({
-    scope: 'last7',
+    scope: queryTopic ? 'today' : 'last7',
     from: '',
     to: '',
     numQuestions: 10,
     difficulty: 'mixed',
     types: ['mcq', 'true_false', 'fill_blank'],
     language: 'en',
-    title: '',
+    title: initialTitle,
     timeLimitMin: 15,
   });
 
@@ -60,7 +90,27 @@ export default function QuizBuilder() {
     { id: 'eng', name: isBn ? 'ইংরেজি (English)' : 'English' },
     { id: 'bn', name: isBn ? 'বাংলা (Bangla)' : 'Bangla' },
   ];
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(['phys', 'math']);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(initialSelectedSubjects);
+
+  // Sync if query parameters change
+  useEffect(() => {
+    if (queryTitle || queryTopic || querySubject) {
+      const computedTitle = queryTitle
+        ? queryTitle
+        : queryTopic
+        ? `${queryTopic} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`
+        : querySubject
+        ? `${querySubject} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`
+        : '';
+      if (computedTitle) {
+        setForm((prev) => ({ ...prev, title: computedTitle, scope: queryTopic ? 'today' : prev.scope }));
+      }
+      const matched = mapSubjectToId(querySubject) || mapSubjectToId(queryTopic);
+      if (matched) {
+        setSelectedSubjects([matched]);
+      }
+    }
+  }, [queryTitle, queryTopic, querySubject, isBn]);
 
   const toggleSubject = (id: string) => {
     if (selectedSubjects.includes(id)) {
@@ -207,16 +257,9 @@ export default function QuizBuilder() {
       <div className="space-y-6 max-w-4xl mx-auto">
         {/* Header */}
         <div className="pb-2 border-b">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              {t('quiz.builderTitle', 'AI Quiz Builder')}
-            </h1>
-            {childObj && (
-              <Badge variant="secondary" className="text-xs">
-                {childObj.name} • {childObj.grade}
-              </Badge>
-            )}
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+            {t('quiz.builderTitle', 'AI Quiz Builder')}
+          </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {isBn
               ? 'সন্তানের সাম্প্রতিক পড়ার নোট ও ডাইজেস্ট থেকে কাস্টম কুইজ তৈরি করুন'
@@ -482,5 +525,13 @@ export default function QuizBuilder() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+export default function QuizBuilder() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-muted-foreground">Loading quiz builder...</div>}>
+      <QuizBuilderContent />
+    </Suspense>
   );
 }

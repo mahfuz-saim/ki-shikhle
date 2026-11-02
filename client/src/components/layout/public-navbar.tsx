@@ -7,7 +7,6 @@ import { useTheme } from 'next-themes';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Sun, Moon, Globe, LayoutDashboard } from 'lucide-react';
 
 export function PublicNavbar() {
@@ -61,9 +60,6 @@ export function PublicNavbar() {
               priority
               className="h-9 sm:h-10 w-auto object-contain transition-transform group-hover:scale-105 hidden dark:block"
             />
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium hidden sm:inline-flex self-center">
-              Beta
-            </Badge>
           </Link>
 
           {/* Desktop/Tablet Hackathon Sticker (No link) */}

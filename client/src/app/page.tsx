@@ -513,17 +513,9 @@ export default function HomePage() {
       {/* MINIMALIST BOTTOM BAR FOOTER */}
       <footer className="border-t py-8 bg-card/50 text-xs text-muted-foreground">
         <div className="container max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white font-extrabold text-xs flex items-center justify-center">
-              কি
-            </div>
-            <div>
-              <span className="font-bold text-foreground">কি শিখলে? (Ki Shikhle?)</span>
-              <span className="text-[11px] text-muted-foreground ml-2">
-                © {new Date().getFullYear()} All rights reserved.
-              </span>
-            </div>
-          </div>
+          <p className="text-[11px] text-muted-foreground">
+            © {new Date().getFullYear()} All rights reserved.
+          </p>
 
           <div className="flex flex-wrap items-center gap-5 font-medium">
             <button

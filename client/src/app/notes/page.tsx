@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,10 @@ import {
   Camera,
   Upload,
   FileText,
+  BookOpen,
+  Brain,
+  ChevronDown,
+  ChevronUp,
   Sparkles,
   CheckCircle2,
   Trash2,
@@ -36,6 +41,7 @@ export default function NotesPage() {
   const [loadingOcr, setLoadingOcr] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [showUploader, setShowUploader] = useState(false);
 
   // Preloaded subject options
   const subjects = [
@@ -269,17 +275,64 @@ export default function NotesPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        {/* Page Title */}
+        {/* Page Title & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              {t('notes.title', 'Notes & OCR Scanner')}
+              {isBn ? 'শিক্ষার্থীর নোট ও খাতা নিরীক্ষণ' : 'Student Notebooks & Notes'}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {isBn
-                ? 'হাতে লেখা নোটের ছবি তুলে বাংলা ও ইংরেজি লেখা রূপান্তর করুন। এআই কুইজ তৈরির মূল ভিত্তি।'
-                : 'Upload class notes, extract Bangla & English text via OCR, and build topic digests for AI quizzes.'}
+                ? 'শিক্ষার্থীর পোর্টাল থেকে স্ক্যানকৃত খাতার পাতার ওসিআর রূপান্তর ও বিষয়ভিত্তিক নোট নিরীক্ষণ করুন'
+                : 'Review, verify, and audit handwritten class notes scanned by your student.'}
             </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link href={notes.length > 0 ? `/children/${childId}/quizzes/new?subject=${encodeURIComponent(notes[0].subject || '')}&topic=${encodeURIComponent(notes[0].textClean?.slice(0, 50) || '')}&title=${encodeURIComponent(`${notes[0].subject || 'Study'} — ${isBn ? 'নোট রিভিশন কুইজ' : 'Notes Revision Quiz'}`)}` : `/children/${childId}/quizzes/new`}>
+              <Button size="sm" className="gap-1.5 text-xs h-9 shadow-sm shadow-primary/20">
+                <Brain className="w-3.5 h-3.5" />
+                <span>{isBn ? 'এআই কুইজ তৈরি করুন' : 'Generate AI Quiz from Notes'}</span>
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Role Differentiation Info Banner */}
+        <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-600/20">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div className="space-y-0.5">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <span>{isBn ? 'নোট স্ক্যান সরাসরি শিক্ষার্থীর পোর্টাল থেকে হয়' : 'Student-Scanned Notebooks (Parent Inspection Mode)'}</span>
+                <Badge variant="outline" className="text-[10px] font-semibold bg-background/50 border-primary/20 text-primary">
+                  {isBn ? 'অভিভাবক পর্যবেক্ষণ' : 'Parent Review'}
+                </Badge>
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+                {isBn
+                  ? 'শিক্ষার্থীরা তাদের স্টুডেন্ট পোর্টাল (/kid/notes) থেকে সরাসরি খাতার পাতার ছবি তুলে ওসিআর সংরক্ষণ করে। অভিভাবক হিসেবে আপনি এখানে সেই নোটের সঠিকতা নিরীক্ষণ করতে পারেন এবং রিভিশন কুইজ তৈরি করতে পারেন।'
+                  : 'Students photograph and scan their class notebooks directly via their dedicated student portal (/kid/notes). Parents audit the extracted text here and convert topics into AI revision quizzes.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowUploader(!showUploader)}
+              className="text-xs h-8 gap-1.5 border-dashed"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>
+                {showUploader
+                  ? (isBn ? 'সহায়ক আপলোডার বন্ধ করুন' : 'Hide Backup Uploader')
+                  : (isBn ? 'সহায়ক আপলোড (প্রয়োজনে)' : 'Upload on Behalf of Student')}
+              </span>
+              {showUploader ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </Button>
           </div>
         </div>
 
@@ -292,134 +345,138 @@ export default function NotesPage() {
           </div>
         )}
 
-        {/* Upload & OCR Section */}
-        <Card className="rounded-2xl border shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Camera className="w-4 h-4 text-primary" />
-              <span>{t('notes.uploadTitle', 'Scan or Upload Class Notes')}</span>
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {t('notes.uploadHint', 'Upload JPG, PNG or PDF (up to 10MB) or paste handwritten notes')}
-            </CardDescription>
-          </CardHeader>
+        {/* Optional Backup Uploader (Collapsed by default for Parents) */}
+        {showUploader && (
+          <Card className="rounded-2xl border border-indigo-200 dark:border-indigo-800 shadow-sm bg-muted/15 animate-in fade-in duration-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Camera className="w-4 h-4 text-primary" />
+                <span>{isBn ? 'শিক্ষার্থীর পক্ষে সহায়ক নোট আপলোড' : 'Assistance Mode: Upload Note on Behalf of Student'}</span>
+              </CardTitle>
+              <CardDescription className="text-xs">
+                {isBn
+                  ? 'শিক্ষার্থীর কাছে ক্যামেরা বা ডিভাইস না থাকলে অভিভাবক হিসেবে এখান থেকে আপলোড করতে পারেন।'
+                  : 'Use this assistance mode only if your child cannot access their student portal camera right now.'}
+              </CardDescription>
+            </CardHeader>
 
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* File upload box */}
-              <div>
-                <Label className="text-xs font-semibold block mb-1">
-                  {isBn ? 'ছবি বা পিডিএফ আপলোড' : 'Image or PDF File'}
-                </Label>
-                <div className="border-2 border-dashed rounded-2xl p-6 text-center hover:bg-muted/30 transition-colors cursor-pointer relative">
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={handleFileChange}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                  />
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                      <Upload className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-foreground">
-                        {file ? file.name : (isBn ? 'ফাইল নির্বাচন করতে ক্লিক করুন' : 'Click or drop notes here')}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        JPG, PNG, PDF • Tesseract OCR (বাংলা + English)
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {loadingOcr && (
-                  <div className="flex items-center gap-2 mt-2 text-xs text-primary animate-pulse font-medium">
-                    <Sparkles className="w-4 h-4" />
-                    <span>{t('notes.extracting', 'Extracting Bangla & English text via OCR...')}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Subject & options */}
-              <div className="space-y-3">
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* File upload box */}
                 <div>
-                  <Label className="text-xs font-semibold">{isBn ? 'বিষয় নির্বাচন' : 'Subject'}</Label>
-                  <select
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
-                  >
-                    {subjects.map((s) => (
-                      <option key={s.id} value={s.name}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <Label className="text-xs font-semibold">
-                    {t('notes.extractedText', 'Extracted / Edited Text')}
+                  <Label className="text-xs font-semibold block mb-1">
+                    {isBn ? 'ছবি বা পিডিএফ আপলোড' : 'Image or PDF File'}
                   </Label>
-                  <textarea
-                    value={textClean}
-                    onChange={(e) => setTextClean(e.target.value)}
-                    placeholder={
-                      isBn
-                        ? 'ওসিআর টেক্সট এখানে প্রদর্শিত হবে, অথবা সরাসরি নোট পেস্ট করুন...'
-                        : 'OCR extracted text will appear here. You can also paste or edit before saving...'
-                    }
-                    className="w-full h-32 border rounded-xl p-3 text-xs bg-background mt-1 leading-relaxed"
-                  />
+                  <div className="border-2 border-dashed rounded-2xl p-6 text-center hover:bg-muted/30 transition-colors cursor-pointer relative bg-card">
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">
+                          {file ? file.name : (isBn ? 'ফাইল নির্বাচন করতে ক্লিক করুন' : 'Click or drop notes here')}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          JPG, PNG, PDF • Tesseract OCR (বাংলা + English)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {loadingOcr && (
+                    <div className="flex items-center gap-2 mt-2 text-xs text-primary animate-pulse font-medium">
+                      <Sparkles className="w-4 h-4" />
+                      <span>{t('notes.extracting', 'Extracting Bangla & English text via OCR...')}</span>
+                    </div>
+                  )}
                 </div>
 
-                {confidence !== null && (
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground flex items-center gap-1.5">
-                      <FileCheck className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>{t('notes.confidence', 'OCR Confidence')}:</span>
-                      <strong className="text-foreground">{(confidence * 100).toFixed(0)}%</strong>
-                    </span>
-
-                    {confidence < 0.9 && (
-                      <button
-                        type="button"
-                        onClick={() => handleImproveWithAI()}
-                        className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                        <span>{t('notes.improveWithAi', 'Improve with AI Vision')}</span>
-                      </button>
-                    )}
+                {/* Subject & options */}
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs font-semibold">{isBn ? 'বিষয় নির্বাচন' : 'Subject'}</Label>
+                    <select
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
+                    >
+                      {subjects.map((s) => (
+                        <option key={s.id} value={s.name}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                )}
 
-                <Button
-                  onClick={handleSave}
-                  disabled={saving || !textClean.trim()}
-                  className="w-full h-9 text-xs font-semibold gap-1.5 shadow-sm"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>{saving ? t('common.loading', 'Saving...') : t('notes.saveNote', 'Save Note to Library')}</span>
-                </Button>
+                  <div>
+                    <Label className="text-xs font-semibold">
+                      {t('notes.extractedText', 'Extracted / Edited Text')}
+                    </Label>
+                    <textarea
+                      value={textClean}
+                      onChange={(e) => setTextClean(e.target.value)}
+                      placeholder={
+                        isBn
+                          ? 'ওসিআর টেক্সট এখানে প্রদর্শিত হবে, অথবা সরাসরি নোট পেস্ট করুন...'
+                          : 'OCR extracted text will appear here. You can also paste or edit before saving...'
+                      }
+                      className="w-full h-32 border rounded-xl p-3 text-xs bg-background mt-1 leading-relaxed"
+                    />
+                  </div>
+
+                  {confidence !== null && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground flex items-center gap-1.5">
+                        <FileCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>{t('notes.confidence', 'OCR Confidence')}:</span>
+                        <strong className="text-foreground">{(confidence * 100).toFixed(0)}%</strong>
+                      </span>
+
+                      {confidence < 0.9 && (
+                        <button
+                          type="button"
+                          onClick={() => handleImproveWithAI()}
+                          className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                          <span>{t('notes.improveWithAi', 'Improve with AI Vision')}</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving || !textClean.trim()}
+                    className="w-full h-9 text-xs font-semibold gap-1.5 shadow-sm"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>{saving ? t('common.loading', 'Saving...') : t('notes.saveNote', 'Save Note to Library')}</span>
+                  </Button>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Saved Notes Library */}
+        {/* Primary View: Saved Notes Library */}
         <Card className="rounded-2xl border shadow-sm">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-base font-bold">
-                  {t('notes.allNotes', 'Saved Study Notes')} ({notes.length})
+                  {isBn ? 'সংরক্ষিত খাতার নোট ও ওসিআর বিবরণী' : 'Student Study Notes Library'} ({notes.length})
                 </CardTitle>
                 <CardDescription className="text-xs">
                   {isBn
-                    ? 'সংরক্ষিত নোটগুলো থেকে এআই কুইজের প্রশ্ন তৈরি করা হয়'
-                    : 'Notes used by the AI engine to generate curriculum-aligned quizzes.'}
+                    ? 'শিক্ষার্থীর আপলোডকৃত এই নোটগুলো বিশ্লেষণ করে এআই স্বয়ংক্রিয় রিভিশন কুইজ প্রস্তুত করে।'
+                    : 'Notes used by the AI engine to generate curriculum-aligned revision quizzes.'}
                 </CardDescription>
               </div>
             </div>

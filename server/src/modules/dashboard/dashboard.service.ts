@@ -326,7 +326,7 @@ export async function weakestStrongest(childId: string, parentId: string) {
 export async function consistency(childId: string, parentId: string) {
   await assertOwnership(parentId, childId);
   try {
-    const from = new Date(Date.now() - 90 * 86400000);
+    const from = new Date(Date.now() - 365 * 86400000);
     const entries = await prisma.learningEntry.findMany({ where: { childId, date: { gte: from } } });
     const byDate: Record<string, number> = {};
     for (const e of entries as any[]) {
@@ -339,7 +339,7 @@ export async function consistency(childId: string, parentId: string) {
   // Differentiate by childId:
   const out: Record<string, number> = {};
   const isTasnim = childId === 'demo-child-2';
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 180; i++) {
     const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
     if (isTasnim) {
       out[d] = i % 2 === 0 ? 1 : i % 5 === 0 ? 0 : 1;

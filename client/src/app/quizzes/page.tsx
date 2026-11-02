@@ -204,16 +204,9 @@ export default function QuizzesPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                {t('quiz.title', 'AI Quizzes')}
-              </h1>
-              {activeChild && (
-                <Badge variant="secondary" className="text-xs">
-                  {activeChild.name}
-                </Badge>
-              )}
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+              {t('quiz.title', 'AI Quizzes')}
+            </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {isBn
                 ? 'ক্লাস নোট ও পড়ার লগ থেকে স্বয়ংক্রিয় কুইজ তৈরি ও ফলাফল বিশ্লেষণ'
@@ -349,20 +342,19 @@ export default function QuizzesPage() {
                         </Button>
                       </Link>
                     ) : (
-                      <>
+                      <div className="flex items-center gap-2 w-full">
                         <Link href={`/quizzes/${q.id}`} className="flex-1">
                           <Button variant="outline" size="sm" className="w-full text-xs h-8 gap-1">
                             <Eye className="w-3.5 h-3.5" />
-                            <span>{isBn ? 'পর্যালোচনা' : 'Review'}</span>
+                            <span>{isBn ? 'প্রশ্ন পর্যালোচনা' : 'Preview Questions'}</span>
                           </Button>
                         </Link>
-                        <Link href={`/kid/quiz/${q.id}`} className="flex-1">
-                          <Button size="sm" className="w-full text-xs h-8 gap-1 bg-indigo-600 hover:bg-indigo-700 text-white">
-                            <Play className="w-3.5 h-3.5" />
-                            <span>{isBn ? 'কুইজ দিন' : 'Take Quiz'}</span>
-                          </Button>
-                        </Link>
-                      </>
+                        <div className="flex-1 flex items-center justify-center">
+                          <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1.5 rounded-lg border border-amber-500/20 w-full text-center">
+                            {isBn ? 'শিক্ষার্থীর পেন্ডিং' : 'Student Pending'}
+                          </span>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </CardContent>

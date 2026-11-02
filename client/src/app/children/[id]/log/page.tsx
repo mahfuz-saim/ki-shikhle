@@ -362,16 +362,9 @@ export default function LearningLogPage() {
         {/* Page Title & Child Badge */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
           <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                {isBn ? 'দৈনিক পড়ার বিবরণী' : 'Student Learning Logs'}
-              </h1>
-              {currentChild && (
-                <Badge variant="secondary" className="text-xs px-2.5 py-0.5 font-bold">
-                  {currentChild.name} • {currentChild.grade}
-                </Badge>
-              )}
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+              {isBn ? 'দৈনিক পড়ার বিবরণী' : 'Student Learning Logs'}
+            </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {isBn
                 ? 'শিক্ষার্থীর পোর্টাল থেকে যুক্ত করা প্রতিটি পড়ার বিবরণ অভিভাবক হিসেবে এখানে যাচাই ও নিরীক্ষণ করুন'
@@ -380,7 +373,13 @@ export default function LearningLogPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link href={`/children/${childId}/quizzes/new`}>
+            <Link
+              href={
+                entries.length > 0
+                  ? `/children/${childId}/quizzes/new?topic=${encodeURIComponent(entries[0].topicsText || '')}&subject=${encodeURIComponent(entries[0].subject || entries[0].subjectId || '')}&title=${encodeURIComponent(`${entries[0].topicsText || entries[0].subject} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`)}`
+                  : `/children/${childId}/quizzes/new`
+              }
+            >
               <Button size="sm" className="gap-1.5 text-xs h-9 shadow-sm shadow-primary/20 bg-primary">
                 <Brain className="w-3.5 h-3.5" />
                 <span>{isBn ? 'এআই রিভিশন কুইজ তৈরি' : 'Generate Revision Quiz'}</span>
@@ -683,7 +682,9 @@ export default function LearningLogPage() {
                         </Button>
                       )}
 
-                      <Link href={`/children/${childId}/quizzes/new`}>
+                      <Link
+                        href={`/children/${childId}/quizzes/new?topic=${encodeURIComponent(e.topicsText || '')}&subject=${encodeURIComponent(e.subject || e.subjectId || '')}&title=${encodeURIComponent(`${e.topicsText || e.subject} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`)}`}
+                      >
                         <Button
                           size="sm"
                           variant="ghost"
