@@ -46,4 +46,4 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           cd server
-          npx wrangler deploy --verbose
+          npx wrangler deploy
