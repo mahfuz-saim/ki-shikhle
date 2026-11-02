@@ -6,9 +6,15 @@ import { z } from 'zod';
 
 // Load `server/.env` whether the process is started from `server/` (deploy, standalone)
 // or from the repo root. A missing .env is fine — everything has a local default.
-const serverDir = path.resolve(__dirname, '..', '..');
-for (const file of [path.resolve(process.cwd(), '.env'), path.join(serverDir, '.env')]) {
-  if (fs.existsSync(file)) dotenv.config({ path: file });
+if (typeof process !== 'undefined' && typeof process.cwd === 'function') {
+  try {
+    const cwd = process.cwd();
+    for (const file of [path.resolve(cwd, '.env'), path.resolve(cwd, 'server', '.env')]) {
+      if (fs.existsSync && fs.existsSync(file)) dotenv.config({ path: file });
+    }
+  } catch {
+    // Edge/Workers environment has no filesystem
+  }
 }
 
 const isProd = (process.env.NODE_ENV || 'development') === 'production';

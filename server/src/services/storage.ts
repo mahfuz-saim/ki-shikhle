@@ -22,7 +22,7 @@ export interface StorageProvider {
  * authenticated /api/v1/files/:key route (never a public static folder).
  */
 class LocalStorage implements StorageProvider {
-  private dir = path.resolve(env.LOCAL_STORAGE_DIR || path.join(path.resolve(__dirname, '..', '..'), 'uploads'));
+  private dir = path.resolve(env.LOCAL_STORAGE_DIR || path.join(typeof process !== 'undefined' && typeof process.cwd === 'function' ? process.cwd() : '', 'uploads'));
   constructor() {
     if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
   }
