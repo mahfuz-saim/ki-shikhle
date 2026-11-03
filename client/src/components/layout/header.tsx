@@ -40,9 +40,9 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-md px-4 md:px-6 py-2.5 flex items-center justify-between gap-3">
+      <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-md px-3 sm:px-4 md:px-6 py-2.5 flex items-center justify-between gap-2 sm:gap-3">
         {/* Mobile brand & Left section */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link href="/dashboard" className="md:hidden flex items-center">
             <Image
               src="/logo-light.png"
@@ -70,7 +70,7 @@ export function Header() {
                 <div className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center">
                   {(activeChild?.name || childrenList[0]?.name || 'S').charAt(0).toUpperCase()}
                 </div>
-                <span className="max-w-[120px] truncate text-foreground font-bold">
+                <span className="max-w-[75px] sm:max-w-[120px] truncate text-foreground font-bold">
                   {activeChild?.name || childrenList[0]?.name}
                 </span>
                 <span className="text-[10px] text-muted-foreground hidden sm:inline">

@@ -300,13 +300,13 @@ export default function ChildrenPage() {
 
                     {/* Actions */}
                     <div className="space-y-2 pt-2 border-t">
-                      <div className="grid grid-cols-3 gap-1.5">
+                      <div className="grid grid-cols-3 gap-1 sm:gap-1.5">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => setActiveChild(c)}
                           disabled={isCurrent}
-                          className="text-xs h-8 px-2"
+                          className="text-[11px] sm:text-xs h-8 px-1 sm:px-2"
                         >
                           {isCurrent ? 'Selected' : 'Select'}
                         </Button>
@@ -314,7 +314,7 @@ export default function ChildrenPage() {
                           size="sm"
                           variant="ghost"
                           onClick={() => openEditModal(c)}
-                          className="text-xs h-8 px-2 hover:bg-muted"
+                          className="text-[11px] sm:text-xs h-8 px-1 sm:px-2 hover:bg-muted"
                         >
                           <Edit2 className="w-3.5 h-3.5 mr-1" />
                           Edit
@@ -323,7 +323,7 @@ export default function ChildrenPage() {
                           size="sm"
                           variant="ghost"
                           onClick={() => openResetPwModal(c)}
-                          className="text-xs h-8 px-2 hover:bg-muted"
+                          className="text-[11px] sm:text-xs h-8 px-1 sm:px-2 hover:bg-muted"
                           title="Set Student Password"
                         >
                           <KeyRound className="w-3.5 h-3.5 mr-1 text-amber-500" />

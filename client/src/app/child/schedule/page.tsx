@@ -802,7 +802,7 @@ export default function KidSchedulePage() {
               </div>
 
               {/* View / Category Filter Pills */}
-              <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-2xl border text-xs">
+              <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-2xl border text-xs max-w-full overflow-x-auto">
                 <button
                   type="button"
                   onClick={() => setCategoryFilter('school')}
@@ -840,7 +840,7 @@ export default function KidSchedulePage() {
             </div>
 
             {/* 7-Weekday Switcher Buttons */}
-            <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
               {WEEKDAYS.map((w) => {
                 const isSelected = selectedWeekday === w.index;
                 const isTodayWeekday = today.getDay() === w.index;
@@ -858,7 +858,7 @@ export default function KidSchedulePage() {
                       targetDate.setDate(today.getDate() + diff);
                       setSelectedDate(targetDate.toISOString().slice(0, 10));
                     }}
-                    className={`py-2.5 sm:py-3 px-1 rounded-2xl border text-center transition-all flex flex-col items-center justify-between relative group ${
+                    className={`py-2 sm:py-3 px-0.5 sm:px-1 rounded-xl sm:rounded-2xl border text-center transition-all flex flex-col items-center justify-between relative group ${
                       isSelected
                         ? 'bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/20 scale-[1.02]'
                         : 'bg-muted/20 border-border/70 hover:bg-muted/40 text-foreground'
@@ -1166,14 +1166,14 @@ export default function KidSchedulePage() {
                         </div>
 
                         {/* Right Actions: Log Button / Edit / Delete */}
-                        <div className="flex md:flex-col items-center justify-end gap-2 shrink-0 border-t md:border-t-0 pt-3 md:pt-0">
+                        <div className="flex flex-wrap md:flex-col items-center justify-end gap-2 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 w-full md:w-auto">
                           {isLogged ? (
                             <>
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleOpenLogModal(routine)}
-                                className="h-9 px-3.5 text-xs font-bold rounded-xl border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 gap-1.5 w-full md:w-auto"
+                                className="h-9 px-3 text-xs font-bold rounded-xl border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 gap-1.5 flex-1 md:flex-none w-auto"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
                                 <span>{isBn ? 'বিবরণী এডিট' : 'Edit Log'}</span>
@@ -1181,7 +1181,7 @@ export default function KidSchedulePage() {
 
                               <Link
                                 href={isTasnim ? '/child/quiz/q-t1' : '/child/quiz/q-r1'}
-                                className="w-full md:w-auto"
+                                className="flex-1 md:flex-none w-auto"
                               >
                                 <Button
                                   size="sm"

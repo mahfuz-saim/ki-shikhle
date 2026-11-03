@@ -8,14 +8,14 @@ import { useI18n } from '@/lib/i18n-context';
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { t } = useI18n();
+  const { t, isBn } = useI18n();
 
   const navItems = [
-    { href: '/dashboard', label: t('nav.dashboard', 'Dashboard'), icon: LayoutDashboard },
-    { href: '/children', label: t('nav.children', 'Children'), icon: Users },
-    { href: '/schedule', label: t('nav.schedule', 'Schedule'), icon: Calendar },
-    { href: '/notes', label: t('nav.notes', 'Notes'), icon: FileText },
-    { href: '/quizzes', label: t('nav.quizzes', 'Quizzes'), icon: Brain },
+    { href: '/dashboard', label: t('bottomNav.dashboard', isBn ? 'ড্যাশবোর্ড' : 'Dashboard'), icon: LayoutDashboard },
+    { href: '/children', label: t('bottomNav.children', isBn ? 'সন্তান' : 'Children'), icon: Users },
+    { href: '/schedule', label: t('bottomNav.routine', isBn ? 'রুটিন' : 'Routine'), icon: Calendar },
+    { href: '/notes', label: t('bottomNav.notes', isBn ? 'নোট' : 'Notes'), icon: FileText },
+    { href: '/quizzes', label: t('bottomNav.quiz', isBn ? 'কুইজ' : 'Quiz'), icon: Brain },
   ];
 
   return (
@@ -26,9 +26,9 @@ export function BottomNav() {
             ? pathname === '/children' || pathname.startsWith('/children?')
             : item.href === '/dashboard'
             ? pathname === '/dashboard'
+            : item.href === '/quizzes'
+            ? pathname === '/quizzes' || pathname.startsWith('/quizzes') || pathname.startsWith('/quiz') || pathname.startsWith('/attempts')
             : pathname === item.href || pathname.startsWith(item.href);
-
-
 
         const Icon = item.icon;
         return (

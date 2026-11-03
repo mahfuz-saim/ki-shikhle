@@ -168,7 +168,7 @@ Your child demonstrated a strong, commendable grasp of Newton's Second Law (F = 
             </p>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 w-full sm:w-auto">
             <div className="text-right">
               <p className="text-xs text-indigo-200 uppercase font-semibold">Score</p>
               <p className="text-3xl sm:text-4xl font-black">

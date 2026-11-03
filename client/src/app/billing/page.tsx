@@ -590,7 +590,7 @@ export default function BillingPage() {
       >
         <form onSubmit={handleCheckout} className="space-y-4 pt-1">
           {/* Plan & Child count */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-semibold">{isBn ? 'নির্বাচিত প্ল্যান' : 'Selected Plan'}</Label>
               <select

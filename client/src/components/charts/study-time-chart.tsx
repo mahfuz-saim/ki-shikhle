@@ -39,92 +39,100 @@ export function StudyTimeChart({
   const showSchool = (institutionType === 'school' || data?.some((d) => (d.school || 0) > 0)) && !showCollege;
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data}>
-        <XAxis dataKey="date" fontSize={12} />
-        <YAxis fontSize={12} unit={isBn ? ' মি' : ' m'} />
-        <Tooltip
-          formatter={(value: any, name: any) => {
-            const v = Number(value) || 0;
-            const h = Math.floor(v / 60);
-            const m = v % 60;
-            const formatted = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-            return [`${v} ${isBn ? 'মিনিট' : 'mins'} (${formatted})`, name];
-          }}
-        />
-        <Legend />
-        {showSchool && (
-          <Bar dataKey="school" stackId="a" fill="#4F46E5" name={isBn ? 'স্কুল' : 'School'} />
-        )}
-        {showCollege && (
-          <Bar dataKey="college" stackId="a" fill="#06B6D4" name={isBn ? 'কলেজ' : 'College'} />
-        )}
-        <Bar
-          dataKey="tuition"
-          stackId="a"
-          fill="#F59E0B"
-          name={institutionType === 'admission' ? (isBn ? 'কোচিং / টেস্ট' : 'Coaching / Test') : (isBn ? 'প্রাইভেট / টিউশন' : 'Tuition')}
-        />
-        <Bar
-          dataKey="self_study"
-          stackId="a"
-          fill="#10B981"
-          name={isBn ? 'সেলফ-স্টাডি' : 'Self-study'}
-        />
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="w-full min-w-0 h-[220px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data}>
+          <XAxis dataKey="date" fontSize={12} />
+          <YAxis fontSize={12} unit={isBn ? ' মি' : ' m'} />
+          <Tooltip
+            formatter={(value: any, name: any) => {
+              const v = Number(value) || 0;
+              const h = Math.floor(v / 60);
+              const m = v % 60;
+              const formatted = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+              return [`${v} ${isBn ? 'মিনিট' : 'mins'} (${formatted})`, name];
+            }}
+          />
+          <Legend />
+          {showSchool && (
+            <Bar dataKey="school" stackId="a" fill="#4F46E5" name={isBn ? 'স্কুল' : 'School'} />
+          )}
+          {showCollege && (
+            <Bar dataKey="college" stackId="a" fill="#06B6D4" name={isBn ? 'কলেজ' : 'College'} />
+          )}
+          <Bar
+            dataKey="tuition"
+            stackId="a"
+            fill="#F59E0B"
+            name={institutionType === 'admission' ? (isBn ? 'কোচিং / টেস্ট' : 'Coaching / Test') : (isBn ? 'প্রাইভেট / টিউশন' : 'Tuition')}
+          />
+          <Bar
+            dataKey="self_study"
+            stackId="a"
+            fill="#10B981"
+            name={isBn ? 'সেলফ-স্টাডি' : 'Self-study'}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
 export function ScoreTrendChart({ data }: { data: any[] }) {
   return (
-    <ResponsiveContainer width="100%" height={200}>
-      <LineChart data={data}>
-        <XAxis dataKey="date" fontSize={11} />
-        <YAxis domain={[0, 100]} fontSize={11} />
-        <Tooltip />
-        <Line type="monotone" dataKey="score" stroke="#4F46E5" strokeWidth={2} dot={{ r: 4 }} />
-      </LineChart>
-    </ResponsiveContainer>
+    <div className="w-full min-w-0 h-[200px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data}>
+          <XAxis dataKey="date" fontSize={11} />
+          <YAxis domain={[0, 100]} fontSize={11} />
+          <Tooltip />
+          <Line type="monotone" dataKey="score" stroke="#4F46E5" strokeWidth={2} dot={{ r: 4 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
 export function SubjectDonut({ data }: { data: any[] }) {
   return (
-    <ResponsiveContainer width="100%" height={200}>
-      <PieChart>
-        <Pie
-          data={data}
-          dataKey="value"
-          nameKey="subject"
-          cx="50%"
-          cy="50%"
-          innerRadius={50}
-          outerRadius={80}
-          paddingAngle={2}
-        >
-          {data.map((_, i) => (
-            <Cell key={i} fill={COLORS[i % COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip />
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
+    <div className="w-full min-w-0 h-[200px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="subject"
+            cx="50%"
+            cy="50%"
+            innerRadius={50}
+            outerRadius={80}
+            paddingAngle={2}
+          >
+            {data.map((_, i) => (
+              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
 export function MasteryRadar({ data }: { data: any[] }) {
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <RadarChart data={data}>
-        <PolarGrid />
-        <PolarAngleAxis dataKey="subject" fontSize={11} />
-        <PolarRadiusAxis angle={30} domain={[0, 100]} fontSize={10} />
-        <Radar name="Mastery" dataKey="accuracy" stroke="#4F46E5" fill="#4F46E5" fillOpacity={0.5} />
-        <Tooltip />
-      </RadarChart>
-    </ResponsiveContainer>
+    <div className="w-full min-w-0 h-[220px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <RadarChart data={data}>
+          <PolarGrid />
+          <PolarAngleAxis dataKey="subject" fontSize={11} />
+          <PolarRadiusAxis angle={30} domain={[0, 100]} fontSize={10} />
+          <Radar name="Mastery" dataKey="accuracy" stroke="#4F46E5" fill="#4F46E5" fillOpacity={0.5} />
+          <Tooltip />
+        </RadarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -288,7 +296,7 @@ export function MonthlyActivityCalendar({
         {Array.from({ length: firstDayOfWeek }).map((_, idx) => (
           <div
             key={`pad-${idx}`}
-            className="h-10 sm:h-12 rounded-xl bg-transparent opacity-0 pointer-events-none"
+            className="h-9 sm:h-12 rounded-xl bg-transparent opacity-0 pointer-events-none"
             aria-hidden="true"
           />
         ))}
@@ -343,7 +351,7 @@ export function MonthlyActivityCalendar({
             <div
               key={dStr}
               title={tooltipText}
-              className={`h-10 sm:h-12 p-1 sm:p-1.5 rounded-xl border flex flex-col justify-between transition-all relative ${cellStyle} ${
+              className={`h-9 sm:h-12 p-0.5 sm:p-1.5 rounded-xl border flex flex-col justify-between transition-all relative ${cellStyle} ${
                 isToday ? 'ring-2 ring-primary ring-offset-1 dark:ring-offset-background font-black' : ''
               }`}
             >

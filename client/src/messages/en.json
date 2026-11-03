@@ -17,6 +17,14 @@
     "logout": "Logout",
     "kidMode": "Child Mode"
   },
+  "bottomNav": {
+    "dashboard": "Dashboard",
+    "children": "Children",
+    "routine": "Routine",
+    "notes": "Notes",
+    "quiz": "Quiz",
+    "log": "Log"
+  },
   "dashboard": {
     "title": "Parent Dashboard",
     "studyDays": "Study Days This Week",

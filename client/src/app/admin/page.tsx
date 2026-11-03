@@ -195,7 +195,7 @@ export default function AdminPage() {
 
           <CardContent className="space-y-3">
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+              <table className="w-full min-w-[550px] text-xs text-left">
                 <thead>
                   <tr className="border-b bg-muted/30">
                     <th className="p-2.5 font-semibold">Feature</th>

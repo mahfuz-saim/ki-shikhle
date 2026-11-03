@@ -400,7 +400,7 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:shrink-0 w-full sm:w-auto">
             <Link href={`/children/${childId}/log`}>
               <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9">
                 <BookOpen className="w-3.5 h-3.5" />
@@ -506,8 +506,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Charts Row 1: Weekly Study Time & Subject Distribution */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card className="rounded-2xl border shadow-sm">
+        <div className="grid md:grid-cols-2 gap-6 min-w-0">
+          <Card className="rounded-2xl border shadow-sm min-w-0 overflow-hidden">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <div>
@@ -527,7 +527,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border shadow-sm">
+          <Card className="rounded-2xl border shadow-sm min-w-0 overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-bold">
                 {t('dashboard.subjectDistribution', 'Subject Distribution')}
@@ -543,8 +543,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Charts Row 2: Score Trend & Subject Mastery Radar */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card className="rounded-2xl border shadow-sm">
+        <div className="grid md:grid-cols-2 gap-6 min-w-0">
+          <Card className="rounded-2xl border shadow-sm min-w-0 overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-bold">
                 {t('dashboard.scoreTrend', 'Quiz Score Progress')}
@@ -558,7 +558,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border shadow-sm">
+          <Card className="rounded-2xl border shadow-sm min-w-0 overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-bold">
                 {t('dashboard.subjectMastery', 'Subject Mastery Radar')}
@@ -574,9 +574,9 @@ export default function DashboardPage() {
         </div>
 
         {/* Consistency Heatmap & Topic Breakdown */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-6 min-w-0">
           {/* Monthly Activity Consistency Calendar */}
-          <Card className="rounded-2xl border shadow-sm">
+          <Card className="rounded-2xl border shadow-sm min-w-0 overflow-hidden">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold">
                 {isBn ? 'মাসিক পড়ার ধারাবাহিকতা ক্যালেন্ডার' : 'Monthly Study Consistency Calendar'}
@@ -593,7 +593,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* Weakest & Strongest Topics */}
-          <Card className="rounded-2xl border shadow-sm">
+          <Card className="rounded-2xl border shadow-sm min-w-0 overflow-hidden">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold">
                 {isBn ? 'অধ্যায়ভিত্তিক পারদর্শিতা' : 'Topic Accuracy & Revision Needs'}

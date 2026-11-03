@@ -716,8 +716,8 @@ export default function KidDashboard() {
         </div>
 
         {/* Weekly Study Time & Source Hours Breakdown */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          <Card className="rounded-2xl border shadow-sm lg:col-span-2">
+        <div className="grid lg:grid-cols-3 gap-6 min-w-0">
+          <Card className="rounded-2xl border shadow-sm lg:col-span-2 min-w-0 overflow-hidden">
             <CardHeader className="p-4 sm:p-6 pb-2">
               <div className="flex items-center justify-between">
                 <div>
@@ -738,7 +738,7 @@ export default function KidDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border shadow-sm flex flex-col justify-between">
+          <Card className="rounded-2xl border shadow-sm flex flex-col justify-between min-w-0 overflow-hidden">
             <CardHeader className="p-4 sm:p-6 pb-2">
               <CardTitle className="text-base font-bold">
                 {isBn ? 'পড়ার সময়ের বিবরণী' : 'Study Hours Breakdown'}

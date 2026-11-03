@@ -17,6 +17,14 @@
     "logout": "লগআউট",
     "kidMode": "চাইল্ড মোড"
   },
+  "bottomNav": {
+    "dashboard": "ড্যাশবোর্ড",
+    "children": "সন্তান",
+    "routine": "রুটিন",
+    "notes": "নোট",
+    "quiz": "কুইজ",
+    "log": "লগ"
+  },
   "dashboard": {
     "title": "অভিভাবক ড্যাশবোর্ড",
     "studyDays": "এই সপ্তাহে পড়ার দিন",

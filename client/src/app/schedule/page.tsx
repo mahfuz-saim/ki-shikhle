@@ -500,7 +500,7 @@ export default function SchedulePage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-semibold">{t('schedule.source', 'Learning Source')}</Label>
               <select
@@ -562,7 +562,7 @@ export default function SchedulePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-semibold">{t('schedule.duration', 'Duration (mins)')}</Label>
               <Input
@@ -614,7 +614,7 @@ export default function SchedulePage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-semibold">New Date</Label>
               <Input

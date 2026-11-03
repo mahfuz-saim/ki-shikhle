@@ -505,7 +505,7 @@ export default function NotesPage() {
                         </div>
                       </div>
 
-                      <p className="text-xs text-foreground leading-relaxed line-clamp-4 whitespace-pre-wrap">
+                      <p className="text-xs text-foreground leading-relaxed line-clamp-4 whitespace-pre-wrap break-words">
                         {n.textClean}
                       </p>
                     </div>

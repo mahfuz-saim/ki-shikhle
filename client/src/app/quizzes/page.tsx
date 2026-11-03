@@ -400,7 +400,7 @@ export default function QuizzesPage() {
               </div>
 
               {/* Status and Action Buttons */}
-              <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+              <div className="flex items-center gap-2.5 shrink-0 flex-wrap w-full lg:w-auto">
                 {/* Active / Paused Pill */}
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-card text-xs">
                   <span className="text-muted-foreground font-medium text-[11px]">

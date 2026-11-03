@@ -34,7 +34,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, token, loading, activeChild, setActiveChild, childrenList, logout } = useAuth();
-  const { locale, toggleLocale, isBn } = useI18n();
+  const { locale, toggleLocale, isBn, t } = useI18n();
   const { theme, setTheme } = useTheme();
 
   const [notifOpen, setNotifOpen] = useState(false);
@@ -142,11 +142,36 @@ export function KidShell({ children }: { children: React.ReactNode }) {
   const gradeLabel = activeChild?.grade || (user as any)?.grade || (isTasnim ? 'Class 5' : 'Class 8');
 
   const kidNavItems = [
-    { href: '/child', label: isBn ? 'ড্যাশবোর্ড' : 'Dashboard', icon: LayoutDashboard },
-    { href: '/child/schedule', label: isBn ? 'ক্লাস রুটিন' : 'Class Routines', icon: Calendar },
-    { href: '/child/log', label: isBn ? 'পড়ার বিবরণ দিন' : 'Quick Study Log', icon: BookOpen },
-    { href: '/child/notes', label: isBn ? 'ক্লাস নোটসমূহ' : 'Class Notes', icon: FileText },
-    { href: '/child#quizzes', label: isBn ? 'কুইজ দিন' : 'Take Quizzes', icon: Brain },
+    {
+      href: '/child',
+      label: isBn ? 'ড্যাশবোর্ড' : 'Dashboard',
+      mobileLabel: t('bottomNav.dashboard', isBn ? 'ড্যাশবোর্ড' : 'Dashboard'),
+      icon: LayoutDashboard,
+    },
+    {
+      href: '/child/schedule',
+      label: isBn ? 'ক্লাস রুটিন' : 'Class Routines',
+      mobileLabel: t('bottomNav.routine', isBn ? 'রুটিন' : 'Routine'),
+      icon: Calendar,
+    },
+    {
+      href: '/child/log',
+      label: isBn ? 'পড়ার বিবরণ দিন' : 'Quick Study Log',
+      mobileLabel: t('bottomNav.log', isBn ? 'লগ' : 'Log'),
+      icon: BookOpen,
+    },
+    {
+      href: '/child/notes',
+      label: isBn ? 'ক্লাস নোটসমূহ' : 'Class Notes',
+      mobileLabel: t('bottomNav.notes', isBn ? 'নোট' : 'Notes'),
+      icon: FileText,
+    },
+    {
+      href: '/child#quizzes',
+      label: isBn ? 'কুইজ অনুশীলন' : 'Take Quizzes',
+      mobileLabel: t('bottomNav.quiz', isBn ? 'কুইজ' : 'Quiz'),
+      icon: Brain,
+    },
   ];
 
   return (
@@ -271,7 +296,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
       {/* ======================================================== */}
       {/* 2. Main Area (Top Header Navbar + Page Content + Bottom Nav) */}
       {/* ======================================================== */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         {/* Top Header Navbar (Matching Parent Portal Header) */}
         <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-md px-4 md:px-6 py-2.5 flex items-center justify-between gap-3">
           {/* Left Section: Mobile Brand & Student Switcher / Badge */}
@@ -305,7 +330,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                   <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-600 to-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
                     {studentName.charAt(0).toUpperCase()}
                   </div>
-                  <span className="max-w-[120px] truncate text-foreground font-bold">
+                  <span className="max-w-[75px] sm:max-w-[120px] truncate text-foreground font-bold">
                     {studentName}
                   </span>
                   <span className="text-[10px] text-muted-foreground hidden sm:inline">
@@ -404,7 +429,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
 
               {/* Notification Popover Dropdown */}
               {notifOpen && (
-                <div className="absolute right-0 top-11 w-80 sm:w-96 rounded-2xl border bg-card/95 backdrop-blur-xl shadow-2xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute right-0 top-11 w-[calc(100vw-2rem)] max-w-sm sm:w-96 rounded-2xl border bg-card/95 backdrop-blur-xl shadow-2xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
                   <div className="flex items-center justify-between pb-2 mb-2 border-b">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-xs sm:text-sm text-foreground">
@@ -623,7 +648,8 @@ export function KidShell({ children }: { children: React.ReactNode }) {
           {kidNavItems.map((item) => {
             const isExact = pathname === item.href;
             const isSubPath = item.href !== '/child' && !item.href.includes('#') && pathname.startsWith(item.href);
-            const isActive = isExact || isSubPath;
+            const isQuizActive = item.href.includes('#quizzes') && pathname.startsWith('/child/quiz');
+            const isActive = isExact || isSubPath || isQuizActive;
             const Icon = item.icon;
 
             return (
@@ -635,7 +661,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                 }`}
               >
                 <Icon className={`w-5 h-5 ${isActive ? 'text-primary stroke-[2.5]' : 'stroke-[1.8]'}`} />
-                <span className="text-[10px] tracking-tight">{item.label}</span>
+                <span className="text-[10px] tracking-tight">{item.mobileLabel || item.label}</span>
               </Link>
             );
           })}
