@@ -387,8 +387,8 @@ export default function QuizzesPage() {
                     <CardTitle className="text-lg sm:text-xl font-black text-foreground">
                       {isBn ? 'স্বয়ংক্রিয় কুইজ শিডিউলার ব্যবস্থাপনা' : 'Auto Quiz Scheduling Management'}
                     </CardTitle>
-                    <Badge className="bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold">
-                      {isBn ? 'প্রিমিয়াম ফিচার' : 'Premium Spaced Repetition'}
+                    <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold">
+                      {isBn ? '৩য় প্যাকেজ: প্রিমিয়াম ফিচার' : 'Package 3: Premium Feature'}
                     </Badge>
                   </div>
                   <CardDescription className="text-xs text-muted-foreground mt-0.5">

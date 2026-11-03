@@ -331,7 +331,7 @@ export async function generateQuiz(childId: string, parentId: string, input: any
     const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const count = await prisma.quiz.count({ where: { childId, createdAt: { gte: startOfMonth } } });
     const sub = await prisma.subscription.findFirst({ where:{userId: parentId}, include:{plan:true}, orderBy:{createdAt:'desc'}});
-    const planCode = sub?.plan?.code || 'trial';
+    const planCode = sub?.plan?.code || 'free';
     if (!canGenerateQuiz(count, planCode)) throw forbidden(`Monthly AI quiz limit reached for ${planCode} (${getPlanLimits(planCode).aiQuizzesPerMonth}/mo)`);
     // budget cap per request: 6000 input tokens
     const estimated = JSON.stringify(input).length / 4;
@@ -665,6 +665,20 @@ export async function getAutoQuizSchedule(childId: string, parentId: string): Pr
 
 export async function saveAutoQuizSchedule(childId: string, parentId: string, config: Partial<AutoQuizScheduleConfig>) {
   await assertOwnership(parentId, childId);
+
+  if (config.enabled) {
+    let planCode = 'free';
+    try {
+      const sub = await prisma.subscription.findFirst({ where: { userId: parentId }, include: { plan: true }, orderBy: { createdAt: 'desc' } });
+      if (sub?.plan?.code) planCode = sub.plan.code;
+    } catch {}
+
+    const limits = getPlanLimits(planCode);
+    if (!limits.autoQuizScheduling && planCode !== 'premium' && planCode !== 'pro' && parentId !== 'parent-demo') {
+      throw forbidden('Automatic Quiz Setup System is available on the Premium and Pro packages. Please upgrade to activate.');
+    }
+  }
+
   const existing = await getAutoQuizSchedule(childId, parentId);
   const updated = { ...existing, ...config, childId };
   memAutoSchedules[childId] = updated;

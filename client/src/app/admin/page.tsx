@@ -119,7 +119,7 @@ export default function AdminPage() {
             <Badge variant="secondary">Admin Only</Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            System metrics, user trials, AI token costs, and conversion analytics.
+            System metrics, freemium users, AI token costs, and conversion analytics.
           </p>
         </div>
 
@@ -145,7 +145,7 @@ export default function AdminPage() {
 
           <Card className="rounded-2xl border p-4 bg-card/60 backdrop-blur shadow-sm">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Active Trials
+              Free Plan Users
             </p>
             <p className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">
               {metrics?.trials || 28}

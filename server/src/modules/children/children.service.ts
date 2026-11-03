@@ -52,7 +52,7 @@ export async function createChild(parentId: string, data: any) {
   try {
     const count = await prisma.child.count({ where: { parentId, deletedAt: null } });
     const sub = await prisma.subscription.findFirst({ where: { userId: parentId }, include: { plan: true }, orderBy: { createdAt: 'desc' } });
-    const planCode = sub?.plan?.code || 'trial';
+    const planCode = sub?.plan?.code || 'free';
     if (!canCreateChild(count, planCode)) throw forbidden(`Plan ${planCode} allows max ${getPlanLimits(planCode).maxChildren} children`);
   } catch (e: any) {
     if (e.statusCode === 403) throw e;

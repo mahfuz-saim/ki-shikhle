@@ -122,7 +122,7 @@ export function Header() {
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 transition-colors">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
               <span>
-                {isBn ? `ট্রায়াল: ${trialDaysLeft} দিন বাকি` : `Trial: ${trialDaysLeft} days left`}
+                {isBn ? 'ফ্রি প্ল্যান (২ AI কুইজ/মাস)' : 'Free Tier (2 Quizzes/mo)'}
               </span>
             </div>
           </Link>
@@ -219,7 +219,7 @@ export function TrialBanner() {
     ? Math.max(0, Math.ceil((trialEnds.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 12;
 
-  if (trialDays <= 0) return null;
+  return null;
 
   return (
     <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs py-1.5 px-4 text-center font-medium shadow-sm flex items-center justify-center gap-2">

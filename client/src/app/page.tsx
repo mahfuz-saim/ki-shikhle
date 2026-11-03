@@ -85,7 +85,7 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-3.5 justify-center items-center pt-2 animate-in fade-in slide-in-from-bottom-5 duration-700">
               <Link href="/register">
                 <Button size="lg" className="h-12 px-8 rounded-2xl text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]">
-                  <span>{isBn ? '১৫ দিনের ফ্রি ট্রায়াল শুরু করুন' : 'Start 15-Day Free Trial'}</span>
+                  <span>{isBn ? 'বিনামূল্যে শুরু করুন (ফ্রি)' : 'Get Started Free'}</span>
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
@@ -310,8 +310,8 @@ export default function HomePage() {
               </h2>
               <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                 {isBn
-                  ? '১৫ দিনের সম্পূর্ণ ফ্রি ট্রায়াল। ক্রেডিট কার্ডের প্রয়োজন নেই।'
-                  : 'Start with a 15-day free trial. Upgrade, downgrade, or cancel anytime.'}
+                  ? 'চিরকাল ফ্রি প্ল্যান সহ ৪টি স্পষ্ট প্যাকেজ। ৩য় প্যাকেজে রয়েছে সম্পূর্ণ স্বয়ংক্রিয় কুইজ শিডিউলিং!'
+                  : 'Freemium plans designed for real learning. 3rd Package includes Automatic Quiz Setup System!'}
               </p>
 
               {/* Billing Cycle Toggle */}
@@ -346,89 +346,95 @@ export default function HomePage() {
 
             {/* Pricing Cards Grid */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Free Trial Plan */}
+              {/* Plan 1: Free Forever */}
               <Card className="rounded-3xl border bg-card/70 backdrop-blur p-6 flex flex-col justify-between space-y-5">
                 <div className="space-y-4">
                   <div>
                     <h3 className="font-bold text-base text-foreground">
-                      {isBn ? '১৫ দিনের ফ্রি ট্রায়াল' : '15-Day Free Trial'}
+                      {isBn ? 'ফ্রি (Free)' : 'Always Free'}
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {isBn ? 'সম্পূর্ণ ফিচার পরীক্ষা করুন' : 'Full access to explore features'}
+                      {isBn ? '১ সন্তানের জন্য চিরকাল বিনামূল্যে' : 'Always free for 1 child'}
                     </p>
                   </div>
                   <div>
                     <span className="text-3xl font-extrabold text-foreground">৳০</span>
-                    <span className="text-xs text-muted-foreground"> / 15 days</span>
+                    <span className="text-xs text-muted-foreground"> {isBn ? '/ চিরকাল' : '/ forever free'}</span>
                   </div>
                   <ul className="space-y-2 text-xs text-muted-foreground">
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? '১ জন শিক্ষার্থীর প্রোফাইল' : '1 Student profile'}</span>
+                      <span>{isBn ? '১ জন শিক্ষার্থীর প্রোফাইল' : '1 Child profile slot'}</span>
+                    </li>
+                    <li className="flex items-center gap-2 font-medium text-foreground">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>{isBn ? 'প্রতি মাসে ২টি এআই কুইজ' : '2 AI quizzes per month'}</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? 'দৈনিক পড়ার লগ ও রুটিন' : 'Daily study logging & routine'}</span>
+                      <span>{isBn ? 'দৈনিক পড়ার রুটিন ও লগিং' : 'Daily study logging & routine'}</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? '১০টি এআই কুইজ জেনারেশন' : '10 AI quiz generations'}</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? 'অভিভাবক ড্যাশবোর্ড' : 'Parent dashboard analytics'}</span>
+                      <span>{isBn ? '১ মাসের স্টাডি হিস্ট্রি' : '1-month study history'}</span>
                     </li>
                   </ul>
                 </div>
                 <Link href="/register" className="w-full">
                   <Button variant="outline" className="w-full text-xs font-semibold h-10 rounded-xl">
-                    {isBn ? 'ফ্রি ট্রায়াল শুরু করুন' : 'Start Free Trial'}
+                    {isBn ? 'বিনামূল্যে শুরু করুন' : 'Start Free'}
                   </Button>
                 </Link>
               </Card>
 
-              {/* Starter Plan */}
+              {/* Plan 2: Basic */}
               <Card className="rounded-3xl border bg-card/70 backdrop-blur p-6 flex flex-col justify-between space-y-5">
                 <div className="space-y-4">
                   <div>
-                    <h3 className="font-bold text-base text-foreground">Starter</h3>
+                    <h3 className="font-bold text-base text-foreground">
+                      {isBn ? 'বেসিক (Basic)' : 'Basic'}
+                    </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {isBn ? '১ সন্তানের দৈনন্দিন ট্র্যাকিং' : 'Essential tracking for 1 child'}
+                      {isBn ? 'ভয়েস এন্ট্রি ও খাতার নোট স্ক্যানার' : 'Voice logging & notebook scanner'}
                     </p>
                   </div>
                   <div>
                     <span className="text-3xl font-extrabold text-foreground">
-                      ৳{billingCycle === 'yearly' ? '১১৯' : '১৪৯'}
+                      ৳{billingCycle === 'yearly' ? '১৯৯' : '২৪৯'}
                     </span>
-                    <span className="text-xs text-muted-foreground"> / child / mo</span>
+                    <span className="text-xs text-muted-foreground"> {isBn ? '/ মাস' : '/ month'}</span>
                   </div>
                   <ul className="space-y-2 text-xs text-muted-foreground">
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? '১ জন শিক্ষার্থীর অ্যাকাউন্ট' : '1 Student account'}</span>
+                      <span>{isBn ? '১ জন শিক্ষার্থীর অ্যাকাউন্ট' : '1 Child profile slot'}</span>
+                    </li>
+                    <li className="flex items-center gap-2 font-medium text-foreground">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>{isBn ? 'প্রতি মাসে ১০টি এআই কুইজ' : '10 AI quizzes per month'}</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? 'আনলিমিটেড পড়ার লগ' : 'Unlimited daily study logs'}</span>
+                      <span>{isBn ? 'ভয়েস লগ ও ক্লদ এআই স্ট্রাকচারিং' : 'Voice logging & Claude AI'}</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? 'প্রতি মাসে ১৫টি ওসিআর নোট' : '15 OCR notes / month'}</span>
+                      <span>{isBn ? 'খাতার নোট ও হস্তলিপি স্ক্যানার (OCR)' : 'Class notebook OCR scanner'}</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? 'সাপ্তাহিক প্রগ্রেস সামারি' : 'Weekly progress summary'}</span>
+                      <span>{isBn ? 'দুর্বল বনাম শক্তিশালী অধ্যায়' : 'Weak vs strong topic insights'}</span>
                     </li>
                   </ul>
                 </div>
                 <Link href="/register" className="w-full">
                   <Button variant="outline" className="w-full text-xs font-semibold h-10 rounded-xl">
-                    {isBn ? 'প্ল্যান নিন' : 'Choose Starter'}
+                    {isBn ? 'বেসিক প্ল্যান নিন' : 'Choose Basic'}
                   </Button>
                 </Link>
               </Card>
 
-              {/* Standard Plan (Recommended) */}
+              {/* Plan 3: Premium (Recommended with Auto Quiz Setup) */}
               <Card className="rounded-3xl border-2 border-indigo-600 bg-card shadow-xl p-6 flex flex-col justify-between space-y-5 relative">
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <Badge className="bg-indigo-600 text-white text-[10px] px-3 py-0.5 font-bold uppercase tracking-wider">
@@ -437,84 +443,100 @@ export default function HomePage() {
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <h3 className="font-bold text-base text-foreground">Standard</h3>
+                    <h3 className="font-bold text-base text-foreground">
+                      {isBn ? 'প্রিমিয়াম (Premium)' : 'Premium'}
+                    </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {isBn ? 'সম্পূর্ণ এআই কুইজ ও অ্যানালিটিক্স' : 'Full AI quizzes & radar insights'}
+                      {isBn ? 'স্বয়ংক্রিয় কুইজ শিডিউলিং ও ২ সন্তান' : 'Auto quiz scheduling & 2 children'}
                     </p>
                   </div>
                   <div>
                     <span className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">
-                      ৳{billingCycle === 'yearly' ? '২৩৯' : '২৯৯'}
+                      ৳{billingCycle === 'yearly' ? '৪৭৯' : '৫৯৯'}
                     </span>
-                    <span className="text-xs text-muted-foreground"> / mo</span>
+                    <span className="text-xs text-muted-foreground"> {isBn ? '/ মাস' : '/ month'}</span>
                   </div>
                   <ul className="space-y-2 text-xs text-muted-foreground">
                     <li className="flex items-center gap-2 font-medium text-foreground">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? '২ জন শিক্ষার্থীর প্রোফাইল' : 'Up to 2 Students included'}</span>
+                      <span>{isBn ? '২ জন শিক্ষার্থীর সম্পূর্ণ প্রোফাইল' : '2 Children profile slots'}</span>
                     </li>
                     <li className="flex items-center gap-2 font-medium text-foreground">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? 'আনলিমিটেড এআই কুইজ' : 'Unlimited AI revision quizzes'}</span>
+                      <span>{isBn ? 'প্রতি মাসে ৫০টি এআই কুইজ' : '50 AI quizzes per month'}</span>
                     </li>
-                    <li className="flex items-center gap-2 font-medium text-foreground">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? 'আনলিমিটেড নোট ওসিআর' : 'Unlimited notebook OCR'}</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? 'দুর্বল টপিক ডিটেকশন ও রাডার' : 'Weak topic radar & alerts'}</span>
+                    <li className="flex items-center gap-2 font-bold text-indigo-600 dark:text-indigo-400">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <span>{isBn ? '⭐ স্বয়ংক্রিয় কুইজ সেটআপ সিস্টেম' : '⭐ Automatic Quiz Setup System'}</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? 'স্মার্ট রুটিন ও রিশিডিউলিং' : 'Smart routine & rescheduler'}</span>
+                      <span>{isBn ? '১ দিন আগের টপিকে স্পেসড রিপিটেশন' : '1-day-old topic spaced repetition'}</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>{isBn ? 'গণিতে বেশি সময়, তাত্ত্বিকে টাইট টাইমিং' : 'AI Dynamic Math & Analytical timing'}</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>{isBn ? 'সীমাহীন হিস্ট্রি ও প্রায়োরিটি এআই' : 'Unlimited study history & priority AI'}</span>
                     </li>
                   </ul>
                 </div>
                 <Link href="/register" className="w-full">
                   <Button className="w-full text-xs font-bold h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25">
-                    {isBn ? 'স্ট্যান্ডার্ড শুরু করুন' : 'Start with Standard'}
+                    {isBn ? 'প্রিমিয়াম শুরু করুন' : 'Start with Premium'}
                   </Button>
                 </Link>
               </Card>
 
-              {/* Family / Premium Plan */}
+              {/* Plan 4: Pro Family */}
               <Card className="rounded-3xl border bg-card/70 backdrop-blur p-6 flex flex-col justify-between space-y-5">
                 <div className="space-y-4">
                   <div>
-                    <h3 className="font-bold text-base text-foreground">Premium / Family</h3>
+                    <h3 className="font-bold text-base text-foreground">
+                      {isBn ? 'প্রো ফ্যামিলি (Pro)' : 'Pro Family'}
+                    </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {isBn ? 'একাধিক সন্তান ও অ্যাডভান্সড রিপোর্ট' : 'Multi-child families & priority AI'}
+                      {isBn ? 'পুরো পরিবার ও এসএমএস/হোয়াটসঅ্যাপ অ্যালার্ট' : 'Full family & SMS/WhatsApp alerts'}
                     </p>
                   </div>
                   <div>
                     <span className="text-3xl font-extrabold text-foreground">
-                      ৳{billingCycle === 'yearly' ? '৩৯৯' : '৪৯৯'}
+                      ৳{billingCycle === 'yearly' ? '৭৯৯' : '৯৯৯'}
                     </span>
-                    <span className="text-xs text-muted-foreground"> / mo</span>
+                    <span className="text-xs text-muted-foreground"> {isBn ? '/ মাস' : '/ month'}</span>
                   </div>
                   <ul className="space-y-2 text-xs text-muted-foreground">
-                    <li className="flex items-center gap-2">
+                    <li className="flex items-center gap-2 font-medium text-foreground">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? '৪ জন পর্যন্ত শিক্ষার্থী' : 'Up to 4 Students'}</span>
+                      <span>{isBn ? '৫ জন পর্যন্ত শিক্ষার্থী' : 'Up to 5 Children profiles'}</span>
+                    </li>
+                    <li className="flex items-center gap-2 font-medium text-foreground">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>{isBn ? '১৫০টি এআই কুইজ প্রতি মাসে' : '150 AI quizzes per month'}</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? 'প্রায়োরিটি এআই কুইজ ইঞ্জিন' : 'Priority AI quiz engine'}</span>
+                      <span>{isBn ? 'সকল সন্তানের স্বয়ংক্রিয় কুইজ শিডিউলিং' : 'Auto quiz setup for all siblings'}</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? 'সম্পূর্ণ স্টাডি হিস্ট্রি ও রিপোর্ট' : 'Full history & report exports'}</span>
+                      <span>{isBn ? 'হোয়াটসঅ্যাপ ও এসএমএস ডেইলি সামারি' : 'WhatsApp & SMS study alerts'}</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{isBn ? 'মাল্টি-চাইল্ড কম্প্যারিজন' : 'Sibling analytics overview'}</span>
+                      <span>{isBn ? 'মাসিক প্রগ্রেস অডিট রিপোর্ট (PDF)' : 'Monthly audit report (PDF export)'}</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>{isBn ? '২৪/৭ ডেডিকেটেড প্যারেন্টিং সাপোর্ট' : '24/7 dedicated priority support'}</span>
                     </li>
                   </ul>
                 </div>
                 <Link href="/register" className="w-full">
                   <Button variant="outline" className="w-full text-xs font-semibold h-10 rounded-xl">
-                    {isBn ? 'ফ্যামিলি প্ল্যান নিন' : 'Choose Family'}
+                    {isBn ? 'প্রো ফ্যামিলি নিন' : 'Choose Pro Family'}
                   </Button>
                 </Link>
               </Card>

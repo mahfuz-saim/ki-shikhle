@@ -257,7 +257,7 @@ export default function LoginPage() {
             <p className="text-xs text-center text-muted-foreground pt-1">
               Don&apos;t have an account?{' '}
               <Link href="/register" className="text-primary font-bold hover:underline">
-                Create parent account (15-day trial)
+                {isBn ? 'ফ্রি অ্যাকাউন্ট তৈরি করুন' : 'Create Free Account'}
               </Link>
             </p>
           </CardContent>

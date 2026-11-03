@@ -7,7 +7,7 @@ const memSubs: any[] = [];
 const memPayments: any[] = [];
 
 export async function getPlans() {
-  return [PLANS.free, PLANS.basic, PLANS.premium].map((p) => ({
+  return [PLANS.free, PLANS.basic, PLANS.premium, PLANS.pro].map((p) => ({
     code: p.code,
     name: p.name,
     priceBdt: p.priceBDT,

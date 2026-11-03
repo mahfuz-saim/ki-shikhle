@@ -20,6 +20,7 @@ import {
   Download,
   Clock,
   ArrowRight,
+  Zap,
 } from 'lucide-react';
 
 export default function BillingPage() {
@@ -44,76 +45,141 @@ export default function BillingPage() {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
+  const defaultPlans = [
+    {
+      code: 'free',
+      name: isBn ? 'ফ্রি (Free)' : 'Free',
+      priceBdt: 0,
+      limitsJson: {
+        maxChildren: 1,
+        aiQuizzesPerMonth: 2,
+        historyMonths: 1,
+        autoQuizScheduling: false,
+      },
+      features: isBn
+        ? [
+            '১ জন শিক্ষার্থীর প্রোফাইল',
+            'প্রতি মাসে ২টি এআই কুইজ (চিরকাল ফ্রি)',
+            'দৈনিক পড়ার রুটিন ও ম্যানুয়াল লগিং',
+            'বেসিক স্কোর ট্র্যাকিং ও ১ মাসের ইতিহাস',
+          ]
+        : [
+            '1 Child profile slot',
+            '2 AI quizzes per month (Always Free)',
+            'Daily routine & manual study logging',
+            'Basic score tracking & 1-month history',
+          ],
+    },
+    {
+      code: 'basic',
+      name: isBn ? 'বেসিক (Basic)' : 'Basic',
+      priceBdt: 249,
+      limitsJson: {
+        maxChildren: 1,
+        aiQuizzesPerMonth: 10,
+        historyMonths: 6,
+        autoQuizScheduling: false,
+      },
+      features: isBn
+        ? [
+            '১ জন শিক্ষার্থীর প্রোফাইল',
+            'প্রতি মাসে ১০টি এআই কুইজ',
+            'ভয়েস লগ ও ক্লদ এআই স্ট্রাকচার্ড সামারি',
+            'খাতার নোট ও হস্তলিপি স্ক্যানার (OCR)',
+            'অধ্যায়ভিত্তিক দুর্বলতা বনাম নির্ভুলতা গ্রাফ',
+            '৬ মাসের পূর্ণ স্টাডি হিস্ট্রি',
+          ]
+        : [
+            '1 Child profile slot',
+            '10 AI quizzes per month',
+            'Voice Logging with Claude AI preview',
+            'Class Notes & handwritten OCR scanner',
+            'Weak vs strong topic insights',
+            '6-month study history',
+          ],
+    },
+    {
+      code: 'premium',
+      name: isBn ? 'প্রিমিয়াম (Premium)' : 'Premium',
+      priceBdt: 599,
+      recommended: true,
+      limitsJson: {
+        maxChildren: 2,
+        aiQuizzesPerMonth: 50,
+        historyMonths: null,
+        autoQuizScheduling: true,
+      },
+      features: isBn
+        ? [
+            '২ জন শিক্ষার্থীর প্রোফাইল (2 Children Slots)',
+            'প্রতি মাসে ৫০টি এআই কুইজ',
+            '⭐ স্বয়ংক্রিয় কুইজ সেটআপ সিস্টেম (Auto Quiz Setup)',
+            'গতকালকের পাঠে ১-দিন স্পেসড রিপিটেশন কুইজ',
+            'এআই ডাইনামিক সময় (গণিতে বেশি, তাত্ত্বিকে টাইট)',
+            'দুর্বল অধ্যায়ে অ্যাডাপটিভ এআই রিকভারি',
+            'সীমাহীন ইতিহাস ও প্রায়োরিটি এআই প্রসেসিং',
+          ]
+        : [
+            '2 Children profile slots',
+            '50 AI quizzes per month',
+            '⭐ Automatic Quiz Setup System',
+            'Spaced repetition: Auto quizzes on 1-day-old topics',
+            'AI Dynamic Smart Timing (Math vs Theory)',
+            'Adaptive topic understanding & recovery',
+            'Unlimited history & priority AI processing',
+          ],
+    },
+    {
+      code: 'pro',
+      name: isBn ? 'প্রো ফ্যামিলি (Pro)' : 'Pro Family',
+      priceBdt: 999,
+      limitsJson: {
+        maxChildren: 5,
+        aiQuizzesPerMonth: 150,
+        historyMonths: null,
+        autoQuizScheduling: true,
+      },
+      features: isBn
+        ? [
+            '৫ জন পর্যন্ত শিক্ষার্থী (পুরো পরিবারের জন্য)',
+            'প্রতি মাসে ১৫০টি এআই কুইজ',
+            'সকল সন্তানের জন্য স্বয়ংক্রিয় কুইজ শিডিউলিং',
+            'হোয়াটসঅ্যাপ ও এসএমএস ডেইলি স্টাডি অ্যালার্ট',
+            'মাসিক অ্যাকাডেমিক অডিট রিপোর্ট (PDF ডাউনলোড)',
+            'স্কুল পরীক্ষার সিলেবাস ইন্টিগ্রেশন ও ২৪/৭ সাপোর্ট',
+          ]
+        : [
+            'Up to 5 Children profile slots',
+            '150 AI quizzes per month',
+            'Automatic Quiz Setup for all siblings',
+            'WhatsApp & SMS study alerts & daily summaries',
+            'Monthly academic audit report (PDF export)',
+            'School exam syllabus integration & 24/7 support',
+          ],
+    },
+  ];
+
   useEffect(() => {
     api
       .get('/billing/plans')
-      .then((r) => setPlans(r.data.data))
-      .catch(() =>
-        setPlans([
-          {
-            code: 'starter',
-            name: 'Starter',
-            priceBdt: 149,
-            limitsJson: {
-              maxChildren: 2,
-              aiQuizzesPerMonth: 10,
-              historyMonths: 3,
-            },
-            features: [
-              'Daily learning logs & routines',
-              '10 AI quizzes per month',
-              'Notes upload & OCR scanner',
-              'Basic progress charts',
-              '3-month study history',
-            ],
-          },
-          {
-            code: 'standard',
-            name: 'Standard (Recommended)',
-            priceBdt: 299,
-            recommended: true,
-            limitsJson: {
-              maxChildren: 5,
-              aiQuizzesPerMonth: 40,
-              historyMonths: 12,
-            },
-            features: [
-              '40 AI quizzes per month',
-              'Full dashboards & mastery radar',
-              'Plain language AI explanations',
-              '12-month study history',
-              'Multi-child switcher (up to 5)',
-            ],
-          },
-          {
-            code: 'premium',
-            name: 'Premium',
-            priceBdt: 499,
-            limitsJson: {
-              maxChildren: 10,
-              aiQuizzesPerMonth: 120,
-              historyMonths: null,
-            },
-            features: [
-              '120 AI quizzes per month',
-              'AI vision OCR fallback',
-              'Weekly parent progress digest',
-              'Unlimited study history',
-              'Priority tutoring review',
-            ],
-          },
-        ])
-      );
+      .then((r) => {
+        if (r.data?.data && Array.isArray(r.data.data) && r.data.data.length >= 3) {
+          setPlans(r.data.data);
+        } else {
+          setPlans(defaultPlans);
+        }
+      })
+      .catch(() => setPlans(defaultPlans));
 
     api
       .get('/billing/subscription')
       .then((r) => setSub(r.data.data))
       .catch(() =>
         setSub({
-          status: 'trialing',
-          planCode: 'trial',
-          childSlots: 2,
-          currentPeriodEnd: new Date(Date.now() + 12 * 86400000).toISOString(),
+          status: 'active',
+          planCode: 'free',
+          childSlots: 1,
+          currentPeriodEnd: null,
         })
       );
 
@@ -125,7 +191,7 @@ export default function BillingPage() {
           {
             id: 'inv-1',
             invoiceNo: 'INV-2026-001',
-            amount: 299,
+            amount: 599,
             currency: 'BDT',
             status: 'paid',
             isDemo: true,
@@ -159,8 +225,8 @@ export default function BillingPage() {
       const inv = res.data?.data;
       setMsg(
         isBn
-          ? `পেমেন্ট সফল হয়েছে! ইনভয়েস নং: ${inv?.invoiceNo || 'INV-DEMO'}`
-          : `Payment successful! Invoice: ${inv?.invoiceNo || 'INV-DEMO'}`
+          ? `পেমেন্ট সফল হয়েছে! প্ল্যান আপডেট সম্পন্ন। ইনভয়েস নং: ${inv?.invoiceNo || 'INV-DEMO'}`
+          : `Payment successful! Plan updated. Invoice: ${inv?.invoiceNo || 'INV-DEMO'}`
       );
       setCheckoutModalOpen(false);
 
@@ -176,29 +242,32 @@ export default function BillingPage() {
     }
   };
 
-  const trialEnds = sub?.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : null;
-  const trialDaysLeft = trialEnds
-    ? Math.max(0, Math.ceil((trialEnds.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 12;
-
   // Selected plan calculation
-  const selectedPlan = plans.find((p) => p.code === checkoutForm.planCode) || plans[1] || { priceBdt: 299 };
-  const baseRate = selectedPlan.priceBdt || 299;
+  const effectivePlans = plans.length > 0 ? plans : defaultPlans;
+  const selectedPlan = effectivePlans.find((p) => p.code === checkoutForm.planCode) || effectivePlans[2] || { priceBdt: 599 };
+  const baseRate = selectedPlan.priceBdt || 0;
+
   // Sibling discount: 2nd child 25% off, 3rd+ 35% off
   let totalBdt = baseRate;
-  if (checkoutForm.childCount === 2) {
-    totalBdt = baseRate + baseRate * 0.75;
-  } else if (checkoutForm.childCount > 2) {
-    totalBdt = baseRate + baseRate * 0.75 + (checkoutForm.childCount - 2) * (baseRate * 0.65);
-  }
-  if (checkoutForm.billingPeriod === 'yearly') {
-    totalBdt = totalBdt * 10; // 10 months for 12 months
+  if (baseRate > 0) {
+    if (checkoutForm.childCount === 2) {
+      totalBdt = baseRate + baseRate * 0.75;
+    } else if (checkoutForm.childCount > 2) {
+      totalBdt = baseRate + baseRate * 0.75 + (checkoutForm.childCount - 2) * (baseRate * 0.65);
+    }
+    if (checkoutForm.billingPeriod === 'yearly') {
+      totalBdt = totalBdt * 10; // 10 months for 12 months
+    }
+  } else {
+    totalBdt = 0;
   }
   totalBdt = Math.round(totalBdt);
 
+  const currentPlanCode = sub?.plan?.code || sub?.planCode || 'free';
+
   return (
     <AppShell>
-      <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6 max-w-6xl mx-auto">
         {/* Header */}
         <div className="pb-2 border-b">
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
@@ -206,8 +275,8 @@ export default function BillingPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {isBn
-              ? 'ন্যায্য মূল্য নির্ধারণ ও ডেমো পেমেন্ট পোর্টাল (বিকাশ, নগদ, কার্ড)'
-              : 'Honest pricing per child with 15-day free trial, sibling discounts, and demo gateway.'}
+              ? 'ফ্রিমিয়াম মডেল: চিরকাল ফ্রি প্ল্যান সহ ৩য় প্যাকেজে স্বয়ংক্রিয় এআই কুইজ শিডিউলিং'
+              : 'Freemium model: Always Free tier with Automatic Quiz Setup System available in Premium'}
           </p>
         </div>
 
@@ -220,40 +289,79 @@ export default function BillingPage() {
           </div>
         )}
 
-        {/* Trial Status Card */}
-        {sub?.status === 'trialing' && (
-          <Card className="rounded-2xl border-amber-500/40 bg-amber-500/5 p-6 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-amber-500 text-white font-bold text-xs">
-                    {t('billing.trialBanner', '15-Day Free Trial')}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    Full Standard features active
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-foreground">
-                  {trialDaysLeft} {t('billing.trialDaysLeft', 'days remaining in trial')}
-                </h3>
-                <p className="text-xs text-muted-foreground max-w-lg">
-                  {isBn
-                    ? 'ট্রায়াল শেষ হলেও আপনার কোনো তথ্য বা নোট মুছে যাবে না। এআই কুইজ অব্যাহত রাখতে পছন্দসই প্ল্যানটি বেছে নিন।'
-                    : 'Your study logs and notes are never deleted after trial. Upgrade anytime to keep unlimited AI quizzes.'}
-                </p>
+        {/* Current Subscription Status Card */}
+        <Card
+          className={`rounded-2xl p-5 sm:p-6 shadow-sm border ${
+            currentPlanCode === 'premium' || currentPlanCode === 'pro'
+              ? 'border-indigo-500/30 bg-gradient-to-r from-indigo-500/10 via-primary/5 to-transparent'
+              : currentPlanCode === 'basic'
+              ? 'border-sky-500/30 bg-sky-500/5'
+              : 'border-emerald-500/30 bg-emerald-500/5'
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Badge
+                  className={`font-bold text-xs ${
+                    currentPlanCode === 'pro'
+                      ? 'bg-purple-600 text-white'
+                      : currentPlanCode === 'premium'
+                      ? 'bg-indigo-600 text-white'
+                      : currentPlanCode === 'basic'
+                      ? 'bg-sky-600 text-white'
+                      : 'bg-emerald-600 text-white'
+                  }`}
+                >
+                  {currentPlanCode === 'pro'
+                    ? (isBn ? 'প্রো ফ্যামিলি প্ল্যান' : 'Pro Family Plan')
+                    : currentPlanCode === 'premium'
+                    ? (isBn ? 'প্রিমিয়াম প্ল্যান' : 'Premium Plan')
+                    : currentPlanCode === 'basic'
+                    ? (isBn ? 'বেসিক প্ল্যান' : 'Basic Plan')
+                    : (isBn ? 'চিরকাল ফ্রি প্ল্যান' : 'Always Free Plan')}
+                </Badge>
+                <span className="text-xs text-muted-foreground font-medium">
+                  {currentPlanCode === 'premium' || currentPlanCode === 'pro'
+                    ? (isBn ? '⭐ স্বয়ংক্রিয় কুইজ সেটআপ সক্রিয়' : '⭐ Automatic Quiz Setup Active')
+                    : (isBn ? 'সীমাহীন মেয়াদ • প্রতি মাসে ২টি কুইজ' : 'Lifetime Free • 2 AI Quizzes/mo')}
+                </span>
               </div>
-
-              <Button
-                onClick={() => openCheckout('premium')}
-                className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl h-10 px-6 shrink-0 shadow-md shadow-amber-500/20"
-              >
-                {isBn ? 'প্রিমিয়াম প্ল্যানে আপগ্রেড করুন' : 'Upgrade to Premium Plan'}
-              </Button>
+              <h3 className="text-lg font-bold text-foreground">
+                {currentPlanCode === 'free'
+                  ? (isBn ? 'বিনামূল্যে ব্যবহার করছেন (Free Tier)' : 'Free Tier Active (Forever Free)')
+                  : `${sub?.plan?.name || currentPlanCode.toUpperCase()} (${isBn ? 'সক্রিয়' : 'Active'})`}
+              </h3>
+              <p className="text-xs text-muted-foreground max-w-xl">
+                {isBn
+                  ? 'আপনার কোনো স্টাডি লগ বা খাতার নোট কখনো মুছে যাবে না। ৩য় প্যাকেজ (প্রিমিয়াম)-এ রয়েছে স্বয়ংক্রিয় কুইজ সেটআপ ও স্পেসড রিপিটেশন।'
+                  : 'Your learning logs and notes are never deleted. Package 3 (Premium) unlocks the Automatic Quiz Setup System and 50 AI quizzes per month.'}
+              </p>
             </div>
-          </Card>
-        )}
 
-        {/* Pricing Plans Grid */}
+            <div className="flex items-center gap-2 shrink-0">
+              {currentPlanCode !== 'premium' && currentPlanCode !== 'pro' ? (
+                <Button
+                  onClick={() => openCheckout('premium')}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl h-10 px-5 shadow-md shadow-indigo-600/20 gap-1.5"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>{isBn ? 'প্রিমিয়ামে আপগ্রেড (অটো কুইজ)' : 'Upgrade to Premium (Auto Quiz)'}</span>
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => openCheckout('pro')}
+                  variant="outline"
+                  className="text-xs font-bold rounded-xl h-10 px-4"
+                >
+                  <span>{isBn ? 'প্ল্যান পরিবর্তন করুন' : 'Change Plan'}</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        {/* Pricing Plans 4-Column Grid */}
         <div className="space-y-3">
           <div className="text-center sm:text-left">
             <h2 className="text-lg font-bold text-foreground">
@@ -261,58 +369,93 @@ export default function BillingPage() {
             </h2>
             <p className="text-xs text-muted-foreground">
               {isBn
-                ? '২য় সন্তানের ক্ষেত্রে ২৫% ছাড়, ৩য় বা ততোধিকের ক্ষেত্রে ৩৫% ছাড়। বাৎসরিক: ১০ মাসের খরচে ১২ মাস!'
-                : 'Sibling discount: 25% off 2nd child, 35% off 3rd+. Annual: pay for 10 months, get 12.'}
+                ? '১টি ফ্রি ও ৩টি পেইড প্যাকেজ। ৩য় প্যাকেজে রয়েছে সম্পূর্ণ স্বয়ংক্রিয় কুইজ সেটআপ। বাৎসরিক: ১০ মাসের খরচে ১২ মাস!'
+                : '1 Free & 3 Paid Packages. Package 3 includes Automatic Quiz Setup System. Annual: pay 10 months, get 12!'}
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 pt-2">
-            {plans.map((p) => {
-              const isRecommended = p.code === 'standard' || p.recommended;
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+            {effectivePlans.map((p) => {
+              const isRecommended = p.code === 'premium' || p.recommended;
+              const isCurrent = currentPlanCode === p.code;
+
               return (
                 <Card
                   key={p.code}
                   className={`rounded-2xl border transition-all flex flex-col justify-between ${
                     isRecommended
-                      ? 'border-indigo-600 ring-2 ring-indigo-600/20 shadow-lg scale-[1.02] bg-card'
+                      ? 'border-indigo-600 ring-2 ring-indigo-600/20 shadow-lg scale-[1.02] bg-card relative'
+                      : isCurrent
+                      ? 'border-emerald-500/50 bg-card shadow-sm'
                       : 'bg-card/70 hover:shadow-md'
                   }`}
                 >
-                  <CardHeader className="p-6 pb-4">
+                  <CardHeader className="p-5 pb-3">
                     {isRecommended && (
                       <Badge className="w-fit mb-2 bg-indigo-600 text-white text-[10px] font-bold">
-                        Most Popular
+                        {isBn ? 'সবচেয়ে জনপ্রিয়' : 'Most Popular'}
                       </Badge>
                     )}
-                    <CardTitle className="text-xl font-black text-foreground">{p.name}</CardTitle>
-                    <div className="flex items-baseline gap-1 mt-2">
+                    {isCurrent && (
+                      <Badge className="w-fit mb-2 bg-emerald-600 text-white text-[10px] font-bold">
+                        {isBn ? 'বর্তমান প্ল্যান' : 'Current Plan'}
+                      </Badge>
+                    )}
+                    <CardTitle className="text-lg font-black text-foreground">{p.name}</CardTitle>
+                    <div className="flex items-baseline gap-1 mt-1.5">
                       <span className="text-3xl font-black text-foreground">৳{p.priceBdt}</span>
-                      <span className="text-xs text-muted-foreground">/ child / month</span>
+                      <span className="text-xs text-muted-foreground">
+                        {p.priceBdt === 0
+                          ? (isBn ? '/ চিরকাল' : '/ forever')
+                          : (isBn ? '/ মাস' : '/ month')}
+                      </span>
                     </div>
                   </CardHeader>
 
-                  <CardContent className="p-6 pt-0 space-y-5">
-                    <ul className="space-y-2.5 text-xs">
+                  <CardContent className="p-5 pt-0 space-y-4">
+                    <ul className="space-y-2 text-xs">
                       {(p.features || [
                         `${p.limitsJson?.aiQuizzesPerMonth} AI quizzes/mo`,
                         `Up to ${p.limitsJson?.maxChildren} children`,
                         p.limitsJson?.historyMonths ? `${p.limitsJson.historyMonths}mo history` : 'Unlimited history',
-                      ]).map((f: string, idx: number) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                          <span className="text-foreground font-medium">{f}</span>
-                        </li>
-                      ))}
+                      ]).map((f: string, idx: number) => {
+                        const isAutoQuizFeature = f.includes('স্বয়ংক্রিয়') || f.includes('Automatic') || f.includes('Auto');
+                        return (
+                          <li key={idx} className="flex items-start gap-2">
+                            <Check
+                              className={`w-4 h-4 shrink-0 mt-0.5 ${
+                                isAutoQuizFeature ? 'text-indigo-600 font-bold' : 'text-emerald-500'
+                              }`}
+                            />
+                            <span
+                              className={`leading-relaxed ${
+                                isAutoQuizFeature
+                                  ? 'font-bold text-indigo-700 dark:text-indigo-300'
+                                  : 'text-foreground font-medium'
+                              }`}
+                            >
+                              {f}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
 
                     <Button
                       onClick={() => openCheckout(p.code)}
-                      variant={isRecommended ? 'default' : 'outline'}
+                      disabled={isCurrent}
+                      variant={isRecommended ? 'default' : isCurrent ? 'secondary' : 'outline'}
                       className={`w-full h-10 text-xs font-bold rounded-xl ${
-                        isRecommended ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md' : ''
+                        isRecommended && !isCurrent
+                          ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md'
+                          : ''
                       }`}
                     >
-                      {sub?.planCode === p.code ? 'Current Plan' : `Choose ${p.name}`}
+                      {isCurrent
+                        ? (isBn ? 'বর্তমান প্ল্যান' : 'Active Plan')
+                        : p.code === 'free'
+                        ? (isBn ? 'ফ্রি প্ল্যানে থাকুন' : 'Stay on Free')
+                        : `${p.name} ${isBn ? 'বেছে নিন' : 'Select'}`}
                     </Button>
                   </CardContent>
                 </Card>
@@ -329,7 +472,7 @@ export default function BillingPage() {
               <span>{t('billing.invoices', 'Invoices & Receipts')}</span>
             </CardTitle>
             <CardDescription className="text-xs">
-              All demo and live payment transactions
+              {isBn ? 'পেমেন্ট ট্রানজ্যাকশন হিস্ট্রি ও রিসিপ্ট' : 'All demo and live payment transactions'}
             </CardDescription>
           </CardHeader>
 
@@ -363,7 +506,9 @@ export default function BillingPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground py-4 text-center">No invoices yet.</p>
+              <p className="text-xs text-muted-foreground py-4 text-center">
+                {isBn ? 'কোনো পূর্ববর্তী ইনভয়েস নেই।' : 'No invoices yet.'}
+              </p>
             )}
           </CardContent>
         </Card>
@@ -374,41 +519,50 @@ export default function BillingPage() {
         isOpen={checkoutModalOpen}
         onClose={() => setCheckoutModalOpen(false)}
         title={t('billing.demoCheckout', 'Complete Subscription (Demo)')}
-        description="Simulated checkout with bKash, Nagad or Card. No real money will be charged."
+        description={
+          isBn
+            ? 'বিকাশ, নগদ বা কার্ড দিয়ে ডেমো পেমেন্ট টেস্ট করুন। কোনো আসল টাকা কাটা হবে না।'
+            : 'Simulated checkout with bKash, Nagad or Card. No real money will be charged.'
+        }
       >
         <form onSubmit={handleCheckout} className="space-y-4 pt-1">
           {/* Plan & Child count */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-semibold">Selected Plan</Label>
+              <Label className="text-xs font-semibold">{isBn ? 'নির্বাচিত প্ল্যান' : 'Selected Plan'}</Label>
               <select
                 value={checkoutForm.planCode}
                 onChange={(e) => setCheckoutForm({ ...checkoutForm, planCode: e.target.value })}
-                className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
+                className="w-full h-10 border rounded-xl px-3 bg-background text-xs font-semibold mt-1"
               >
                 <option value="free">Free Forever (৳0 - 1 Child, 2 Quizzes/mo)</option>
                 <option value="basic">Basic (৳249 - 1 Child, 10 Quizzes/mo)</option>
-                <option value="premium">Premium (৳599 - 2 Children, 50 Quizzes/mo + Auto-Scheduling)</option>
+                <option value="premium">Premium (৳599 - 2 Children, 50 Quizzes + Auto Quiz)</option>
+                <option value="pro">Pro Family (৳999 - Up to 5 Children, 150 Quizzes + Auto Quiz)</option>
               </select>
             </div>
 
             <div>
-              <Label className="text-xs font-semibold">Number of Children</Label>
+              <Label className="text-xs font-semibold">{isBn ? 'সন্তানের সংখ্যা' : 'Number of Children'}</Label>
               <select
                 value={checkoutForm.childCount}
                 onChange={(e) => setCheckoutForm({ ...checkoutForm, childCount: parseInt(e.target.value) || 1 })}
-                className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
+                className="w-full h-10 border rounded-xl px-3 bg-background text-xs font-semibold mt-1"
               >
                 <option value={1}>1 Child</option>
                 <option value={2}>2 Children (25% off 2nd)</option>
                 <option value={3}>3 Children (35% off 3rd)</option>
+                <option value={4}>4 Children</option>
+                <option value={5}>5 Children</option>
               </select>
             </div>
           </div>
 
           {/* Billing Cycle */}
           <div>
-            <Label className="text-xs font-semibold block mb-1">Billing Period</Label>
+            <Label className="text-xs font-semibold block mb-1">
+              {isBn ? 'বিলিং সাইকেল' : 'Billing Period'}
+            </Label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -419,7 +573,7 @@ export default function BillingPage() {
                     : 'bg-muted/20 text-muted-foreground'
                 }`}
               >
-                Monthly
+                {isBn ? 'মাসিক' : 'Monthly'}
               </button>
               <button
                 type="button"
@@ -430,14 +584,16 @@ export default function BillingPage() {
                     : 'bg-muted/20 text-muted-foreground'
                 }`}
               >
-                Yearly (Pay 10, Get 12)
+                {isBn ? 'বাৎসরিক (১০ মাসের খরচে ১২ মাস)' : 'Yearly (Pay 10, Get 12)'}
               </button>
             </div>
           </div>
 
           {/* Payment Method Selector */}
           <div>
-            <Label className="text-xs font-semibold block mb-1">Payment Method (Demo)</Label>
+            <Label className="text-xs font-semibold block mb-1">
+              {isBn ? 'পেমেন্ট মাধ্যম (ডেমো)' : 'Payment Method (Demo)'}
+            </Label>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: 'bkash', label: '🟢 bKash' },
@@ -460,10 +616,12 @@ export default function BillingPage() {
             </div>
           </div>
 
-          {/* Fake wallet number */}
+          {/* Wallet / card number */}
           <div>
             <Label className="text-xs font-semibold">
-              {checkoutForm.method === 'card' ? 'Card Number (Demo)' : 'Wallet Number (Demo)'}
+              {checkoutForm.method === 'card'
+                ? (isBn ? 'কার্ড নম্বর (ডেমো)' : 'Card Number (Demo)')
+                : (isBn ? 'মোবাইল ওয়ালেট নম্বর (ডেমো)' : 'Wallet Number (Demo)')}
             </Label>
             <Input
               value={checkoutForm.walletNumber}
@@ -474,7 +632,9 @@ export default function BillingPage() {
 
           {/* Total calculation banner */}
           <div className="p-3.5 rounded-xl bg-muted/40 border flex items-center justify-between text-xs">
-            <span className="font-semibold text-muted-foreground">Total Payable Amount:</span>
+            <span className="font-semibold text-muted-foreground">
+              {isBn ? 'মোট পরিশোধযোগ্য পরিমাণ:' : 'Total Payable Amount:'}
+            </span>
             <span className="text-base font-black text-foreground">৳{totalBdt}</span>
           </div>
 
@@ -482,7 +642,7 @@ export default function BillingPage() {
 
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button type="button" variant="outline" size="sm" onClick={() => setCheckoutModalOpen(false)}>
-              Cancel
+              {isBn ? 'বাতিল' : 'Cancel'}
             </Button>
             <Button
               type="submit"
@@ -490,7 +650,9 @@ export default function BillingPage() {
               disabled={loading}
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
             >
-              {loading ? 'Processing...' : `Confirm Demo Payment (৳${totalBdt})`}
+              {loading
+                ? isBn ? 'প্রক্রিয়াধীন...' : 'Processing...'
+                : isBn ? `পেমেন্ট নিশ্চিত করুন (৳${totalBdt})` : `Confirm Demo Payment (৳${totalBdt})`}
             </Button>
           </div>
         </form>

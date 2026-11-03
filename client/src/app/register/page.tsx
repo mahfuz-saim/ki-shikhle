@@ -88,10 +88,10 @@ export default function RegisterPage() {
               />
             </div>
             <CardTitle className="text-2xl font-black text-foreground">
-              {isBn ? 'একাউন্ট তৈরি করুন' : 'Start 15-Day Free Trial'}
+              {isBn ? 'বিনামূল্যে একাউন্ট তৈরি করুন' : 'Create Free Account'}
             </CardTitle>
             <CardDescription className="text-xs">
-              Full Standard plan access • No credit card required
+              {isBn ? 'চিরকাল ফ্রি প্ল্যান • কোনো ক্রেডিট কার্ড ছাড়াই' : 'Always Free plan • No credit card required'}
             </CardDescription>
           </CardHeader>
 
@@ -150,7 +150,7 @@ export default function RegisterPage() {
                 className="w-full h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 mt-2"
                 disabled={loading}
               >
-                {loading ? 'Creating Account...' : 'Create Account & Start Free Trial'}
+                {loading ? 'Creating Account...' : isBn ? 'ফ্রি অ্যাকাউন্ট তৈরি করুন' : 'Create Free Account'}
               </Button>
             </form>
 

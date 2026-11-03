@@ -104,14 +104,14 @@ function parseNotification(n: any, childrenList: any[], isBn: boolean): ParsedNo
     };
   }
 
-  // Trial Reminder
-  if (n.type === 'trial_reminder') {
-    const title = isBn ? 'ট্রায়াল রিমাইন্ডার' : 'Trial Ending Soon';
+  // Plan / Upgrade Notification
+  if (n.type === 'trial_reminder' || n.type === 'plan_update') {
+    const title = isBn ? 'প্ল্যান নোটিফিকেশন' : 'Plan Notification';
     let message = n.message;
     if (!message || message.trim().startsWith('{')) {
       message = isBn
-        ? 'আপনার ১৫ দিনের ফ্রি ট্রায়াল সক্রিয় রয়েছে। সকল এআই সুবিধা চালু রাখতে প্ল্যান নির্বাচন করুন।'
-        : '12 days left in your 15-day free trial. Choose a plan to keep unlimited AI quizzes.';
+        ? 'আপনার চিরকাল ফ্রি প্ল্যান সক্রিয় রয়েছে। প্রিমিয়ামে আপগ্রেড করে স্বয়ংক্রিয় কুইজ সেটআপ উপভোগ করুন।'
+        : 'Your Always Free plan is active. Upgrade to Premium to unlock Automatic Quiz Setup.';
     }
     return {
       title,
@@ -185,11 +185,11 @@ const getDefaultNotifications = (isBn: boolean) => [
   },
   {
     id: 'n2',
-    type: 'trial_reminder',
-    title: isBn ? 'ট্রায়াল রিমাইন্ডার' : 'Trial Ending Soon',
+    type: 'plan_update',
+    title: isBn ? 'ফ্রিমিয়াম প্ল্যান সক্রিয়' : 'Freemium Plan Active',
     message: isBn
-      ? 'আপনার ১৫ দিনের ফ্রি ট্রায়ালের ১২ দিন বাকি আছে। পূর্ণ সুবিধায় রাখতে প্ল্যান নির্বাচন করুন।'
-      : '12 days left in your 15-day free trial. Choose a plan to keep unlimited AI quizzes.',
+      ? 'আপনি চিরকাল ফ্রি প্ল্যানে আছেন (২টি AI কুইজ/মাস)। ৩য় প্যাকেজ প্রিমিয়ামে রয়েছে স্বয়ংক্রিয় কুইজ সেটআপ!'
+      : 'You are on the Always Free plan (2 AI quizzes/mo). Package 3 Premium includes Automatic Quiz Setup!',
     link: '/billing',
     readAt: null,
     createdAt: new Date(Date.now() - 3600000).toISOString(),

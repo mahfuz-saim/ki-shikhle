@@ -15,6 +15,11 @@ describe('Billing', () => {
     expect(PLANS.premium.limits.maxChildren).toBe(2);
     expect(PLANS.premium.limits.aiQuizzesPerMonth).toBe(50);
     expect(PLANS.premium.limits.autoQuizScheduling).toBe(true);
+
+    expect(PLANS.pro.priceBDT).toBe(999);
+    expect(PLANS.pro.limits.maxChildren).toBe(5);
+    expect(PLANS.pro.limits.aiQuizzesPerMonth).toBe(150);
+    expect(PLANS.pro.limits.autoQuizScheduling).toBe(true);
   });
 
   it('sibling discount concept', () => {

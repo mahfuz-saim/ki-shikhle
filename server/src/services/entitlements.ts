@@ -1,4 +1,4 @@
-export type PlanCode = 'free' | 'basic' | 'premium' | 'trial' | 'starter' | 'standard';
+export type PlanCode = 'free' | 'basic' | 'premium' | 'pro' | 'trial' | 'starter' | 'standard';
 
 export interface PlanLimits {
   maxChildren: number;
@@ -12,7 +12,7 @@ export interface PlanLimits {
 export const PLANS: Record<string, { code: string; name: string; priceBDT: number; priceUSD: number; limits: PlanLimits; features: string[] }> = {
   free: {
     code: 'free',
-    name: 'Free (বিনামূল্যে)',
+    name: 'Free (ফ্রি)',
     priceBDT: 0,
     priceUSD: 0,
     limits: {
@@ -25,10 +25,11 @@ export const PLANS: Record<string, { code: string; name: string; priceBDT: numbe
     },
     features: [
       '1 Child profile slot',
-      '2 AI quizzes per month',
+      '2 AI quizzes per month (চিরকাল ফ্রি)',
       'Daily routine & activity calendar',
-      'Quick study logging',
+      'Manual quick study logging',
       'Basic quiz score tracking',
+      '1-month study history',
     ],
   },
   basic: {
@@ -47,6 +48,7 @@ export const PLANS: Record<string, { code: string; name: string; priceBDT: numbe
     features: [
       '1 Child profile slot',
       '10 AI quizzes per month',
+      'Voice Logging with Claude AI transcription preview',
       'Class Notes & OCR handwriting scanner',
       'Weakest vs strongest topics analysis',
       'Routine study log reminders',
@@ -69,12 +71,34 @@ export const PLANS: Record<string, { code: string; name: string; priceBDT: numbe
     features: [
       '2 Children profile slots',
       '50 AI quizzes per month',
-      'Auto Quiz Scheduling (স্বয়ংক্রিয় কুইজ শিডিউলিং)',
-      'Spaced Repetition: 1-Day-Old Topic Quizzes',
-      'AI Dynamic Time: Tight for non-math, generous for math/analytical',
-      'Adaptive topic understanding & weakness analysis',
-      'Full plain-language AI performance feedback',
-      'Unlimited study history & priority AI',
+      'Automatic Quiz Setup System (স্বয়ংক্রিয় এআই কুইজ শিডিউলিং)',
+      'Spaced Repetition: Auto quizzes for 1-day-old topics',
+      'AI Dynamic Time Limits (Tight for theory, generous for math/analytical)',
+      'Adaptive topic understanding & weakness auto-targeting',
+      'Unlimited study history & priority AI processing',
+    ],
+  },
+  pro: {
+    code: 'pro',
+    name: 'Pro Family (প্রো ফ্যামিলি)',
+    priceBDT: 999,
+    priceUSD: 11.99,
+    limits: {
+      maxChildren: 5,
+      aiQuizzesPerMonth: 150,
+      aiVisionOCR: true,
+      historyMonths: null,
+      aiExplanation: true,
+      autoQuizScheduling: true,
+    },
+    features: [
+      'Up to 5 Children profile slots (পুরো পরিবারের জন্য)',
+      '150 AI quizzes per month',
+      'Automatic Quiz Setup System for all siblings',
+      'WhatsApp & SMS study alerts & daily summary',
+      'Monthly academic audit report (PDF download)',
+      'School exam syllabus integration & priority support',
+      'Full plain-language AI performance analytics',
     ],
   },
 };

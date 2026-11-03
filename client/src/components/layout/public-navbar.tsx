@@ -152,7 +152,7 @@ export function PublicNavbar({ hideBadge }: { hideBadge?: boolean } = {}) {
               </Link>
               <Link href="/register">
                 <Button size="sm" className="h-9 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20">
-                  <span>{isBn ? '১৫ দিনের ফ্রি ট্রায়াল' : 'Start Free Trial'}</span>
+                  <span>{isBn ? 'ফ্রি শুরু করুন' : 'Get Started Free'}</span>
                 </Button>
               </Link>
             </div>

@@ -99,6 +99,36 @@ export default function PricingPage() {
       ctaText: isBn ? 'প্রিমিয়াম শুরু করুন' : 'Start Premium',
       ctaHref: '/register',
     },
+    {
+      code: 'pro',
+      name: isBn ? 'প্রো ফ্যামিলি (Pro)' : 'Pro Family',
+      price: '৳৯৯৯',
+      per: isBn ? '/ মাস' : '/ month',
+      description: isBn
+        ? 'পুরো পরিবার, ১৫০টি কুইজ ও এসএমএস/হোয়াটসঅ্যাপ অ্যালার্ট'
+        : 'Full family, 150 quizzes, auto-quiz for all, and SMS/WhatsApp alerts',
+      features: isBn
+        ? [
+            '৫ জন পর্যন্ত শিক্ষার্থীর প্রোফাইল (Up to 5 Children)',
+            'প্রতি মাসে ১৫০টি এআই কুইজ (150 AI Quizzes/mo)',
+            'সকল সন্তানের জন্য স্বয়ংক্রিয় কুইজ শিডিউলিং',
+            'হোয়াটসঅ্যাপ ও এসএমএস ডেইলি স্টাডি অ্যালার্ট',
+            'অভিভাবকের জন্য মাসিক পূর্ণাঙ্গ প্রগ্রেস অডিট রিপোর্ট (PDF)',
+            'স্কুল পরীক্ষার সিলেবাস সমন্বয় ও অগ্রাধিকার ভিত্তিতে এআই',
+            '২৪/৭ ডেডিকেটেড প্যারেন্টিং ও একাডেমিক সাপোর্ট',
+          ]
+        : [
+            'Up to 5 Children profiles included',
+            '150 AI quizzes per month',
+            'Automatic Quiz Setup for all siblings',
+            'WhatsApp & SMS study alerts & daily summaries',
+            'Monthly comprehensive progress audit report (PDF)',
+            'School exam syllabus integration & priority AI',
+            '24/7 dedicated parenting & academic support',
+          ],
+      ctaText: isBn ? 'প্রো ফ্যামিলি নিন' : 'Choose Pro Family',
+      ctaHref: '/register',
+    },
   ];
 
   return (
@@ -121,7 +151,7 @@ export default function PricingPage() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 pt-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
           {plans.map((p) => (
             <Card
               key={p.code}

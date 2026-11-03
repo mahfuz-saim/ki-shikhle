@@ -28,9 +28,9 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-bold text-foreground">2. Subscription & 15-Day Free Trial</h2>
+            <h2 className="text-base font-bold text-foreground">2. Freemium Model & Paid Subscriptions</h2>
             <p className="text-muted-foreground text-xs leading-relaxed">
-              New accounts receive a complimentary 15-day free trial of the Standard plan with access for up to two children. Following the trial period, parents may choose to subscribe to one of our affordable monthly or annual plans. If a parent chooses not to subscribe, the account converts to read-only access—data is never held hostage or deleted for non-payment.
+              Ki Shikhle operates on a transparent freemium model. New accounts automatically receive access to our Always Free plan (1 child, 2 AI quizzes per month) with no expiration. Parents can upgrade to Basic, Premium (including Automatic Quiz Setup System), or Pro Family anytime. Your data is never held hostage or deleted.
             </p>
           </section>
 

@@ -65,11 +65,11 @@ export async function registerUser(input: {
       },
     });
 
-    // create trial subscription
-    const plan = await prisma.plan.findUnique({ where: { code: 'trial' } });
+    // create free freemium subscription
+    const plan = (await prisma.plan.findFirst({ where: { code: 'free' } })) || (await prisma.plan.findUnique({ where: { code: 'trial' } }));
     if (plan) {
       await prisma.subscription.create({
-        data: { userId: user.id, planId: plan.id, status: 'trialing', currentPeriodEnd: trialEndsAt, childSlots: 2 },
+        data: { userId: user.id, planId: plan.id, status: 'active', currentPeriodEnd: null, childSlots: 1 },
       });
     }
 
