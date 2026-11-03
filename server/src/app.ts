@@ -31,17 +31,22 @@ export const app = new Hono();
 // Security headers (helmet equivalent)
 app.use('*', secureHeaders({ contentSecurityPolicy: undefined } as any));
 
-// CORS: explicit origins from CLIENT_ORIGIN (comma separated), localhost in dev
+// CORS: explicit origins from CLIENT_ORIGIN (comma separated), plus all Vercel and localhost origins
 app.use(
   '*',
   cors({
     origin: (origin: string) => {
+      if (!origin) return '*';
       if (clientOrigins.includes(origin) || clientOrigins.includes('*')) return origin;
-      if (env.NODE_ENV !== 'production' && /^https?:\/\/localhost(:\d+)?$/.test(origin)) return origin;
-      if (env.NODE_ENV !== 'production' && /\.vercel\.app$/.test(origin)) return origin;
+      if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return origin;
+      if (/^https:\/\/[a-zA-Z0-9_-]+\.vercel\.app$/.test(origin)) return origin;
       return null as any;
     },
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization', 'x-refresh-token', 'X-Requested-With'],
+    exposeHeaders: ['Content-Length', 'x-refresh-token'],
     credentials: true,
+    maxAge: 86400,
   })
 );
 

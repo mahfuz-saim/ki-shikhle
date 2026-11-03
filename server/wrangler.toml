@@ -13,7 +13,7 @@ compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env"]
 [vars]
 NODE_ENV = "production"
 # Comma-separated web origins (Vercel production + preview URLs)
-CLIENT_ORIGIN = "https://kishikhle.vercel.app"
+CLIENT_ORIGIN = "https://ki-shikhle.vercel.app,https://kishikhle.vercel.app"
 PORT = "5000"
 TRUST_PROXY = "true"
 TRIAL_DAYS = "15"
