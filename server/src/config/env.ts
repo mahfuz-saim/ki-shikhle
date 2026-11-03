@@ -42,7 +42,7 @@ const envSchema = z.object({
   CLIENT_ORIGIN: z.string().default('http://localhost:3000'),
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
-  JWT_ACCESS_TTL: z.string().default('15m'),
+  JWT_ACCESS_TTL: z.string().default('7d'),
   REFRESH_TTL_DAYS: z.coerce.number().default(30),
   PASSWORD_PEPPER: z.string().optional(),
 
@@ -94,7 +94,7 @@ try {
     CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
     JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || 'dev_access_secret_kishikhle_local_only_0001',
     JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret_kishikhle_local_only_0001',
-    JWT_ACCESS_TTL: process.env.JWT_ACCESS_TTL || '15m',
+    JWT_ACCESS_TTL: process.env.JWT_ACCESS_TTL || '7d',
     REFRESH_TTL_DAYS: Number(process.env.REFRESH_TTL_DAYS) || 30,
     PASSWORD_PEPPER: process.env.PASSWORD_PEPPER,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,

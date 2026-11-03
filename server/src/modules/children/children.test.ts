@@ -3,10 +3,16 @@ import { canCreateChild, getPlanLimits } from '../../services/entitlements';
 
 describe('Entitlements', () => {
   it('trial max 2', () => expect(getPlanLimits('trial').maxChildren).toBe(2));
-  it('canCreateChild respects limit', () => {
-    expect(canCreateChild(2, 'trial')).toBe(false);
-    expect(canCreateChild(1, 'trial')).toBe(true);
-    expect(canCreateChild(9, 'premium')).toBe(true);
+  it('canCreateChild respects freemium limit', () => {
+    expect(canCreateChild(1, 'free')).toBe(false);
+    expect(canCreateChild(0, 'free')).toBe(true);
+
+    expect(canCreateChild(1, 'basic')).toBe(false);
+    expect(canCreateChild(0, 'basic')).toBe(true);
+
+    // Premium allows 2 children
+    expect(canCreateChild(1, 'premium')).toBe(true);
+    expect(canCreateChild(2, 'premium')).toBe(false);
   });
 });
 

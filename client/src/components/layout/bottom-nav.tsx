@@ -22,8 +22,14 @@ export function BottomNav() {
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t bg-card/95 backdrop-blur-lg flex justify-around items-center py-2 px-2 shadow-lg">
       {navItems.map((item) => {
         const isActive =
-          pathname === item.href ||
-          (item.href !== '/dashboard' && pathname.startsWith(item.href));
+          item.href === '/children'
+            ? pathname === '/children' || pathname.startsWith('/children?')
+            : item.href === '/dashboard'
+            ? pathname === '/dashboard'
+            : pathname === item.href || pathname.startsWith(item.href);
+
+
+
         const Icon = item.icon;
         return (
           <Link

@@ -3,16 +3,21 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { Button } from '@/components/ui/button';
 import { Sun, Moon, Globe, LayoutDashboard } from 'lucide-react';
 
-export function PublicNavbar() {
+export function PublicNavbar({ hideBadge }: { hideBadge?: boolean } = {}) {
+  const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const { locale, toggleLocale, isBn } = useI18n();
+
+  const isHomePage = pathname === '/';
+  const shouldHideBadge = hideBadge || isHomePage;
 
   const handleScrollTo = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
@@ -28,17 +33,19 @@ export function PublicNavbar() {
 
   return (
     <header className="border-b bg-background/80 backdrop-blur-xl sticky top-0 z-50">
-      {/* Mobile Hackathon Sticker Strip */}
-      <div className="sm:hidden border-b bg-background/95 py-1.5 px-4 flex items-center justify-center">
-        <Image
-          src="/built-for-aignite.png"
-          alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
-          width={180}
-          height={64}
-          priority
-          className="h-6 w-auto object-contain"
-        />
-      </div>
+      {/* Mobile Hackathon Sticker Strip (Hidden on Home Page) */}
+      {!shouldHideBadge && (
+        <div className="sm:hidden border-b bg-background/95 py-1.5 px-4 flex items-center justify-center">
+          <Image
+            src="/built-for-aignite.png"
+            alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
+            width={180}
+            height={64}
+            priority
+            className="h-6 w-auto object-contain"
+          />
+        </div>
+      )}
 
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
         {/* Brand & Hackathon Sticker */}
@@ -62,17 +69,19 @@ export function PublicNavbar() {
             />
           </Link>
 
-          {/* Desktop/Tablet Hackathon Sticker (No link) */}
-          <div className="hidden sm:flex items-center pl-3 border-l border-border/60">
-            <Image
-              src="/built-for-aignite.png"
-              alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
-              width={220}
-              height={78}
-              priority
-              className="h-8 md:h-9 w-auto object-contain"
-            />
-          </div>
+          {/* Desktop/Tablet Hackathon Sticker (No link, hidden on home page) */}
+          {!shouldHideBadge && (
+            <div className="hidden sm:flex items-center pl-3 border-l border-border/60">
+              <Image
+                src="/built-for-aignite.png"
+                alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
+                width={220}
+                height={78}
+                priority
+                className="h-8 md:h-9 w-auto object-contain"
+              />
+            </div>
+          )}
         </div>
 
         {/* Center links with smooth scrolling */}

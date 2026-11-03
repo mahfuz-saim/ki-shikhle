@@ -9,6 +9,7 @@ import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
+import { QuizTakingSkeleton } from '@/components/ui/skeleton';
 import {
   Brain,
   Clock,
@@ -141,9 +142,7 @@ export default function TakeQuiz() {
   if (!quiz) {
     return (
       <KidShell>
-        <div className="p-12 text-center text-xs text-muted-foreground animate-pulse">
-          {isBn ? 'কুইজ লোড হচ্ছে...' : 'Loading quiz...'}
-        </div>
+        <QuizTakingSkeleton />
       </KidShell>
     );
   }
@@ -151,10 +150,11 @@ export default function TakeQuiz() {
   const currentQ = quiz.questions?.[idx];
   const totalQ = quiz.questions?.length || 1;
   const progressPercent = Math.round(((idx + 1) / totalQ) * 100);
+  const qOptions = currentQ?.optionsJson || currentQ?.options;
 
   return (
     <KidShell>
-      <div className="space-y-6 max-w-2xl mx-auto">
+      <div className="space-y-6 max-w-2xl mx-auto page-fade">
         {/* Top Quiz Bar */}
         <div className="flex items-center justify-between gap-3 p-4 rounded-2xl border bg-card/80 backdrop-blur shadow-sm">
           <div>
@@ -208,9 +208,9 @@ export default function TakeQuiz() {
             </div>
 
             {/* MCQ Options */}
-            {currentQ.optionsJson && (
+            {qOptions && (
               <div className="space-y-2.5">
-                {currentQ.optionsJson.map((opt: string) => {
+                {qOptions.map((opt: string) => {
                   const isSelected = answers[currentQ.id] === opt;
                   return (
                     <button

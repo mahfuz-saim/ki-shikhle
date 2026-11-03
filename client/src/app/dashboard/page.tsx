@@ -30,6 +30,11 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
+function toBnNum(num: number | string): string {
+  const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return String(num).replace(/[0-9]/g, (d) => bnDigits[parseInt(d, 10)]);
+}
+
 export default function DashboardPage() {
   const { activeChild, childrenList } = useAuth();
   const { t, isBn } = useI18n();
@@ -237,6 +242,49 @@ export default function DashboardPage() {
   const kpis = (summary?.kpis?.totalTime || summary?.kpis?.studyDays) ? summary.kpis : defaultKpis;
   const hours = Math.floor(kpis.totalTime / 60);
   const minutes = kpis.totalTime % 60;
+
+  const upcomingRoutines = isCurrentTasnim
+    ? [
+        {
+          name: isBn ? 'প্রাথমিক গণিত প্রাইভেট' : 'Elementary Math Tuition',
+          time: isBn ? 'রবিবার বিকাল ৪:০০' : 'Sun 4:00 PM',
+          source: 'tuition',
+        },
+        {
+          name: isBn ? 'ইংরেজি টিউটর' : 'English Tutor',
+          time: isBn ? 'মঙ্গলবার বিকাল ৫:৩০' : 'Tue 5:30 PM',
+          source: 'tuition',
+        },
+      ]
+    : [
+        {
+          name: isBn ? 'গণিত প্রাইভেট — রহিম স্যার' : 'Math Tuition – Rahim Sir',
+          time: isBn ? 'রবিবার বিকাল ৪:০০' : 'Sun 4:00 PM',
+          source: 'tuition',
+        },
+        {
+          name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching',
+          time: isBn ? 'মঙ্গলবার বিকাল ৫:৩০' : 'Tue 5:30 PM',
+          source: 'tuition',
+        },
+      ];
+
+  const next7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const dayIndex = d.getDay();
+    const hasRoutine = isCurrentTasnim
+      ? [0, 2, 4].includes(dayIndex)
+      : [0, 2, 5].includes(dayIndex);
+    return {
+      date: d,
+      dayNum: d.getDate(),
+      dayNameEn: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayIndex],
+      dayNameBn: ['রবি', 'সোম', 'মঙ্গল', 'বুধ', 'বৃহ', 'শুক্র', 'শনি'][dayIndex],
+      isToday: i === 0,
+      hasRoutine,
+    };
+  });
 
   return (
     <AppShell>
@@ -499,91 +547,181 @@ export default function DashboardPage() {
         </div>
 
         {/* Schedule & Recent Activity Timeline */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Missed & Upcoming */}
-          <Card className="rounded-2xl border shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
+        <div className="grid md:grid-cols-2 gap-6 min-w-0">
+          {/* Missed & Upcoming 7-Day Schedule */}
+          <Card className="rounded-2xl border shadow-sm min-w-0 flex flex-col justify-between">
+            <CardHeader className="p-4 sm:p-6 pb-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <CardTitle className="text-base font-bold">
-                  {t('dashboard.upcomingSchedule', 'Schedule & Reminders')}
+                  {t('dashboard.upcomingSchedule', 'Upcoming 7-Day Schedule')}
                 </CardTitle>
-                <Link href="/schedule" className="text-xs text-primary hover:underline font-medium">
+                <Link
+                  href="/schedule"
+                  className="text-xs text-primary hover:underline font-medium shrink-0"
+                >
                   {t('common.viewAll', 'View Calendar')} →
                 </Link>
               </div>
               <CardDescription className="text-xs">
-                {isBn ? 'আসন্ন টিউশন ও মিস হওয়া সেশনের হিসাব' : 'Upcoming coaching sessions and missed log alerts'}
+                {isBn
+                  ? 'আসন্ন ৭ দিনের রুটিন এবং মিস হওয়া সেশনের হিসাব'
+                  : 'Weekly routine tracker and missed session alerts'}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="p-3 rounded-xl border border-destructive/20 bg-destructive/5 flex items-start gap-3">
-                <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-semibold text-destructive">
-                    {isBn ? '১টি সেশনে লগ মিস হয়েছে' : 'Missed log alert'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {isBn
-                      ? 'পদার্থবিজ্ঞান প্রাইভেট — নির্ধারিত ছিল কিন্তু কোনো লগ যোগ করা হয়নি।'
-                      : 'Physics Tuition — Scheduled on Sunday 4:00 PM had no learning log.'}
-                  </p>
-                </div>
+
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3 min-w-0">
+              {/* 7-Day Schedule Strip */}
+              <div className="grid grid-cols-7 gap-1 sm:gap-1.5 pt-0.5 pb-1 min-w-0">
+                {next7Days.map((d, i) => (
+                  <div
+                    key={i}
+                    className={`flex flex-col items-center justify-between py-1.5 px-0.5 rounded-xl border text-center transition-all ${
+                      d.isToday
+                        ? 'bg-primary/10 border-primary/40 text-primary font-bold shadow-xs ring-1 ring-primary/30'
+                        : d.hasRoutine
+                        ? 'bg-muted/40 border-border/60 text-foreground'
+                        : 'bg-muted/10 border-transparent text-muted-foreground/60'
+                    }`}
+                  >
+                    <span className="text-[10px] sm:text-[11px] font-medium leading-none">
+                      {isBn ? d.dayNameBn : d.dayNameEn}
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold leading-tight mt-1">
+                      {isBn ? toBnNum(d.dayNum) : d.dayNum}
+                    </span>
+                    <div className="h-1.5 flex items-center justify-center mt-0.5">
+                      {d.hasRoutine && (
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            d.isToday ? 'bg-primary' : 'bg-indigo-500'
+                          }`}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              <div className="space-y-2 pt-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  {isBn ? 'আসন্ন টিউশন' : 'Upcoming Routines'}
-                </p>
-                <div className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/30 text-xs">
-                  <span className="font-medium">
-                    {isBn ? 'গণিত প্রাইভেট (রহিম স্যার)' : 'Math Tuition – Rahim Sir'}
+              {/* Upcoming Routines */}
+              <div className="space-y-2">
+                {upcomingRoutines.map((routine, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-2 sm:p-2.5 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-colors text-xs gap-2 min-w-0"
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                      <span className="font-medium text-foreground truncate">{routine.name}</span>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] sm:text-[11px] font-semibold shrink-0 text-muted-foreground bg-background/50 px-2 py-0.5"
+                    >
+                      <Clock className="w-3 h-3 mr-1 opacity-70" />
+                      <span>{routine.time}</span>
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+
+              {/* Compact Missed Log Alert */}
+              <div className="p-2 sm:p-2.5 rounded-xl border border-destructive/20 bg-destructive/5 flex items-center justify-between gap-2 text-xs min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
+                  <span className="text-destructive font-medium truncate text-xs">
+                    {isBn
+                      ? 'পদার্থবিজ্ঞান প্রাইভেট: ১টি লগ মিস হয়েছে'
+                      : 'Physics Tuition: Missed study log'}
                   </span>
-                  <span className="text-muted-foreground">{isBn ? 'রবিবার বিকাল ৪:০০' : 'Sun 4:00 PM'}</span>
                 </div>
-                <div className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/30 text-xs">
-                  <span className="font-medium">
-                    {isBn ? 'ইংরেজি স্পোকেন ও গ্রামার' : 'English Grammar & Writing'}
+                <Link href={`/children/${childId}/log`}>
+                  <span className="text-[11px] font-bold text-destructive hover:underline shrink-0">
+                    {isBn ? 'লগ দিন' : 'Add Log'} →
                   </span>
-                  <span className="text-muted-foreground">{isBn ? 'মঙ্গলবার বিকাল ৫:৩০' : 'Tue 5:30 PM'}</span>
-                </div>
+                </Link>
               </div>
             </CardContent>
           </Card>
 
           {/* Recent Activity Feed */}
-          <Card className="rounded-2xl border shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
+          <Card className="rounded-2xl border shadow-sm min-w-0 flex flex-col justify-between">
+            <CardHeader className="p-4 sm:p-6 pb-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <CardTitle className="text-base font-bold">
                   {t('dashboard.recentActivity', 'Recent Activity Feed')}
                 </CardTitle>
-                <Link href={`/children/${childId}/log`} className="text-xs text-primary hover:underline font-medium">
+                <Link
+                  href={`/children/${childId}/log`}
+                  className="text-xs text-primary hover:underline font-medium shrink-0"
+                >
                   {isBn ? 'সব লগ' : 'All logs'} →
                 </Link>
               </div>
               <CardDescription className="text-xs">
-                {isBn ? 'সর্বশেষ এন্ট্রি এবং কুইজের তালিকা' : 'Latest study logs and quiz attempts for this student'}
+                {isBn
+                  ? 'সর্বশেষ এন্ট্রি এবং কুইজের তালিকা'
+                  : 'Latest study logs and quiz attempts for this student'}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {summary?.recent?.map((r: any, idx: number) => (
-                  <div key={idx} className="flex items-start gap-3 pb-3 border-b last:border-b-0 last:pb-0">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">
-                      <BookOpen className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-foreground truncate">
-                        {r.topicsText || r.topic}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
-                        <span className="capitalize">{r.source}</span>
-                        <span>•</span>
-                        <span>{new Date(r.date).toLocaleDateString()}</span>
+
+            <CardContent className="p-4 sm:p-6 pt-0 min-w-0">
+              <div className="space-y-2.5 max-h-[265px] overflow-y-auto pr-0.5 min-w-0">
+                {summary?.recent && summary.recent.length > 0 ? (
+                  summary.recent.slice(0, 4).map((r: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between gap-2.5 p-2 sm:p-2.5 rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors min-w-0"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 text-xs font-bold">
+                          <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-foreground truncate">
+                            {r.topicsText || r.topic}
+                          </p>
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
+                            <span className="capitalize font-semibold text-primary/80">
+                              {r.source === 'tuition'
+                                ? isBn
+                                  ? 'টিউশন'
+                                  : 'Tuition'
+                                : r.source === 'school'
+                                ? isBn
+                                ? 'স্কুল'
+                                : 'School'
+                                : isBn
+                                ? 'স্ব-শিক্ষা'
+                                : 'Self-study'}
+                            </span>
+                            <span>•</span>
+                            <span>
+                              {isBn
+                                ? toBnNum(new Date(r.date).toLocaleDateString())
+                                : new Date(r.date).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
                       </div>
+
+                      <Link href={`/children/${childId}/log`}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
+                        >
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Button>
+                      </Link>
                     </div>
+                  ))
+                ) : (
+                  <div className="py-8 text-center text-xs text-muted-foreground">
+                    {isBn
+                      ? 'এখনো কোনো সাম্প্রতিক অ্যাক্টিভিটি পাওয়া যায়নি'
+                      : 'No recent activities recorded yet'}
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>

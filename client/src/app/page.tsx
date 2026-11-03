@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,7 +40,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-indigo-500 selection:text-white">
-      <PublicNavbar />
+      <PublicNavbar hideBadge />
 
       <main className="flex-1 overflow-hidden">
         {/* HERO SECTION */}
@@ -48,6 +49,18 @@ export default function HomePage() {
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[350px] bg-gradient-to-tr from-indigo-500/15 via-purple-500/10 to-amber-500/10 blur-3xl pointer-events-none rounded-full -z-10" />
 
           <div className="container max-w-6xl mx-auto px-4 sm:px-6 text-center space-y-7">
+            {/* Built For AIgnite Buildathon Sticker above headline */}
+            <div className="flex justify-center mb-1 animate-in fade-in slide-in-from-bottom-2 duration-700">
+              <Image
+                src="/built-for-aignite.png"
+                alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
+                width={260}
+                height={92}
+                priority
+                className="h-10 sm:h-12 md:h-14 w-auto object-contain hover:scale-105 transition-transform"
+              />
+            </div>
+
             {/* Headline */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-foreground leading-[1.16] max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-3 duration-700">
               {isBn ? (
@@ -518,18 +531,6 @@ export default function HomePage() {
           </p>
 
           <div className="flex flex-wrap items-center gap-5 font-medium">
-            <button
-              onClick={() => scrollTo('features')}
-              className="hover:text-foreground transition-colors cursor-pointer"
-            >
-              {isBn ? 'ফিচারসমূহ' : 'Features'}
-            </button>
-            <button
-              onClick={() => scrollTo('pricing')}
-              className="hover:text-foreground transition-colors cursor-pointer"
-            >
-              {isBn ? 'মূল্য ও প্ল্যান' : 'Pricing'}
-            </button>
             <Link href="/privacy" className="hover:text-foreground transition-colors">
               {isBn ? 'গোপনীয়তা নীতি' : 'Privacy Policy'}
             </Link>

@@ -13,7 +13,19 @@ const mockResponses: Record<string, string> = {
       { type: "fill_blank", prompt: "The process by which plants make food is called ____.", options: [], correct_answer: "photosynthesis", explanation: "Definition", topic: "Photosynthesis" }
     ]
   }),
-  explanation: "Rahim is doing well in Algebra but needs practice with Photosynthesis concepts. He scored 2/3. Suggest revising photosynthesis steps and practicing quadratic problems. Try asking: 'Can you explain how plants make food?'"
+  explanation: "Rahim is doing well in Algebra but needs practice with Photosynthesis concepts. He scored 2/3. Suggest revising photosynthesis steps and practicing quadratic problems. Try asking: 'Can you explain how plants make food?'",
+  voice: JSON.stringify({
+    subject: "General Science",
+    subjectBn: "সাধারণ বিজ্ঞান",
+    topicsText: "বিজ্ঞান: পানি বিশুদ্ধকরণ ও নিরাপদ পানির ব্যবহার",
+    source: "school",
+    durationMin: 60,
+    confidence: 5,
+    keyConcepts: ["পানি বিশুদ্ধকরণের বিভিন্ন উপায়", "নিরাপদ পানির ব্যবহার ও রোগ প্রতিরোধ", "টগবগিয়ে ২০ মিনিট ফোটানো"],
+    homeworkAssigned: "অধ্যায় ৩ এর সংক্ষেপ প্রশ্নাবলী ১-৪",
+    summaryMessage: "অসাধারণ! বিজ্ঞান ক্লাসের পড়াটি খুব চমৎকারভাবে শিখেছ।",
+    rawTranscript: "আজকে বিজ্ঞান ক্লাসে পানি বিশুদ্ধকরণ ও নিরাপদ পানি পানের নিয়ম শিখেছি"
+  })
 };
 
 export async function callAI(prompt: { system: string; user: string; model: AIModel; maxTokens?: number; responseFormat?: 'json' }): Promise<AIResult> {
@@ -26,6 +38,7 @@ export async function callAI(prompt: { system: string; user: string; model: AIMo
     let key = 'quiz';
     if (prompt.system.includes('digest') || prompt.user.includes('digest')) key = 'digest';
     if (prompt.system.includes('explanation') || prompt.user.includes('explanation')) key = 'explanation';
+    if (prompt.system.includes('voice') || prompt.system.includes('spoken') || prompt.user.includes('voice') || prompt.user.includes('Voice')) key = 'voice';
     // Allow caller to hint
     if (prompt.user.includes('__MOCK_DIGEST__')) key = 'digest';
     if (prompt.user.includes('__MOCK_EXPLANATION__')) key = 'explanation';

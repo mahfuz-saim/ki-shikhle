@@ -35,7 +35,7 @@ interface AuthContextType {
   setActiveChild: (child: Child | null) => void;
   isChildMode: boolean;
   refreshChildren: () => Promise<Child[]>;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: User, refreshToken?: string) => void;
   logout: () => void;
   loading: boolean;
   childToken?: string | null;
@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = (newToken: string, newUser: User) => {
+  const login = (newToken: string, newUser: User, newRefreshToken?: string) => {
     setToken(newToken);
     setUser(newUser);
     const isChild = newUser.role === 'child';
@@ -145,6 +145,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('accessToken', newToken);
       localStorage.setItem('userRole', newUser.role);
+      if (newRefreshToken) {
+        localStorage.setItem('refreshToken', newRefreshToken);
+      }
       if (newUser.childId) {
         localStorage.setItem('active_child_id', newUser.childId);
         localStorage.setItem('activeChild', newUser.childId);
@@ -173,6 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsChildMode(false);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
       localStorage.removeItem('childToken');
       localStorage.removeItem('userRole');
       localStorage.removeItem('active_child_id');
@@ -260,6 +264,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [fetchChildren]);
+
+  // Proactive Keep-Alive: Refresh token before expiry & on window focus after inactivity
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const checkAndRefreshToken = async () => {
+      const storedToken = localStorage.getItem('accessToken');
+      const storedRefreshToken = localStorage.getItem('refreshToken');
+      if (!storedToken) return;
+
+      // Check if JWT payload is near expiration (within 60 minutes)
+      try {
+        const parts = storedToken.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          const exp = payload.exp * 1000;
+          const timeLeft = exp - Date.now();
+
+          // If expiring within 60 minutes or expired, silently refresh in the background
+          if (timeLeft < 60 * 60 * 1000) {
+            const res = await api.post('/auth/refresh', {
+              refreshToken: storedRefreshToken || undefined,
+            });
+            const newToken = res.data?.data?.accessToken;
+            if (newToken) {
+              setToken(newToken);
+              localStorage.setItem('accessToken', newToken);
+              if (res.data?.data?.refreshToken) {
+                localStorage.setItem('refreshToken', res.data.data.refreshToken);
+              }
+            }
+          }
+        }
+      } catch {
+        // If parsing fails (e.g. demo token), no action needed
+      }
+    };
+
+    // 1. Check on window focus / tab visibility change (returning from inactivity)
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        checkAndRefreshToken();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    // 2. Periodic background check every 15 minutes
+    const interval = setInterval(checkAndRefreshToken, 15 * 60 * 1000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Backwards-compatible stubs for existing references
   const enterChildMode = async (childId: string) => {

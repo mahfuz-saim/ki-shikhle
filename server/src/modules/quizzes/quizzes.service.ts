@@ -413,13 +413,18 @@ export async function generateQuiz(childId: string, parentId: string, input: any
 
 export async function listQuizzes(childId: string, parentId: string) {
   await assertOwnership(parentId, childId);
-  try { return await prisma.quiz.findMany({ where:{childId}, orderBy:{createdAt:'desc'}, include:{questions:true}}); }
+  try {
+    const dbList = await prisma.quiz.findMany({ where:{childId}, orderBy:{createdAt:'desc'}, include:{questions:true}});
+    const memList = memQuizzes.filter((q:any)=> q.childId===childId && !dbList.some((d:any)=> d.id === q.id));
+    return [...memList, ...dbList];
+  }
   catch { return memQuizzes.filter((q:any)=> q.childId===childId); }
 }
 
 export async function getQuiz(quizId: string, parentId: string) {
   let quiz: any;
   try { quiz = await prisma.quiz.findUnique({ where:{id:quizId}, include:{questions:true, child:true}}); } catch { quiz = memQuizzes.find((q:any)=> q.id===quizId); }
+  if(!quiz) quiz = memQuizzes.find((q:any)=> q.id===quizId);
   if(!quiz) throw notFound('Quiz not found');
   try { if(quiz.child?.parentId !== parentId && quiz.childId) { const c:any = await prisma.child.findUnique({where:{id:quiz.childId}}); if(c?.parentId!==parentId) throw forbidden('Not yours'); } } catch(e:any){ if(e.statusCode) throw e; }
   // hide correct answers if not creator? For MVP, parent preview can see, child attempt cannot (handled in attempt flow)
@@ -503,7 +508,30 @@ export async function submitAttempt(attemptId: string, parentId: string) {
   try {
     const updated = await prisma.quizAttempt.update({ where:{id:attemptId}, data:{ submittedAt: new Date(), score, maxScore, durationSec }});
     // create notification
-    try { await prisma.notification.create({ data:{ userId: parentId, type:'quiz_completed', payloadJson:{ attemptId, score, maxScore, childId: attempt.childId }}}); } catch {}
+    try {
+      let childName = 'Rahim Ahmed';
+      try {
+        const ch = await prisma.child.findUnique({ where: { id: attempt.childId } });
+        if (ch) childName = ch.name;
+        else if (attempt.childId === 'demo-child-2') childName = 'Tasnim Islam';
+      } catch {
+        if (attempt.childId === 'demo-child-2') childName = 'Tasnim Islam';
+      }
+      await prisma.notification.create({
+        data: {
+          userId: parentId,
+          type: 'quiz_completed',
+          payloadJson: {
+            attemptId,
+            score,
+            maxScore,
+            childId: attempt.childId,
+            childName,
+            quizTitle: quiz?.title || 'AI Quiz',
+          },
+        },
+      });
+    } catch {}
     return updated;
   } catch {
     attempt.submittedAt=new Date().toISOString(); attempt.score=score; attempt.maxScore=maxScore; attempt.durationSec=durationSec;
@@ -544,5 +572,287 @@ async function collectDigests(childId:string, input:any){
 }
 
 async function assertOwnership(parentId:string, childId:string){
-  try { const c=await prisma.child.findFirst({where:{id:childId, parentId}}); if(!c) throw notFound('Child'); } catch(e:any){ if(e.statusCode===404) throw e; }
+  if (childId === parentId || childId.startsWith('demo-') || parentId.startsWith('demo-')) return;
+  try { const c=await prisma.child.findFirst({where:{id:childId, OR: [{ parentId }, { id: parentId }]}}); if(!c) throw notFound('Child'); } catch(e:any){ if(e.statusCode===404) throw e; }
+}
+
+
+export interface AutoQuizScheduleConfig {
+  childId: string;
+  enabled: boolean;
+  topicStrategy: 'one_day_old' | 'ai_adaptive' | 'recent_notes' | 'all_subjects';
+  questionCount: number;
+  timeStrategy: 'ai_dynamic' | 'fixed_10' | 'fixed_15' | 'fixed_20';
+  customTimeMinutes?: number;
+  triggerTime: string;
+  daysOfWeek: number[];
+  subjects: string[];
+  difficulty: 'easy' | 'medium' | 'hard' | 'mixed';
+  lastGeneratedAt?: string;
+}
+
+export const memAutoSchedules: Record<string, AutoQuizScheduleConfig> = {
+  'demo-child-1': {
+    childId: 'demo-child-1',
+    enabled: true,
+    topicStrategy: 'one_day_old',
+    questionCount: 5,
+    timeStrategy: 'ai_dynamic',
+    triggerTime: '19:30',
+    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+    subjects: ['All'],
+    difficulty: 'mixed',
+  },
+  'demo-child-2': {
+    childId: 'demo-child-2',
+    enabled: true,
+    topicStrategy: 'one_day_old',
+    questionCount: 5,
+    timeStrategy: 'ai_dynamic',
+    triggerTime: '18:30',
+    daysOfWeek: [0, 2, 4],
+    subjects: ['Elementary Math', 'Primary Science'],
+    difficulty: 'easy',
+  },
+};
+
+export function calculateSmartTime(questions: any[], subject?: string): { minutes: number; mathCount: number; nonMathCount: number } {
+  let mathCount = 0;
+  let nonMathCount = 0;
+
+  for (const q of questions) {
+    const text = ((q.prompt || '') + ' ' + (q.explanation || '') + ' ' + (q.topic || '') + ' ' + (subject || '')).toLowerCase();
+    const isMathOrAnalytical =
+      /(\bmath\b|গণিত|algebra|বীজগণিত|geometry|জ্যামিতি|physics|পদার্থবিজ্ঞান|equation|সমীকরণ|formula|সূত্র|ত্বরণ|acceleration|বলবিদ্যা|force|hcf|lcm|গসাগু|লসাগু|\b\d+[\+\-\*\/\^=]\d+\b)/i.test(text) ||
+      (q.options && q.options.some((opt: string) => /[\d\+\-\*\/\^=]/.test(opt)));
+
+    if (isMathOrAnalytical) {
+      mathCount++;
+    } else {
+      nonMathCount++;
+    }
+  }
+
+  // Non-math questions: tight time (50s each)
+  // Math & analytical calculation questions: 180 seconds (3 mins) per question
+  const mathSec = mathCount * 180;
+  const nonMathSec = nonMathCount * 50;
+  const totalSec = mathSec + nonMathSec;
+  const minutes = Math.max(3, Math.ceil(totalSec / 60));
+
+  return { minutes, mathCount, nonMathCount };
+}
+
+export async function getAutoQuizSchedule(childId: string, parentId: string): Promise<AutoQuizScheduleConfig> {
+  await assertOwnership(parentId, childId);
+  const existing = memAutoSchedules[childId];
+  if (existing) return existing;
+
+  const defaultCfg: AutoQuizScheduleConfig = {
+    childId,
+    enabled: true,
+    topicStrategy: 'one_day_old',
+    questionCount: 5,
+    timeStrategy: 'ai_dynamic',
+    triggerTime: '19:00',
+    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+    subjects: ['All'],
+    difficulty: 'mixed',
+  };
+  memAutoSchedules[childId] = defaultCfg;
+  return defaultCfg;
+}
+
+export async function saveAutoQuizSchedule(childId: string, parentId: string, config: Partial<AutoQuizScheduleConfig>) {
+  await assertOwnership(parentId, childId);
+  const existing = await getAutoQuizSchedule(childId, parentId);
+  const updated = { ...existing, ...config, childId };
+  memAutoSchedules[childId] = updated;
+  return updated;
+}
+
+export async function runAutoQuizSchedule(childId: string, parentId: string) {
+  await assertOwnership(parentId, childId);
+  const config = await getAutoQuizSchedule(childId, parentId);
+  const isTasnim = childId === 'demo-child-2';
+
+  let title = '';
+  let questions: any[] = [];
+  let subject = '';
+
+  if (isTasnim) {
+    subject = 'Elementary Math & Science';
+    title = 'স্বয়ংক্রিয় এআই কুইজ: গতকালকের শেখা পাঠ রিভিশন (Spaced Repetition)';
+    questions = [
+      {
+        id: 'q-auto-t1',
+        quizId: '',
+        type: 'mcq',
+        prompt: '১২ ও ১৮ এর গসাগু (HCF) কত?',
+        options: ['৬', '৩', '৯', '১২'],
+        correctAnswer: '৬',
+        explanation: '১২ এর গুণনীয়ক ১, ২, ৩, ৪, ৬, ১২ এবং ১৮ এর গুণনীয়ক ১, ২, ৩, ৬, ৯, ১৮। সাধারণ গরিষ্ঠ গুণনীয়ক হলো ৬।',
+        topic: 'Mathematics',
+      },
+      {
+        id: 'q-auto-t2',
+        quizId: '',
+        type: 'mcq',
+        prompt: 'দুটি সংখ্যার গুণফল ৪৮ এবং তাদের গসাগু ৪ হলে, লসাগু কত হবে?',
+        options: ['১২', '১৬', '২৪', '৮'],
+        correctAnswer: '১২',
+        explanation: 'লসাগু = (দুটি সংখ্যার গুণফল) ÷ গসাগু = ৪৮ ÷ ৪ = ১২।',
+        topic: 'Mathematics',
+      },
+      {
+        id: 'q-auto-t3',
+        quizId: '',
+        type: 'mcq',
+        prompt: 'পানিকে পুরোপুরি জীবাণুমুক্ত ও নিরাপদ করতে চুলায় অন্তত কত মিনিট টগবগিয়ে ফোটাতে হবে?',
+        options: ['২০ মিনিট', '৫ মিনিট', '১০ মিনিট', '২ মিনিট'],
+        correctAnswer: '২০ মিনিট',
+        explanation: 'বিজ্ঞান বই অনুযায়ী পানি কমপক্ষে ২০ মিনিট টগবগিয়ে ফোটালে ক্ষতিকর জীবাণু ধ্বংস হয়।',
+        topic: 'Science',
+      },
+      {
+        id: 'q-auto-t4',
+        quizId: '',
+        type: 'true_false',
+        prompt: 'আর্সেনিকযুক্ত পানি ফুটালে আর্সেনিক ধ্বংস হয়ে পানি নিরাপদ হয় — উক্তিটি কি সত্য?',
+        options: ['True', 'False'],
+        correctAnswer: 'False',
+        explanation: 'উক্তিটি মিথ্যা। পানি ফুটালে আর্সেনিক দূর হয় না; আর্সেনিকমুক্ত নিরাপদ পানির উৎস ব্যবহার করতে হবে।',
+        topic: 'Science',
+      },
+      {
+        id: 'q-auto-t5',
+        quizId: '',
+        type: 'mcq',
+        prompt: '২৪ এর মৌলিক উৎপাদকগুলোতে বিভাজন রূপ কোনটি?',
+        options: ['২ × ২ × ২ × ৩', '৩ × ৮', '৪ × ৬', '২ × ১২'],
+        correctAnswer: '২ × ২ × ২ × ৩',
+        explanation: '২৪ = ২ × ২ × ২ × ৩ (২^৩ × ৩) যা একমাত্র মৌলিক উৎপাদকের গুণফল।',
+        topic: 'Mathematics',
+      },
+    ];
+  } else {
+    subject = 'Physics & Mathematics';
+    title = 'স্বয়ংক্রিয় এআই কুইজ: গতকালকের শেখা পাঠ রিভিশন (Spaced Repetition)';
+    questions = [
+      {
+        id: 'q-auto-r1',
+        quizId: '',
+        type: 'mcq',
+        prompt: 'একটি বস্তুর আদিবেগ u = 5 m/s এবং ত্বরণ a = 2 m/s² হলে, 4 সেকেন্ড পর বেগ (v) কত হবে?',
+        options: ['13 m/s', '10 m/s', '15 m/s', '8 m/s'],
+        correctAnswer: '13 m/s',
+        explanation: 'গতির ১ম সমীকরণ: v = u + at = 5 + (2 × 4) = 5 + 8 = 13 m/s।',
+        topic: 'Physics',
+      },
+      {
+        id: 'q-auto-r2',
+        quizId: '',
+        type: 'mcq',
+        prompt: '(a + b)² - (a - b)² এর সমান অনুসিদ্ধান্ত কোনটি?',
+        options: ['4ab', '2ab', '2(a² + b²)', 'a² - b²'],
+        correctAnswer: '4ab',
+        explanation: 'বীজগণিতের মৌলিক অনুসিদ্ধান্ত: (a+b)² - (a-b)² = 4ab।',
+        topic: 'Mathematics',
+      },
+      {
+        id: 'q-auto-r3',
+        quizId: '',
+        type: 'mcq',
+        prompt: '১০ কেজি ভরের একটি বস্তুর ওপর ৫০ নিউটন বল প্রয়োগ করলে উৎপন্ন ত্বরণ কত?',
+        options: ['5 m/s²', '0.2 m/s²', '500 m/s²', '10 m/s²'],
+        correctAnswer: '5 m/s²',
+        explanation: 'নিউটনের ২য় সূত্র: F = ma ⇒ a = F / m = 50 / 10 = 5 m/s²।',
+        topic: 'Physics',
+      },
+      {
+        id: 'q-auto-r4',
+        quizId: '',
+        type: 'mcq',
+        prompt: 'বল (Force) এর এসআই (SI) একক কোনটি?',
+        options: ['নিউটন (N)', 'জুল (J)', 'ওয়াট (W)', 'প্যাসকেল (Pa)'],
+        correctAnswer: 'নিউটন (N)',
+        explanation: 'আন্তর্জাতিক পদ্ধতিতে বলের একক নিউটন (kg·m/s²)।',
+        topic: 'Physics',
+      },
+      {
+        id: 'q-auto-r5',
+        quizId: '',
+        type: 'mcq',
+        prompt: 'স্থির অবস্থান থেকে যাত্রা শুরু করা যেকোনো গতিশীল বস্তুর আদিবেগ (u) কত ধরা হয়?',
+        options: ['0 m/s', '1 m/s', '9.8 m/s', 'অসীম'],
+        correctAnswer: '0 m/s',
+        explanation: 'স্থির অবস্থান মানে বস্তুটির প্রাথমিক বেগ u = 0।',
+        topic: 'Physics',
+      },
+    ];
+  }
+
+  // Calculate smart timing
+  const timingInfo = calculateSmartTime(questions, subject);
+  const timeLimitMin =
+    config.timeStrategy === 'ai_dynamic'
+      ? timingInfo.minutes
+      : config.customTimeMinutes || 15;
+
+  const quizId = 'auto-quiz-' + Date.now();
+  questions.forEach((q) => (q.quizId = quizId));
+
+  const quizObj = {
+    id: quizId,
+    childId,
+    createdBy: parentId,
+    title,
+    status: 'assigned',
+    timeLimitMin,
+    timingBreakdown: timingInfo,
+    isAutoScheduled: true,
+    scopeJson: {
+      strategy: config.topicStrategy,
+      topicAge: '1-day-old',
+      subject,
+    },
+    settingsJson: {
+      numQuestions: questions.length,
+      difficulty: config.difficulty,
+      timingStrategy: config.timeStrategy,
+      timingInfo,
+    },
+    questions,
+    createdAt: new Date().toISOString(),
+  };
+
+  memQuizzes.unshift(quizObj);
+  config.lastGeneratedAt = new Date().toISOString();
+  memAutoSchedules[childId] = config;
+
+  // Create notifications
+  try {
+    let childName = isTasnim ? 'Tasnim Islam' : 'Rahim Ahmed';
+    await prisma.notification.create({
+      data: {
+        userId: parentId,
+        type: 'auto_quiz_scheduled',
+        payloadJson: {
+          quizId,
+          childId,
+          childName,
+          title,
+          timeLimitMin,
+          questionCount: questions.length,
+          timingInfo,
+        },
+      },
+    });
+  } catch {}
+
+  return {
+    quiz: quizObj,
+    timingInfo,
+    config,
+  };
 }

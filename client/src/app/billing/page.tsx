@@ -32,7 +32,7 @@ export default function BillingPage() {
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
 
   const [checkoutForm, setCheckoutForm] = useState({
-    planCode: 'standard',
+    planCode: 'premium',
     childCount: 1,
     billingPeriod: 'monthly',
     method: 'bkash',
@@ -244,10 +244,10 @@ export default function BillingPage() {
               </div>
 
               <Button
-                onClick={() => openCheckout('standard')}
+                onClick={() => openCheckout('premium')}
                 className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl h-10 px-6 shrink-0 shadow-md shadow-amber-500/20"
               >
-                {isBn ? 'স্ট্যান্ডার্ড প্ল্যানে আপগ্রেড করুন' : 'Upgrade to Standard Plan'}
+                {isBn ? 'প্রিমিয়াম প্ল্যানে আপগ্রেড করুন' : 'Upgrade to Premium Plan'}
               </Button>
             </div>
           </Card>
@@ -386,9 +386,9 @@ export default function BillingPage() {
                 onChange={(e) => setCheckoutForm({ ...checkoutForm, planCode: e.target.value })}
                 className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
               >
-                <option value="starter">Starter (৳149)</option>
-                <option value="standard">Standard (৳299)</option>
-                <option value="premium">Premium (৳499)</option>
+                <option value="free">Free Forever (৳0 - 1 Child, 2 Quizzes/mo)</option>
+                <option value="basic">Basic (৳249 - 1 Child, 10 Quizzes/mo)</option>
+                <option value="premium">Premium (৳599 - 2 Children, 50 Quizzes/mo + Auto-Scheduling)</option>
               </select>
             </div>
 

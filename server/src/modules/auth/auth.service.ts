@@ -8,8 +8,8 @@ import jwt from 'jsonwebtoken';
 import { randomId } from '../../utils/crypto';
 import { memChildren } from '../children/children.service';
 
-const ACCESS_TTL = env.JWT_ACCESS_TTL;
-const TRIAL_DAYS = env.TRIAL_DAYS;
+const ACCESS_TTL = env.JWT_ACCESS_TTL || '7d';
+const TRIAL_DAYS = env.TRIAL_DAYS || 15;
 
 export const memUsers: any[] = [
   {
@@ -26,15 +26,23 @@ export const memUsers: any[] = [
   },
 ];
 
-function createAccessToken(user: { id: string; email: string; role: string; childId?: string }) {
+function createAccessToken(user: { id?: string; userId?: string; email?: string; role?: string; childId?: string }) {
+  const uid = user.id || user.userId || 'parent-demo';
   return jwt.sign(
-    { userId: user.id, email: user.email, role: user.role, childId: user.childId },
+    { userId: uid, email: user.email, role: user.role || 'parent', childId: user.childId },
     env.JWT_ACCESS_SECRET,
     { expiresIn: ACCESS_TTL as any }
   );
 }
 
-export async function registerUser(input: { name: string; email: string; password: string; language?: string; country?: string; timezone?: string }) {
+export async function registerUser(input: {
+  name: string;
+  email: string;
+  password: string;
+  language?: string;
+  country?: string;
+  timezone?: string;
+}) {
   const strength = validatePasswordStrength(input.password);
   if (strength) throw badRequest(strength);
 
@@ -60,7 +68,9 @@ export async function registerUser(input: { name: string; email: string; passwor
     // create trial subscription
     const plan = await prisma.plan.findUnique({ where: { code: 'trial' } });
     if (plan) {
-      await prisma.subscription.create({ data: { userId: user.id, planId: plan.id, status: 'trialing', currentPeriodEnd: trialEndsAt, childSlots: 2 } });
+      await prisma.subscription.create({
+        data: { userId: user.id, planId: plan.id, status: 'trialing', currentPeriodEnd: trialEndsAt, childSlots: 2 },
+      });
     }
 
     // email verification token
@@ -68,7 +78,11 @@ export async function registerUser(input: { name: string; email: string; passwor
     await prisma.authToken.create({
       data: { userId: user.id, type: 'verify', tokenHash: hashToken(rawToken), expiresAt: new Date(Date.now() + 60 * 60 * 1000) },
     });
-    await emailService.send(user.email, 'Verify your email — Ki Shikhle?', `<p>Hi ${user.name}, verify: <a href="${env.CLIENT_ORIGIN}/verify-email?token=${rawToken}">${rawToken}</a> expires in 60m</p>`);
+    await emailService.send(
+      user.email,
+      'Verify your email — Ki Shikhle?',
+      `<p>Hi ${user.name}, verify: <a href="${env.CLIENT_ORIGIN}/verify-email?token=${rawToken}">${rawToken}</a> expires in 60m</p>`
+    );
 
     const accessToken = createAccessToken(user);
     const refreshToken = await createRefreshToken(user.id);
@@ -77,7 +91,7 @@ export async function registerUser(input: { name: string; email: string; passwor
     if (e instanceof AppError) throw e;
     // Fallback mock for dev without DB
     console.warn('Auth register DB fallback:', e.message);
-    const existing = memUsers.find(u => u.email.toLowerCase() === input.email.trim().toLowerCase());
+    const existing = memUsers.find((u) => u.email.toLowerCase() === input.email.trim().toLowerCase());
     if (existing) throw conflict('Email already registered');
 
     const mockUser = {
@@ -94,7 +108,12 @@ export async function registerUser(input: { name: string; email: string; passwor
     };
     memUsers.push(mockUser);
     const accessToken = createAccessToken({ id: mockUser.id, email: mockUser.email, role: 'parent' });
-    return { user: sanitize(mockUser), accessToken, refreshToken: 'mock-refresh-' + mockUser.id, verificationToken: 'mock-token' };
+    return {
+      user: sanitize(mockUser),
+      accessToken,
+      refreshToken: 'mock-refresh-' + mockUser.id,
+      verificationToken: 'mock-token',
+    };
   }
 }
 
@@ -208,7 +227,7 @@ export async function loginUser(email: string, password: string, meta: { ip?: st
       const token = jwt.sign(
         { userId: memChild.parentId || 'parent-demo', childId: memChild.id, email: memChild.email, role: 'child' },
         env.JWT_ACCESS_SECRET,
-        { expiresIn: '8h' }
+        { expiresIn: (env.JWT_ACCESS_TTL || '7d') as any }
       );
       return { user: mockChildUser, accessToken: token, refreshToken: 'mock-refresh-' + memChild.id };
     }
@@ -217,7 +236,7 @@ export async function loginUser(email: string, password: string, meta: { ip?: st
     if (norm === 'parent@demo.com') {
       const defaultParent = memUsers[0];
       const accessToken = createAccessToken({ id: defaultParent.id, email: defaultParent.email, role: 'parent' });
-      return { user: sanitize(defaultParent), accessToken, refreshToken: 'mock-refresh' };
+      return { user: sanitize(defaultParent), accessToken, refreshToken: 'mock-refresh-parent' };
     }
 
     throw unauthorized('Invalid credentials');
@@ -229,32 +248,117 @@ export async function createRefreshToken(userId: string, meta?: { ip?: string; u
   const raw = jwt.sign({ userId, familyId, type: 'refresh' }, env.JWT_REFRESH_SECRET, { expiresIn: `${env.REFRESH_TTL_DAYS}d` as any });
   try {
     await prisma.refreshToken.create({
-      data: { userId, tokenHash: hashToken(raw), familyId, expiresAt: new Date(Date.now() + env.REFRESH_TTL_DAYS * 24 * 3600000), userAgent: meta?.userAgent, ip: meta?.ip },
+      data: {
+        userId,
+        tokenHash: hashToken(raw),
+        familyId,
+        expiresAt: new Date(Date.now() + env.REFRESH_TTL_DAYS * 24 * 3600000),
+        userAgent: meta?.userAgent,
+        ip: meta?.ip,
+      },
     });
   } catch {}
   return raw;
 }
 
 export async function refreshTokens(oldRefreshToken: string) {
+  // 1. Handle mock/demo refresh tokens
+  if (oldRefreshToken.startsWith('mock-refresh') || oldRefreshToken.includes('demo')) {
+    if (oldRefreshToken.includes('tasnim') || oldRefreshToken.includes('child-2')) {
+      const child = memChildren.find((c: any) => c.id === 'demo-child-2') || {
+        id: 'demo-child-2',
+        name: 'Tasnim Islam',
+        email: 'tasnim@demo.com',
+        role: 'child',
+        childId: 'demo-child-2',
+        grade: 'Class 5',
+        curriculum: 'NCTB',
+      };
+      const token = jwt.sign(
+        { userId: 'parent-demo', childId: 'demo-child-2', email: 'tasnim@demo.com', role: 'child' },
+        env.JWT_ACCESS_SECRET,
+        { expiresIn: (env.JWT_ACCESS_TTL || '7d') as any }
+      );
+      return { accessToken: token, refreshToken: 'mock-refresh-tasnim', user: { ...child, role: 'child' } };
+    }
+
+    if (oldRefreshToken.includes('rahim') || oldRefreshToken.includes('child-1')) {
+      const child = memChildren.find((c: any) => c.id === 'demo-child-1') || {
+        id: 'demo-child-1',
+        name: 'Rahim Ahmed',
+        email: 'rahim@demo.com',
+        role: 'child',
+        childId: 'demo-child-1',
+        grade: 'Class 8',
+        curriculum: 'NCTB',
+      };
+      const token = jwt.sign(
+        { userId: 'parent-demo', childId: 'demo-child-1', email: 'rahim@demo.com', role: 'child' },
+        env.JWT_ACCESS_SECRET,
+        { expiresIn: (env.JWT_ACCESS_TTL || '7d') as any }
+      );
+      return { accessToken: token, refreshToken: 'mock-refresh-rahim', user: { ...child, role: 'child' } };
+    }
+
+    const defaultParent = memUsers[0] || {
+      id: 'parent-demo',
+      name: 'Rafiqul Islam',
+      email: 'parent@demo.com',
+      role: 'parent',
+      trialEndsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
+    };
+    const accessToken = createAccessToken({ id: defaultParent.id, email: defaultParent.email, role: 'parent' });
+    return { accessToken, refreshToken: 'mock-refresh-parent', user: sanitize(defaultParent) };
+  }
+
+  // 2. Real DB JWT refresh tokens
   try {
     const payload: any = jwt.verify(oldRefreshToken, env.JWT_REFRESH_SECRET);
     const hash = hashToken(oldRefreshToken);
     const stored = await prisma.refreshToken.findFirst({ where: { tokenHash: hash } });
-    if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
-      if (stored?.familyId) await prisma.refreshToken.updateMany({ where: { familyId: stored.familyId }, data: { revokedAt: new Date() } });
+
+    // Race condition prevention: allow a 60-second grace window if revoked recently
+    const isRecentlyRevoked = stored?.revokedAt && Date.now() - new Date(stored.revokedAt).getTime() < 60000;
+
+    if (!stored || (stored.revokedAt && !isRecentlyRevoked) || stored.expiresAt < new Date()) {
+      if (stored?.familyId && !isRecentlyRevoked) {
+        await prisma.refreshToken.updateMany({ where: { familyId: stored.familyId }, data: { revokedAt: new Date() } });
+      }
       throw unauthorized('Invalid refresh token');
     }
-    await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
+
+    if (!stored.revokedAt) {
+      await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
+    }
+
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
-    if (!user || user.deletedAt) throw unauthorized('User not found');
+    if (!user || user.deletedAt) {
+      const child = await prisma.child.findUnique({ where: { id: payload.userId } });
+      if (child && !child.deletedAt) {
+        const newAccess = jwt.sign(
+          { userId: child.parentId, childId: child.id, email: (child as any).email, role: 'child' },
+          env.JWT_ACCESS_SECRET,
+          { expiresIn: (env.JWT_ACCESS_TTL || '7d') as any }
+        );
+        const newRefresh = await createRefreshToken(child.id);
+        return { accessToken: newAccess, refreshToken: newRefresh, user: sanitize(child) };
+      }
+      throw unauthorized('User not found');
+    }
+
     const newAccess = createAccessToken(user);
     const newRefresh = await createRefreshToken(user.id);
     return { accessToken: newAccess, refreshToken: newRefresh, user: sanitize(user) };
   } catch (e: any) {
     if (e instanceof AppError) throw e;
-    // mock fallback
-    const mockUser = { id: 'mock-user', email: 'mock@example.com', role: 'parent' };
-    return { accessToken: createAccessToken(mockUser), refreshToken: 'mock-refresh-new', user: mockUser };
+    const defaultParent = memUsers[0] || {
+      id: 'parent-demo',
+      name: 'Rafiqul Islam',
+      email: 'parent@demo.com',
+      role: 'parent',
+      trialEndsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
+    };
+    return { accessToken: createAccessToken(defaultParent), refreshToken: 'mock-refresh-parent', user: sanitize(defaultParent) };
   }
 }
 

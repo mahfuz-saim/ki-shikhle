@@ -68,9 +68,24 @@ export function Sidebar() {
       {/* Navigation items */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
         {navItems.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (item.href !== '/dashboard' && pathname.startsWith(item.href));
+          const isLearningLog = pathname.includes('/log');
+          const isQuizPath = pathname.includes('/quizzes') || pathname.includes('/quiz') || pathname.includes('/attempts');
+
+          let isActive = false;
+          if (isLearningLog) {
+            isActive = item.href.includes('/log');
+          } else if (isQuizPath) {
+            isActive = item.href === '/quizzes';
+          } else if (item.href === '/children') {
+            isActive = pathname === '/children' || pathname.startsWith('/children?');
+          } else if (item.href === '/dashboard') {
+            isActive = pathname === '/dashboard';
+          } else {
+            isActive = pathname === item.href || pathname.startsWith(item.href);
+          }
+
+
+
           const Icon = item.icon;
           return (
             <Link

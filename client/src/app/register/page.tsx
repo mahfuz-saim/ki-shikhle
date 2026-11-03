@@ -35,7 +35,7 @@ export default function RegisterPage() {
       const res = await api.post('/auth/register', form);
       const data = res.data?.data;
       if (data?.accessToken && data?.user) {
-        login(data.accessToken, data.user);
+        login(data.accessToken, data.user, data.refreshToken);
       }
       router.push('/dashboard');
     } catch (err: any) {

@@ -11,15 +11,16 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
-import { ArrowLeft, Sparkles, GraduationCap, ShieldCheck, UserCheck } from 'lucide-react';
+import { ArrowLeft, Sparkles, GraduationCap, UserCheck, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
   const { isBn } = useI18n();
 
-  const [email, setEmail] = useState('parent@demo.com');
-  const [password, setPassword] = useState('Password123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -32,7 +33,7 @@ export default function LoginPage() {
       const res = await api.post('/auth/login', { email, password });
       const data = res.data?.data;
       if (data?.accessToken && data?.user) {
-        login(data.accessToken, data.user);
+        login(data.accessToken, data.user, data.refreshToken);
         if (data.user.role === 'child') {
           router.push('/kid');
         } else {
@@ -142,24 +143,12 @@ export default function LoginPage() {
                 ? 'অভিভাবক অথবা শিক্ষার্থীর ইমেইল ও পাসওয়ার্ড দিয়ে লগইন করুন'
                 : 'Sign in with your parent or student account to enter your portal'}
             </CardDescription>
-
-            {/* Portal destination indicator badge */}
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
-                <ShieldCheck className="w-3 h-3" />
-                <span>Parent Dashboard</span>
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-                <GraduationCap className="w-3 h-3" />
-                <span>Student Portal</span>
-              </span>
-            </div>
           </CardHeader>
 
           <CardContent className="space-y-4 pt-2">
             <form onSubmit={onSubmit} className="space-y-3.5">
               <div>
-                <Label className="text-xs font-semibold">Email Address</Label>
+                <Label className="text-xs font-semibold">{isBn ? 'ইমেইল অ্যাড্রেস' : 'Email Address'}</Label>
                 <Input
                   type="email"
                   value={email}
@@ -172,18 +161,34 @@ export default function LoginPage() {
 
               <div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold">Password</Label>
+                  <Label className="text-xs font-semibold">{isBn ? 'পাসওয়ার্ড' : 'Password'}</Label>
                   <Link href="/forgot-password" className="text-[11px] text-primary hover:underline">
-                    Forgot password?
+                    {isBn ? 'পাসওয়ার্ড ভুলে গেছেন?' : 'Forgot password?'}
                   </Link>
                 </div>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="mt-1 h-10 rounded-xl text-xs"
-                />
+                <div className="relative mt-1">
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    placeholder="••••••••"
+                    className="h-10 rounded-xl text-xs pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5 focus:outline-none"
+                    title={showPassword ? (isBn ? 'পাসওয়ার্ড লুকান' : 'Hide password') : (isBn ? 'পাসওয়ার্ড দেখুন' : 'Show password')}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               {error && <p className="text-xs text-destructive font-medium">{error}</p>}
@@ -193,7 +198,7 @@ export default function LoginPage() {
                 className="w-full h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
                 disabled={loading}
               >
-                {loading ? 'Logging in...' : isBn ? 'লগইন করুন' : 'Sign In'}
+                {loading ? (isBn ? 'লগইন হচ্ছে...' : 'Logging in...') : isBn ? 'লগইন করুন' : 'Sign In'}
               </Button>
             </form>
 
@@ -201,7 +206,7 @@ export default function LoginPage() {
             <div className="p-3.5 rounded-2xl bg-muted/50 border space-y-2.5">
               <p className="text-[11px] text-muted-foreground font-semibold flex items-center justify-center gap-1">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>1-Click Seed Account Logins</span>
+                <span>{isBn ? 'ডেমো অ্যাকাউন্টের ক্রেডেনশিয়াল লোড করুন' : "Load demo account's credentials"}</span>
               </p>
               <div className="space-y-1.5">
                 <button
@@ -213,7 +218,7 @@ export default function LoginPage() {
                     <UserCheck className="w-4 h-4 text-indigo-600 shrink-0" />
                     <div>
                       <p className="text-xs font-bold text-foreground">Parent: Rafiqul Islam</p>
-                      <p className="text-[10px] text-muted-foreground">parent@demo.com • Password123!</p>
+                      <p className="text-[10px] text-muted-foreground">parent@demo.com</p>
                     </div>
                   </div>
                   <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-500/10 px-2 py-0.5 rounded-md">
@@ -247,9 +252,6 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-              <p className="text-[10px] text-muted-foreground text-center">
-                Parent connects to both children • Students access their individual study portals
-              </p>
             </div>
 
             <p className="text-xs text-center text-muted-foreground pt-1">
