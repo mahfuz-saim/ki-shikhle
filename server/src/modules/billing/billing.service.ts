@@ -78,7 +78,7 @@ export async function demoCheckout(
         data: {
           planId: planRec!.id,
           status: 'active',
-          childSlots: input.childCount,
+          childSlots: Math.max(input.childCount, plan.limits.maxChildren),
           currentPeriodEnd: periodEnd,
         },
       });
@@ -88,7 +88,7 @@ export async function demoCheckout(
           userId,
           planId: planRec?.id || 'plan-demo',
           status: 'active',
-          childSlots: input.childCount,
+          childSlots: Math.max(input.childCount, plan.limits.maxChildren),
           currentPeriodEnd: periodEnd,
         },
       });
@@ -116,7 +116,7 @@ export async function demoCheckout(
         limits: plan.limits,
       },
       status: 'active',
-      childSlots: input.childCount,
+      childSlots: Math.max(input.childCount, plan.limits.maxChildren),
       currentPeriodEnd: new Date(Date.now() + 30 * 86400000),
     };
     const existingIdx = memSubs.findIndex((s) => s.userId === userId);

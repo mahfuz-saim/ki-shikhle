@@ -34,7 +34,7 @@ export default function BillingPage() {
 
   const [checkoutForm, setCheckoutForm] = useState({
     planCode: 'premium',
-    childCount: 1,
+    childCount: 2,
     billingPeriod: 'monthly',
     method: 'bkash',
     walletNumber: '01700000000',
@@ -82,7 +82,7 @@ export default function BillingPage() {
       },
       features: isBn
         ? [
-            '১ জন শিক্ষার্থীর প্রোফাইল',
+            '১ জন শিক্ষার্থীর প্রোফাইল (১ জন অন্তর্ভুক্ত)',
             'প্রতি মাসে ১০টি এআই কুইজ',
             'ভয়েস লগ ও ক্লদ এআই স্ট্রাকচার্ড সামারি',
             'খাতার নোট ও হস্তলিপি স্ক্যানার (OCR)',
@@ -90,7 +90,7 @@ export default function BillingPage() {
             '৬ মাসের পূর্ণ স্টাডি হিস্ট্রি',
           ]
         : [
-            '1 Child profile slot',
+            '1 Child profile slot (1 included)',
             '10 AI quizzes per month',
             'Voice Logging with Claude AI preview',
             'Class Notes & handwritten OCR scanner',
@@ -111,7 +111,7 @@ export default function BillingPage() {
       },
       features: isBn
         ? [
-            '২ জন শিক্ষার্থীর প্রোফাইল (2 Children Slots)',
+            '২ জন শিক্ষার্থীর প্রোফাইল (২ জন অন্তর্ভুক্ত)',
             'প্রতি মাসে ৫০টি এআই কুইজ',
             '⭐ স্বয়ংক্রিয় কুইজ সেটআপ সিস্টেম (Auto Quiz Setup)',
             'গতকালকের পাঠে ১-দিন স্পেসড রিপিটেশন কুইজ',
@@ -120,7 +120,7 @@ export default function BillingPage() {
             'সীমাহীন ইতিহাস ও প্রায়োরিটি এআই প্রসেসিং',
           ]
         : [
-            '2 Children profile slots',
+            '2 Children profile slots (2 included)',
             '50 AI quizzes per month',
             '⭐ Automatic Quiz Setup System',
             'Spaced repetition: Auto quizzes on 1-day-old topics',
@@ -141,7 +141,7 @@ export default function BillingPage() {
       },
       features: isBn
         ? [
-            '৫ জন পর্যন্ত শিক্ষার্থী (পুরো পরিবারের জন্য)',
+            '৫ জন পর্যন্ত শিক্ষার্থী (৫ জন অন্তর্ভুক্ত)',
             'প্রতি মাসে ১৫০টি এআই কুইজ',
             'সকল সন্তানের জন্য স্বয়ংক্রিয় কুইজ শিডিউলিং',
             'হোয়াটসঅ্যাপ ও এসএমএস ডেইলি স্টাডি অ্যালার্ট',
@@ -149,7 +149,7 @@ export default function BillingPage() {
             'স্কুল পরীক্ষার সিলেবাস ইন্টিগ্রেশন ও ২৪/৭ সাপোর্ট',
           ]
         : [
-            'Up to 5 Children profile slots',
+            'Up to 5 Children profile slots (5 included)',
             '150 AI quizzes per month',
             'Automatic Quiz Setup for all siblings',
             'WhatsApp & SMS study alerts & daily summaries',
@@ -158,6 +158,57 @@ export default function BillingPage() {
           ],
     },
   ];
+
+  // Helper for pack's default / minimum included children count
+  const getPlanDefaultChildren = (code: string) => {
+    if (code === 'pro') return 5;
+    if (code === 'premium') return 2;
+    return 1;
+  };
+
+  // Helper for accurate pricing: base price covers up to includedChildren; extra child adds extra charge
+  const getPlanPricing = (planCode: string, childCount: number, billingPeriod: string) => {
+    let basePrice = 0;
+    let included = 1;
+    let extraChildPrice = 0;
+
+    if (planCode === 'pro') {
+      basePrice = 999;
+      included = 5;
+      extraChildPrice = 150;
+    } else if (planCode === 'premium') {
+      basePrice = 599;
+      included = 2;
+      extraChildPrice = 199;
+    } else if (planCode === 'basic') {
+      basePrice = 249;
+      included = 1;
+      extraChildPrice = 180;
+    } else {
+      basePrice = 0;
+      included = 1;
+      extraChildPrice = 0;
+    }
+
+    let monthlyTotal = basePrice;
+    const extraChildren = Math.max(0, childCount - included);
+    if (basePrice > 0 && extraChildren > 0) {
+      monthlyTotal += extraChildren * extraChildPrice;
+    }
+
+    const isYearly = billingPeriod === 'yearly';
+    const total = isYearly ? monthlyTotal * 10 : monthlyTotal;
+
+    return {
+      basePrice,
+      included,
+      extraChildren,
+      extraChildPrice,
+      monthlyTotal,
+      total: Math.round(total),
+      isYearly,
+    };
+  };
 
   useEffect(() => {
     api
@@ -202,7 +253,12 @@ export default function BillingPage() {
   }, []);
 
   const openCheckout = (planCode: string) => {
-    setCheckoutForm({ ...checkoutForm, planCode });
+    const defaultCount = getPlanDefaultChildren(planCode);
+    setCheckoutForm({
+      ...checkoutForm,
+      planCode,
+      childCount: defaultCount,
+    });
     setError('');
     setMsg('');
     setCheckoutModalOpen(true);
@@ -242,28 +298,15 @@ export default function BillingPage() {
     }
   };
 
-  // Selected plan calculation
   const effectivePlans = plans.length > 0 ? plans : defaultPlans;
-  const selectedPlan = effectivePlans.find((p) => p.code === checkoutForm.planCode) || effectivePlans[2] || { priceBdt: 599 };
-  const baseRate = selectedPlan.priceBdt || 0;
-
-  // Sibling discount: 2nd child 25% off, 3rd+ 35% off
-  let totalBdt = baseRate;
-  if (baseRate > 0) {
-    if (checkoutForm.childCount === 2) {
-      totalBdt = baseRate + baseRate * 0.75;
-    } else if (checkoutForm.childCount > 2) {
-      totalBdt = baseRate + baseRate * 0.75 + (checkoutForm.childCount - 2) * (baseRate * 0.65);
-    }
-    if (checkoutForm.billingPeriod === 'yearly') {
-      totalBdt = totalBdt * 10; // 10 months for 12 months
-    }
-  } else {
-    totalBdt = 0;
-  }
-  totalBdt = Math.round(totalBdt);
-
+  const currentPricing = getPlanPricing(checkoutForm.planCode, checkoutForm.childCount, checkoutForm.billingPeriod);
   const currentPlanCode = sub?.plan?.code || sub?.planCode || 'free';
+
+  const toBn = (n: number) => {
+    if (!isBn) return n.toString();
+    const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    return n.toString().replace(/\d/g, (d) => bnDigits[parseInt(d, 10)]);
+  };
 
   return (
     <AppShell>
@@ -369,8 +412,8 @@ export default function BillingPage() {
             </h2>
             <p className="text-xs text-muted-foreground">
               {isBn
-                ? '১টি ফ্রি ও ৩টি পেইড প্যাকেজ। ৩য় প্যাকেজে রয়েছে সম্পূর্ণ স্বয়ংক্রিয় কুইজ সেটআপ। বাৎসরিক: ১০ মাসের খরচে ১২ মাস!'
-                : '1 Free & 3 Paid Packages. Package 3 includes Automatic Quiz Setup System. Annual: pay 10 months, get 12!'}
+                ? '১টি ফ্রি ও ৩টি পেইড প্যাকেজ। প্রতিটি প্যাকেজে নির্ধারিত শিক্ষার্থী অন্তর্ভুক্ত। ৩য় প্যাকেজে রয়েছে সম্পূর্ণ স্বয়ংক্রিয় কুইজ সেটআপ!'
+                : '1 Free & 3 Paid Packages. Base seats included per pack. Package 3 includes Automatic Quiz Setup System!'}
             </p>
           </div>
 
@@ -532,13 +575,20 @@ export default function BillingPage() {
               <Label className="text-xs font-semibold">{isBn ? 'নির্বাচিত প্ল্যান' : 'Selected Plan'}</Label>
               <select
                 value={checkoutForm.planCode}
-                onChange={(e) => setCheckoutForm({ ...checkoutForm, planCode: e.target.value })}
+                onChange={(e) => {
+                  const nextPlan = e.target.value;
+                  setCheckoutForm({
+                    ...checkoutForm,
+                    planCode: nextPlan,
+                    childCount: getPlanDefaultChildren(nextPlan),
+                  });
+                }}
                 className="w-full h-10 border rounded-xl px-3 bg-background text-xs font-semibold mt-1"
               >
                 <option value="free">Free Forever (৳0 - 1 Child, 2 Quizzes/mo)</option>
                 <option value="basic">Basic (৳249 - 1 Child, 10 Quizzes/mo)</option>
                 <option value="premium">Premium (৳599 - 2 Children, 50 Quizzes + Auto Quiz)</option>
-                <option value="pro">Pro Family (৳999 - Up to 5 Children, 150 Quizzes + Auto Quiz)</option>
+                <option value="pro">Pro Family (৳999 - 5 Children, 150 Quizzes + Auto Quiz)</option>
               </select>
             </div>
 
@@ -549,11 +599,46 @@ export default function BillingPage() {
                 onChange={(e) => setCheckoutForm({ ...checkoutForm, childCount: parseInt(e.target.value) || 1 })}
                 className="w-full h-10 border rounded-xl px-3 bg-background text-xs font-semibold mt-1"
               >
-                <option value={1}>1 Child</option>
-                <option value={2}>2 Children (25% off 2nd)</option>
-                <option value={3}>3 Children (35% off 3rd)</option>
-                <option value={4}>4 Children</option>
-                <option value={5}>5 Children</option>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => {
+                  let label = '';
+                  if (checkoutForm.planCode === 'pro') {
+                    if (num === 5) {
+                      label = isBn ? '৫ জন শিক্ষার্থী (প্যাকেজে অন্তর্ভুক্ত - ডিফল্ট)' : '5 Children (5 Included - Default)';
+                    } else if (num < 5) {
+                      label = isBn ? `${toBn(num)} জন শিক্ষার্থী (প্যাকেজের অন্তর্ভুক্ত - কমিয়েছেন)` : `${num} Child${num > 1 ? 'ren' : ''} (Covered in 5-child plan)`;
+                    } else {
+                      const extra = num - 5;
+                      const extraCost = extra * 150;
+                      label = isBn ? `${toBn(num)} জন শিক্ষার্থী (+${toBn(extra)} অতিরিক্ত: +৳${extraCost}/মাস)` : `${num} Children (+${extra} extra: +৳${extraCost}/mo)`;
+                    }
+                  } else if (checkoutForm.planCode === 'premium') {
+                    if (num === 2) {
+                      label = isBn ? '২ জন শিক্ষার্থী (প্যাকেজে অন্তর্ভুক্ত - ডিফল্ট)' : '2 Children (2 Included - Default)';
+                    } else if (num === 1) {
+                      label = isBn ? '১ জন শিক্ষার্থী (প্যাকেজের অন্তর্ভুক্ত - কমিয়েছেন)' : '1 Child (Covered in 2-child plan)';
+                    } else {
+                      const extra = num - 2;
+                      const extraCost = extra * 199;
+                      label = isBn ? `${toBn(num)} জন শিক্ষার্থী (+${toBn(extra)} অতিরিক্ত: +৳${extraCost}/মাস)` : `${num} Children (+${extra} extra: +৳${extraCost}/mo)`;
+                    }
+                  } else if (checkoutForm.planCode === 'basic') {
+                    if (num === 1) {
+                      label = isBn ? '১ জন শিক্ষার্থী (প্যাকেজে অন্তর্ভুক্ত - ডিফল্ট)' : '1 Child (1 Included - Default)';
+                    } else {
+                      const extra = num - 1;
+                      const extraCost = extra * 180;
+                      label = isBn ? `${toBn(num)} জন শিক্ষার্থী (+${toBn(extra)} অতিরিক্ত: +৳${extraCost}/মাস)` : `${num} Children (+${extra} extra: +৳${extraCost}/mo)`;
+                    }
+                  } else {
+                    label = isBn ? `${toBn(num)} জন শিক্ষার্থী (ফ্রি স্লট: ১ জন)` : `${num} Child${num > 1 ? 'ren' : ''} (Free tier includes 1)`;
+                  }
+
+                  return (
+                    <option key={num} value={num}>
+                      {label}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>
@@ -630,12 +715,55 @@ export default function BillingPage() {
             />
           </div>
 
-          {/* Total calculation banner */}
-          <div className="p-3.5 rounded-xl bg-muted/40 border flex items-center justify-between text-xs">
-            <span className="font-semibold text-muted-foreground">
-              {isBn ? 'মোট পরিশোধযোগ্য পরিমাণ:' : 'Total Payable Amount:'}
-            </span>
-            <span className="text-base font-black text-foreground">৳{totalBdt}</span>
+          {/* Total calculation banner & breakdown */}
+          <div className="p-3.5 rounded-xl bg-muted/40 border space-y-1.5 text-xs">
+            <div className="flex items-center justify-between font-medium text-muted-foreground">
+              <span>{isBn ? 'মূল প্যাকেজ ফি:' : 'Base Package Fee:'}</span>
+              <span>
+                ৳{currentPricing.basePrice}{' '}
+                {currentPricing.basePrice > 0
+                  ? isBn
+                    ? `(${toBn(currentPricing.included)} জন অন্তর্ভুক্ত)`
+                    : `(${currentPricing.included} children included)`
+                  : ''}
+              </span>
+            </div>
+
+            {checkoutForm.childCount < currentPricing.included && currentPricing.basePrice > 0 && (
+              <div className="flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                <span>{isBn ? 'বাছাইকৃত শিক্ষার্থী:' : 'Selected Children:'}</span>
+                <span>
+                  {isBn
+                    ? `${toBn(checkoutForm.childCount)} জন (প্ল্যানের প্যাকেজে সম্পূর্ণ কভার্ড)`
+                    : `${checkoutForm.childCount} children (covered by plan base rate)`}
+                </span>
+              </div>
+            )}
+
+            {currentPricing.extraChildren > 0 && (
+              <div className="flex items-center justify-between text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                <span>
+                  {isBn
+                    ? `অতিরিক্ত সন্তান (+${toBn(currentPricing.extraChildren)} জন x ৳${currentPricing.extraChildPrice}):`
+                    : `Extra Children (+${currentPricing.extraChildren} x ৳${currentPricing.extraChildPrice}):`}
+                </span>
+                <span>+৳{currentPricing.extraChildren * currentPricing.extraChildPrice}/mo</span>
+              </div>
+            )}
+
+            {currentPricing.isYearly && currentPricing.basePrice > 0 && (
+              <div className="flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                <span>{isBn ? 'বাৎসরিক ছাড় (১০ মাসে ১২ মাস):' : 'Annual Discount (Pay 10, Get 12):'}</span>
+                <span>{isBn ? '২ মাস ফ্রি!' : '2 Months Free!'}</span>
+              </div>
+            )}
+
+            <div className="pt-2 border-t flex items-center justify-between">
+              <span className="font-bold text-foreground">
+                {isBn ? 'মোট প্রদেয় বিল:' : 'Total Payable Amount:'}
+              </span>
+              <span className="text-base font-black text-foreground">৳{currentPricing.total}</span>
+            </div>
           </div>
 
           {error && <p className="text-xs text-destructive font-medium">{error}</p>}
@@ -652,7 +780,7 @@ export default function BillingPage() {
             >
               {loading
                 ? isBn ? 'প্রক্রিয়াধীন...' : 'Processing...'
-                : isBn ? `পেমেন্ট নিশ্চিত করুন (৳${totalBdt})` : `Confirm Demo Payment (৳${totalBdt})`}
+                : isBn ? `পেমেন্ট নিশ্চিত করুন (৳${currentPricing.total})` : `Confirm Demo Payment (৳${currentPricing.total})`}
             </Button>
           </div>
         </form>
