@@ -111,18 +111,20 @@ export default function DashboardPage() {
 
       const formatStudyTime = (arr: any[]) =>
         arr.map((d: any) => {
-          const base = d.school || d.college || 0;
+          const college = d.college !== undefined ? d.college : (institutionType === 'college' ? d.school || 0 : 0);
+          const school = institutionType === 'college' ? 0 : (d.school || 0);
           if (institutionType === 'college') {
-            return { date: d.date, college: base, tuition: d.tuition || 0, self_study: d.self_study || 0 };
+            return { date: d.date, college, tuition: d.tuition || 0, self_study: d.self_study || 0 };
           }
           if (institutionType === 'admission') {
+            const base = d.school || d.college || 0;
             return {
               date: d.date,
               tuition: (d.tuition || 0) + Math.round(base * 0.6),
               self_study: (d.self_study || 0) + Math.round(base * 0.4),
             };
           }
-          return { date: d.date, school: base, tuition: d.tuition || 0, self_study: d.self_study || 0 };
+          return { date: d.date, school, tuition: d.tuition || 0, self_study: d.self_study || 0 };
         });
 
       // Study time
@@ -521,7 +523,7 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <StudyTimeChart data={studyTime} />
+              <StudyTimeChart data={studyTime} institutionType={institutionType} isBn={isBn} />
             </CardContent>
           </Card>
 
@@ -660,8 +662,8 @@ export default function DashboardPage() {
               </div>
               <CardDescription className="text-xs">
                 {isBn
-                  ? 'আসন্ন ৭ দিনের রুটিন এবং মিস হওয়া সেশনের হিসাব'
-                  : 'Weekly routine tracker and missed session alerts'}
+                  ? 'আসন্ন ৭ দিনের রুটিন ও ক্লাসের তালিকা'
+                  : 'Weekly routine tracker and upcoming classes'}
               </CardDescription>
             </CardHeader>
 
@@ -718,23 +720,6 @@ export default function DashboardPage() {
                     </Badge>
                   </div>
                 ))}
-              </div>
-
-              {/* Compact Missed Log Alert */}
-              <div className="p-2 sm:p-2.5 rounded-xl border border-destructive/20 bg-destructive/5 flex items-center justify-between gap-2 text-xs min-w-0">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
-                  <span className="text-destructive font-medium truncate text-xs">
-                    {isBn
-                      ? 'পদার্থবিজ্ঞান প্রাইভেট: ১টি লগ মিস হয়েছে'
-                      : 'Physics Tuition: Missed study log'}
-                  </span>
-                </div>
-                <Link href={`/children/${childId}/log`}>
-                  <span className="text-[11px] font-bold text-destructive hover:underline shrink-0">
-                    {isBn ? 'লগ দিন' : 'Add Log'} →
-                  </span>
-                </Link>
               </div>
             </CardContent>
           </Card>

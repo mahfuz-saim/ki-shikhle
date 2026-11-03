@@ -39,3 +39,13 @@ export const enterSchema = z.object({
   body: z.object({ pin: z.string().min(4).max(6) }),
   params: z.object({ id: z.string() }),
 });
+
+export const unloggedAlertSchema = z.object({
+  body: z.object({
+    enabled: z.boolean().optional(),
+    time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
+    channel: z.enum(['in_app', 'email', 'all']).optional(),
+    daysOfWeek: z.array(z.number().min(0).max(6)).optional(),
+  }),
+  params: z.object({ id: z.string() }),
+});

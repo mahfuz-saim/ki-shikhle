@@ -154,7 +154,7 @@ export default function TakeQuiz() {
 
   return (
     <KidShell>
-      <div className="space-y-6 max-w-2xl mx-auto page-fade">
+      <div className="space-y-6 w-full page-fade">
         {/* Top Quiz Bar */}
         <div className="flex items-center justify-between gap-3 p-4 rounded-2xl border bg-card/80 backdrop-blur shadow-sm">
           <div>

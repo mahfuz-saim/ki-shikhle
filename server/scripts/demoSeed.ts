@@ -73,6 +73,24 @@ async function main() {
     },
   });
 
+
+  // 4.1 Child 3: Fahim Islam (Class 11 - College)
+  const child3 = await prisma.child.upsert({
+    where: { id: 'demo-child-3' },
+    update: { email: 'fahim@demo.com', passwordHash: pw, parentId: parent.id },
+    create: {
+      id: 'demo-child-3',
+      parentId: parent.id,
+      name: 'Fahim Islam',
+      nickname: 'Fahim',
+      email: 'fahim@demo.com',
+      passwordHash: pw,
+      grade: 'Class 11',
+      curriculum: 'NCTB',
+      medium: 'Bangla',
+    },
+  });
+
   const now = Date.now();
   const dayMs = 86400000;
 
@@ -210,6 +228,74 @@ async function main() {
     }).catch(() => {});
   }
 
+
+  // 6.1 Seed Learning Entries for Fahim (College HSC Science)
+  const fahimEntries = [
+    {
+      id: 'db-fahim-e1',
+      childId: child3.id,
+      source: 'college' as const,
+      providerName: 'নটর ডেম কলেজ (Physics)',
+      date: new Date(now),
+      topicsText: 'অধ্যায় ৩: গতিবিদ্যা — প্রক্ষেপক (Projectile Motion), সর্বাধিক উচ্চতা ও পাল্লা নির্ণয়।',
+      durationMin: 50,
+      confidence: 5,
+      verifiedByParent: true,
+    },
+    {
+      id: 'db-fahim-e2',
+      childId: child3.id,
+      source: 'college' as const,
+      providerName: 'নটর ডেম কলেজ (Chemistry)',
+      date: new Date(now),
+      topicsText: 'অধ্যায় ২: গুণগত রসায়ন — বোর পরমাণু মডেল ও কোয়ান্টাম সংখ্যা।',
+      durationMin: 50,
+      confidence: 5,
+      verifiedByParent: true,
+    },
+    {
+      id: 'db-fahim-e3',
+      childId: child3.id,
+      source: 'tuition' as const,
+      providerName: 'পদার্থবিজ্ঞান কোচিং',
+      date: new Date(now),
+      topicsText: 'প্রক্ষেপকের উচ্চতর গাণিতিক সমস্যা ও বিভিন্ন কোণে নিক্ষিপ্ত বস্তুর গতিপথ বিশ্লেষণ।',
+      durationMin: 75,
+      confidence: 5,
+      verifiedByParent: true,
+    },
+    {
+      id: 'db-fahim-e4',
+      childId: child3.id,
+      source: 'college' as const,
+      providerName: 'নটর ডেম কলেজ (Higher Math)',
+      date: new Date(now - 1 * dayMs),
+      topicsText: 'ম্যাট্রিক্সের গুণন বিধি ও বিপরীত ম্যাট্রিক্স নির্ণয়।',
+      durationMin: 50,
+      confidence: 5,
+      verifiedByParent: true,
+    },
+    {
+      id: 'db-fahim-e5',
+      childId: child3.id,
+      source: 'college' as const,
+      providerName: 'নটর ডেম কলেজ (ICT)',
+      date: new Date(now - 2 * dayMs),
+      topicsText: 'সংখ্যা পদ্ধতি — বাইনারি, ডেসিমাল ও হেক্সাডেসিমেল রূপান্তর।',
+      durationMin: 50,
+      confidence: 5,
+      verifiedByParent: true,
+    },
+  ];
+
+  for (const e of fahimEntries) {
+    await prisma.learningEntry.upsert({
+      where: { id: e.id },
+      update: e,
+      create: e,
+    }).catch(() => {});
+  }
+
   // 7. Seed Routines
   await prisma.routine.upsert({
     where: { id: 'routine-rahim-1' },
@@ -254,6 +340,55 @@ async function main() {
       weekdays: [0, 2, 4],
       startTime: '16:00',
       durationMin: 60,
+      startsOn: new Date(now - 30 * dayMs),
+      active: true,
+    },
+  }).catch(() => {});
+
+
+  await prisma.routine.upsert({
+    where: { id: 'routine-fahim-c1' },
+    update: {},
+    create: {
+      id: 'routine-fahim-c1',
+      childId: child3.id,
+      name: '১ম পিরিয়ড: পদার্থবিজ্ঞান ১ম পত্র',
+      source: 'college',
+      weekdays: [0, 1, 2, 3, 4],
+      startTime: '08:30',
+      durationMin: 50,
+      startsOn: new Date(now - 30 * dayMs),
+      active: true,
+    },
+  }).catch(() => {});
+
+  await prisma.routine.upsert({
+    where: { id: 'routine-fahim-c2' },
+    update: {},
+    create: {
+      id: 'routine-fahim-c2',
+      childId: child3.id,
+      name: '২য় পিরিয়ড: রসায়ন ১ম পত্র',
+      source: 'college',
+      weekdays: [0, 1, 2, 3, 4],
+      startTime: '09:20',
+      durationMin: 50,
+      startsOn: new Date(now - 30 * dayMs),
+      active: true,
+    },
+  }).catch(() => {});
+
+  await prisma.routine.upsert({
+    where: { id: 'routine-fahim-t1' },
+    update: {},
+    create: {
+      id: 'routine-fahim-t1',
+      childId: child3.id,
+      name: 'পদার্থবিজ্ঞান কোচিং — গতিবিদ্যা',
+      source: 'tuition',
+      weekdays: [0, 2, 4],
+      startTime: '16:30',
+      durationMin: 75,
       startsOn: new Date(now - 30 * dayMs),
       active: true,
     },

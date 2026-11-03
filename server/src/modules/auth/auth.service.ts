@@ -282,6 +282,24 @@ export async function refreshTokens(oldRefreshToken: string) {
       return { accessToken: token, refreshToken: 'mock-refresh-tasnim', user: { ...child, role: 'child' } };
     }
 
+    if (oldRefreshToken.includes('fahim') || oldRefreshToken.includes('child-3')) {
+      const child = memChildren.find((c: any) => c.id === 'demo-child-3') || {
+        id: 'demo-child-3',
+        name: 'Fahim Islam',
+        email: 'fahim@demo.com',
+        role: 'child',
+        childId: 'demo-child-3',
+        grade: 'Class 11',
+        curriculum: 'NCTB',
+      };
+      const token = jwt.sign(
+        { userId: 'parent-demo', childId: 'demo-child-3', email: 'fahim@demo.com', role: 'child' },
+        env.JWT_ACCESS_SECRET,
+        { expiresIn: (env.JWT_ACCESS_TTL || '7d') as any }
+      );
+      return { accessToken: token, refreshToken: 'mock-refresh-fahim', user: { ...child, role: 'child' } };
+    }
+
     if (oldRefreshToken.includes('rahim') || oldRefreshToken.includes('child-1')) {
       const child = memChildren.find((c: any) => c.id === 'demo-child-1') || {
         id: 'demo-child-1',

@@ -63,6 +63,17 @@ export default function LoginPage() {
           curriculum: 'NCTB',
         });
         router.push('/child');
+      } else if (normEmail.includes('fahim')) {
+        login('demo-child-token-fahim', {
+          id: 'demo-child-3',
+          name: 'Fahim Islam',
+          email: normEmail,
+          role: 'child',
+          childId: 'demo-child-3',
+          grade: 'Class 11',
+          curriculum: 'NCTB',
+        });
+        router.push('/child');
       } else if (normEmail.includes('rahim') || normEmail.includes('student')) {
         login('demo-child-token-rahim', {
           id: 'demo-child-1',
@@ -97,6 +108,12 @@ export default function LoginPage() {
 
   const fillRahimDemo = () => {
     setEmail('rahim@demo.com');
+    setPassword('Password123!');
+    setError('');
+  };
+
+  const fillFahimDemo = () => {
+    setEmail('fahim@demo.com');
     setPassword('Password123!');
     setError('');
   };
@@ -226,29 +243,41 @@ export default function LoginPage() {
                   </span>
                 </button>
 
-                <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                <div className="grid grid-cols-3 gap-1.5 pt-0.5">
                   <button
                     type="button"
                     onClick={fillRahimDemo}
-                    className="px-2.5 py-2 rounded-xl border bg-card hover:bg-amber-500/10 hover:border-amber-500 text-left transition-colors shadow-xs"
+                    className="px-2 py-2 rounded-xl border bg-card hover:bg-amber-500/10 hover:border-amber-500 text-left transition-colors shadow-xs"
                   >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <GraduationCap className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      <span className="text-xs font-bold text-foreground">Rahim (Class 8)</span>
+                      <span className="text-[11px] font-bold text-foreground truncate">Rahim (8)</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">rahim@demo.com</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5 truncate">rahim@demo.com</p>
                   </button>
 
                   <button
                     type="button"
                     onClick={fillTasnimDemo}
-                    className="px-2.5 py-2 rounded-xl border bg-card hover:bg-amber-500/10 hover:border-amber-500 text-left transition-colors shadow-xs"
+                    className="px-2 py-2 rounded-xl border bg-card hover:bg-amber-500/10 hover:border-amber-500 text-left transition-colors shadow-xs"
                   >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <GraduationCap className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      <span className="text-xs font-bold text-foreground">Tasnim (Class 5)</span>
+                      <span className="text-[11px] font-bold text-foreground truncate">Tasnim (5)</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">tasnim@demo.com</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5 truncate">tasnim@demo.com</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={fillFahimDemo}
+                    className="px-2 py-2 rounded-xl border bg-card hover:bg-cyan-500/10 hover:border-cyan-500 text-left transition-colors shadow-xs"
+                  >
+                    <div className="flex items-center gap-1">
+                      <GraduationCap className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+                      <span className="text-[11px] font-bold text-foreground truncate">Fahim (11)</span>
+                    </div>
+                    <p className="text-[9px] text-muted-foreground mt-0.5 truncate">fahim@demo.com</p>
                   </button>
                 </div>
               </div>

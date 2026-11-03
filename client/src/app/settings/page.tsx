@@ -91,7 +91,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6 max-w-3xl mx-auto">
+      <div className="space-y-6 w-full">
         {/* Title */}
         <div className="pb-2 border-b">
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">

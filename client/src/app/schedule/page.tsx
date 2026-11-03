@@ -339,7 +339,7 @@ export default function SchedulePage() {
                 <CardDescription className="text-xs">
                   {isBn
                     ? 'পুনর্নির্ধারিত ও নির্ধারিত ক্লাস স্বয়ংক্রিয়ভাবে হিসাবকৃত'
-                    : 'Computed sessions with reschedule exceptions and missed logs.'}
+                    : 'Computed sessions and recurring routines for this student.'}
                 </CardDescription>
               </div>
               <Button variant="ghost" size="sm" onClick={loadSchedule} className="h-8 text-xs gap-1">
@@ -391,22 +391,7 @@ export default function SchedulePage() {
               <p className="text-xs text-muted-foreground py-2">No scheduled occurrences for this period.</p>
             )}
 
-            {/* Missed Sessions Notification */}
-            {schedule?.missed?.length > 0 && (
-              <div className="p-3 rounded-xl border border-destructive/20 bg-destructive/5 space-y-1">
-                <p className="text-xs font-bold text-destructive flex items-center gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>{isBn ? 'মিস হওয়া ক্লাস' : 'Missed Learning Logs'}</span>
-                </p>
-                {schedule.missed.map((m: any, idx: number) => (
-                  <p key={idx} className="text-xs text-muted-foreground pl-5">
-                    {m.date}: <span className="font-semibold text-foreground">{m.name}</span> ({m.source}) —{' '}
-                    {isBn ? 'নির্ধারিত সময় পার হয়েছে কিন্তু কোনো পাঠ্য বিবরণ নেই।' : 'Scheduled time passed without a logged lesson.'}
-                  </p>
-                ))}
-              </div>
-            )}
-          </CardContent>
+            </CardContent>
         </Card>
 
         {/* Active Routines List */}

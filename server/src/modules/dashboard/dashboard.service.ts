@@ -99,6 +99,7 @@ function getDemoRecentEntries(childId: string) {
 export async function summary(childId: string, parentId: string) {
   await assertOwnership(parentId, childId);
   const isTasnim = childId === 'demo-child-2';
+  const isFahim = childId === 'demo-child-3';
 
   try {
     const [entriesCount, quizzesCount, attempts] = await Promise.all([
@@ -134,9 +135,11 @@ export async function summary(childId: string, parentId: string) {
 
   // Fallback demo/natural data for demo accounts
   return {
-    kpis: isTasnim
-      ? { studyDays: 6, totalTime: 360, quizzes: 6, avgScore: 95, streak: 6 }
-      : { studyDays: 5, totalTime: 420, quizzes: 4, avgScore: 88, streak: 5 },
+    kpis: isFahim
+      ? { studyDays: 6, totalTime: 1560, quizzes: 4, avgScore: 92, streak: 7 }
+      : isTasnim
+      ? { studyDays: 6, totalTime: 1080, quizzes: 6, avgScore: 95, streak: 6 }
+      : { studyDays: 6, totalTime: 1350, quizzes: 5, avgScore: 88, streak: 6 },
     recent: getDemoRecentEntries(childId),
   };
 }
@@ -153,13 +156,26 @@ export async function studyTime(childId: string, parentId: string, range: string
         map[d][e.source] = e._sum.durationMin || 0;
       }
       const vals = Object.values(map);
-      if (vals.some((v: any) => (v.school || 0) + (v.tuition || 0) + (v.self_study || 0) > 0)) {
+      if (vals.some((v: any) => (v.school || 0) + (v.college || 0) + (v.tuition || 0) + (v.self_study || 0) > 0)) {
         return vals;
       }
     }
   } catch {}
 
   // Differentiate by childId:
+  if (childId === 'demo-child-3') {
+    // Fahim Islam (Class 11 - College HSC Science)
+    return [
+      { date: 'Mon', college: 100, tuition: 75, self_study: 60 },
+      { date: 'Tue', college: 100, tuition: 60, self_study: 60 },
+      { date: 'Wed', college: 100, tuition: 75, self_study: 45 },
+      { date: 'Thu', college: 100, tuition: 60, self_study: 60 },
+      { date: 'Fri', college: 0, tuition: 90, self_study: 75 },
+      { date: 'Sat', college: 0, tuition: 0, self_study: 90 },
+      { date: 'Sun', college: 100, tuition: 75, self_study: 60 },
+    ];
+  }
+
   if (childId === 'demo-child-2') {
     // Tasnim Islam (Class 5 - Primary PEC)
     return [
@@ -195,6 +211,16 @@ export async function subjectDistribution(childId: string, parentId: string) {
   } catch {}
 
   // Differentiate by childId:
+  if (childId === 'demo-child-3') {
+    return [
+      { subject: 'Physics 1st Paper', value: 14 },
+      { subject: 'Higher Math 1st Paper', value: 12 },
+      { subject: 'Chemistry 1st Paper', value: 10 },
+      { subject: 'ICT', value: 8 },
+      { subject: 'Biology 1st Paper', value: 6 },
+    ];
+  }
+
   if (childId === 'demo-child-2') {
     return [
       { subject: 'Elementary Math', value: 9 },
@@ -227,6 +253,16 @@ export async function scoreTrend(childId: string, parentId: string) {
   } catch {}
 
   // Differentiate by childId:
+  if (childId === 'demo-child-3') {
+    return [
+      { date: 'Oct 12', score: 88 },
+      { date: 'Oct 18', score: 90 },
+      { date: 'Oct 24', score: 92 },
+      { date: 'Oct 28', score: 95 },
+      { date: 'Nov 01', score: 96 },
+    ];
+  }
+
   if (childId === 'demo-child-2') {
     return [
       { date: 'Oct 12', score: 90 },
@@ -265,6 +301,16 @@ export async function subjectMastery(childId: string, parentId: string) {
   } catch {}
 
   // Differentiate by childId:
+  if (childId === 'demo-child-3') {
+    return [
+      { subject: 'Physics (গতিবিদ্যা)', accuracy: 94 },
+      { subject: 'Chemistry (গুণগত রসায়ন)', accuracy: 92 },
+      { subject: 'Higher Math (ম্যাট্রিক্স)', accuracy: 88 },
+      { subject: 'ICT (সংখ্যা পদ্ধতি)', accuracy: 84 },
+      { subject: 'Biology (কোষ ও এর গঠন)', accuracy: 80 },
+    ];
+  }
+
   if (childId === 'demo-child-2') {
     return [
       { subject: 'Math (লসাগু ও গসাগু)', accuracy: 96 },
@@ -306,6 +352,7 @@ export async function consistency(childId: string, parentId: string) {
   // Differentiate by childId:
   const out: Record<string, number> = {};
   const isTasnim = childId === 'demo-child-2';
+  const isFahim = childId === 'demo-child-3';
   for (let i = 0; i < 180; i++) {
     const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
     if (isTasnim) {
@@ -353,14 +400,14 @@ async function computeStreak(childId: string) {
       else if (i !== 0) break;
       cur.setDate(cur.getDate() - 1);
     }
-    return streak || (childId === 'demo-child-2' ? 6 : 5);
+    return streak || (childId === 'demo-child-3' ? 7 : childId === 'demo-child-2' ? 6 : 5);
   } catch {
     return childId === 'demo-child-2' ? 6 : 5;
   }
 }
 
 async function assertOwnership(parentId: string, childId: string) {
-  if (childId === 'demo-child-1' || childId === 'demo-child-2' || childId === 'demo-child') {
+  if (childId === 'demo-child-1' || childId === 'demo-child-2' || childId === 'demo-child-3' || childId === 'demo-child') {
     return;
   }
   try {

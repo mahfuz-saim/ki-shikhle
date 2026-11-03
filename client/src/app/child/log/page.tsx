@@ -308,7 +308,7 @@ function KidLogContent() {
 
   return (
     <KidShell>
-      <div className="space-y-6 max-w-2xl mx-auto page-fade">
+      <div className="space-y-6 w-full page-fade">
         {/* Top Navigation & Streak Bar */}
         <div className="flex items-center justify-between">
           <Button

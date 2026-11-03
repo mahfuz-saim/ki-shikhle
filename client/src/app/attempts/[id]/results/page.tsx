@@ -142,7 +142,7 @@ Your child demonstrated a strong, commendable grasp of Newton's Second Law (F = 
 
   return (
     <AppShell>
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-6 w-full">
         <div className="flex items-center gap-2">
           <Link href="/quizzes">
             <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">

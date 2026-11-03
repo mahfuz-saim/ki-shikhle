@@ -92,6 +92,7 @@ export default function KidSchedulePage() {
 
   const childId = activeChild?.id || (user as any)?.childId || user?.id || 'demo-child-1';
   const isTasnim = childId === 'demo-child-2' || user?.email?.includes('tasnim') || activeChild?.name?.includes('Tasnim');
+  const isFahim = childId === 'demo-child-3' || user?.email?.includes('fahim') || activeChild?.name?.includes('Fahim') || studentGrade.includes('11') || studentGrade.includes('12') || institutionType === 'college';
 
   const [routines, setRoutines] = useState<any[]>([]);
   const [entries, setEntries] = useState<any[]>([]);
@@ -167,7 +168,106 @@ export default function KidSchedulePage() {
   };
 
   const setDefaultRoutines = () => {
-    if (isTasnim) {
+    if (isFahim) {
+      setRoutines([
+        {
+          id: 'rt-f1',
+          name: isBn ? '১ম পিরিয়ড: পদার্থবিজ্ঞান ১ম পত্র' : '1st Period: Physics 1st Paper',
+          periodName: '১ম পিরিয়ড',
+          subject: 'Physics 1st Paper',
+          teacher: 'ড. মাহবুব স্যার',
+          room: 'ল্যাব ৪',
+          source: 'college',
+          weekdays: [0, 1, 2, 3, 4],
+          startTime: '08:30',
+          durationMin: 50,
+        },
+        {
+          id: 'rt-f2',
+          name: isBn ? '২য় পিরিয়ড: রসায়ন ১ম পত্র' : '2nd Period: Chemistry 1st Paper',
+          periodName: '২য় পিরিয়ড',
+          subject: 'Chemistry 1st Paper',
+          teacher: 'তাহমিনা ম্যাডাম',
+          room: 'কেমিস্ট্রি ল্যাব',
+          source: 'college',
+          weekdays: [0, 1, 2, 3, 4],
+          startTime: '09:20',
+          durationMin: 50,
+        },
+        {
+          id: 'rt-f3',
+          name: isBn ? '৩য় পিরিয়ড: উচ্চতর গণিত ১ম পত্র' : '3rd Period: Higher Mathematics',
+          periodName: '৩য় পিরিয়ড',
+          subject: 'Higher Mathematics',
+          teacher: 'এনামুল স্যার',
+          room: 'রুম ৪০১',
+          source: 'college',
+          weekdays: [0, 1, 2, 3, 4],
+          startTime: '10:10',
+          durationMin: 50,
+        },
+        {
+          id: 'rt-f4',
+          name: isBn ? '৪র্থ পিরিয়ড: জীববিজ্ঞান ১ম পত্র' : '4th Period: Biology 1st Paper',
+          periodName: '৪র্থ পিরিয়ড',
+          subject: 'Biology 1st Paper',
+          teacher: 'ফারহানা ম্যাডাম',
+          room: 'বায়োলজি ল্যাব',
+          source: 'college',
+          weekdays: [0, 1, 2, 3, 4],
+          startTime: '11:20',
+          durationMin: 50,
+        },
+        {
+          id: 'rt-f5',
+          name: isBn ? '৫ম পিরিয়ড: আইসিটি ল্যাব' : '5th Period: ICT Lab',
+          periodName: '৫ম পিরিয়ড',
+          subject: 'ICT',
+          teacher: 'রাকিবুল হাসান',
+          room: 'কম্পিউটার ল্যাব',
+          source: 'college',
+          weekdays: [0, 1, 2, 3, 4],
+          startTime: '12:10',
+          durationMin: 50,
+        },
+        {
+          id: 'rt-f-t1',
+          name: isBn ? 'পদার্থবিজ্ঞান কোচিং — গতিবিদ্যা' : 'Physics Coaching – Dynamics',
+          periodName: 'কোচিং',
+          subject: 'Physics 1st Paper',
+          teacher: 'আহমেদ স্যার',
+          room: 'ইউসিসি ব্রাঞ্চ',
+          source: 'tuition',
+          weekdays: [0, 2, 4],
+          startTime: '16:30',
+          durationMin: 75,
+        },
+        {
+          id: 'rt-f-t2',
+          name: isBn ? 'রসায়ন প্রাইভেট — গুণগত রসায়ন' : 'Chemistry Tuition',
+          periodName: 'প্রাইভেট',
+          subject: 'Chemistry 1st Paper',
+          teacher: 'শফিক স্যার',
+          room: 'টিউটর হোম',
+          source: 'tuition',
+          weekdays: [1, 3],
+          startTime: '17:00',
+          durationMin: 60,
+        },
+        {
+          id: 'rt-f-s1',
+          name: isBn ? 'উচ্চতর গণিত সেলফ স্টাডি' : 'Higher Math Self-Study',
+          periodName: 'সেলফ স্টাডি',
+          subject: 'Higher Mathematics',
+          teacher: 'নিজে',
+          room: 'পড়ার টেবিল',
+          source: 'self_study',
+          weekdays: [0, 1, 2, 3, 4, 5, 6],
+          startTime: '20:30',
+          durationMin: 60,
+        },
+      ]);
+    } else if (isTasnim) {
       setRoutines([
         {
           id: 'rt-p1',

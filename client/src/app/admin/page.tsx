@@ -109,7 +109,7 @@ export default function AdminPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6 w-full">
         {/* Header */}
         <div className="pb-2 border-b">
           <div className="flex items-center gap-2">

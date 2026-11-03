@@ -34,17 +34,29 @@ export function StudyTimeChart({
   institutionType?: 'school' | 'college' | 'admission';
   isBn?: boolean;
 }) {
+  const hasCollegeData = data?.some((d) => (d.college || 0) > 0);
+  const showCollege = institutionType === 'college' || hasCollegeData;
+  const showSchool = (institutionType === 'school' || data?.some((d) => (d.school || 0) > 0)) && !showCollege;
+
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data}>
         <XAxis dataKey="date" fontSize={12} />
-        <YAxis fontSize={12} />
-        <Tooltip />
+        <YAxis fontSize={12} unit={isBn ? ' মি' : ' m'} />
+        <Tooltip
+          formatter={(value: any, name: any) => {
+            const v = Number(value) || 0;
+            const h = Math.floor(v / 60);
+            const m = v % 60;
+            const formatted = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+            return [`${v} ${isBn ? 'মিনিট' : 'mins'} (${formatted})`, name];
+          }}
+        />
         <Legend />
-        {institutionType === 'school' && (
+        {showSchool && (
           <Bar dataKey="school" stackId="a" fill="#4F46E5" name={isBn ? 'স্কুল' : 'School'} />
         )}
-        {institutionType === 'college' && (
+        {showCollege && (
           <Bar dataKey="college" stackId="a" fill="#06B6D4" name={isBn ? 'কলেজ' : 'College'} />
         )}
         <Bar

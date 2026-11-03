@@ -25,3 +25,28 @@ export const enter = async (req: Request, res: Response, next: NextFunction) => 
 export const exit = async (req: Request, res: Response, next: NextFunction) => {
   res.json({ success: true, data: { message: 'Exited child mode — use parent token again' }, error: null });
 };
+
+export const getUnloggedAlert = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await svc.getUnloggedAlertConfig((req.user as any).userId, req.params.id);
+    res.json({ success: true, data, error: null });
+  } catch (e) {
+    next(e);
+  }
+};
+export const saveUnloggedAlert = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await svc.saveUnloggedAlertConfig((req.user as any).userId, req.params.id, req.body);
+    res.json({ success: true, data, error: null });
+  } catch (e) {
+    next(e);
+  }
+};
+export const testUnloggedAlert = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await svc.triggerTestUnloggedAlert((req.user as any).userId, req.params.id);
+    res.json({ success: true, data, error: null });
+  } catch (e) {
+    next(e);
+  }
+};

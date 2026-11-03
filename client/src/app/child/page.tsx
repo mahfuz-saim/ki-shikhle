@@ -13,7 +13,7 @@ import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
-import { MonthlyActivityCalendar } from '@/components/charts/study-time-chart';
+import { MonthlyActivityCalendar, StudyTimeChart } from '@/components/charts/study-time-chart';
 import {
   Flame,
   Brain,
@@ -51,6 +51,7 @@ export default function KidDashboard() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [consistency, setConsistency] = useState<Record<string, number>>({});
   const [topics, setTopics] = useState<any>(null);
+  const [studyTime, setStudyTime] = useState<any[]>([]);
   const [routines, setRoutines] = useState<any[]>([]);
   const [routineModalOpen, setRoutineModalOpen] = useState(false);
   const [savingRoutine, setSavingRoutine] = useState(false);
@@ -401,14 +402,73 @@ export default function KidDashboard() {
               ]
         );
       });
-  }, [childId, isBn, isTasnim]);
+    // 6. Weekly Study Time (Hours Breakdown by Source)
+    api
+      .get(`/children/${childId}/dashboard/study-time`)
+      .then((r) => {
+        if (r.data?.data && r.data.data.length > 0) {
+          setStudyTime(r.data.data);
+        } else {
+          setStudyTime(defaultStudyTimeList);
+        }
+      })
+      .catch(() => setStudyTime(defaultStudyTimeList));
+  }, [childId, isBn, isTasnim, isFahim]);
 
-  const defaultKpis = isTasnim
-    ? { studyDays: 6, totalTime: 360, quizzes: 6, avgScore: 95, streak: 6 }
-    : { studyDays: 5, totalTime: 420, quizzes: 4, avgScore: 88, streak: 5 };
+  const defaultStudyTimeList = isFahim
+    ? [
+        { date: 'Mon', college: 100, tuition: 75, self_study: 60 },
+        { date: 'Tue', college: 100, tuition: 60, self_study: 60 },
+        { date: 'Wed', college: 100, tuition: 75, self_study: 45 },
+        { date: 'Thu', college: 100, tuition: 60, self_study: 60 },
+        { date: 'Fri', college: 0, tuition: 90, self_study: 75 },
+        { date: 'Sat', college: 0, tuition: 0, self_study: 90 },
+        { date: 'Sun', college: 100, tuition: 75, self_study: 60 },
+      ]
+    : isTasnim
+    ? [
+        { date: 'Mon', school: 45, tuition: 60, self_study: 45 },
+        { date: 'Tue', school: 45, tuition: 50, self_study: 45 },
+        { date: 'Wed', school: 40, tuition: 60, self_study: 45 },
+        { date: 'Thu', school: 45, tuition: 50, self_study: 40 },
+        { date: 'Fri', school: 0, tuition: 60, self_study: 45 },
+        { date: 'Sat', school: 0, tuition: 0, self_study: 50 },
+        { date: 'Sun', school: 45, tuition: 60, self_study: 45 },
+      ]
+    : [
+        { date: 'Mon', school: 95, tuition: 75, self_study: 45 },
+        { date: 'Tue', school: 90, tuition: 60, self_study: 50 },
+        { date: 'Wed', school: 50, tuition: 75, self_study: 45 },
+        { date: 'Thu', school: 50, tuition: 60, self_study: 40 },
+        { date: 'Fri', school: 0, tuition: 75, self_study: 45 },
+        { date: 'Sat', school: 0, tuition: 60, self_study: 60 },
+        { date: 'Sun', school: 95, tuition: 75, self_study: 45 },
+      ];
+
+  const defaultKpis = isFahim
+    ? { studyDays: 6, totalTime: 1560, quizzes: 4, avgScore: 92, streak: 7 }
+    : isTasnim
+    ? { studyDays: 6, totalTime: 1080, quizzes: 6, avgScore: 95, streak: 6 }
+    : { studyDays: 6, totalTime: 1350, quizzes: 5, avgScore: 88, streak: 6 };
   const kpis = (summary?.kpis?.totalTime || summary?.kpis?.studyDays) ? summary.kpis : defaultKpis;
-  const hours = Math.floor((kpis.totalTime || 420) / 60);
-  const minutes = (kpis.totalTime || 420) % 60;
+  const effectiveTotalMin = kpis.totalTime || (isFahim ? 1560 : 420);
+  const hours = Math.floor(effectiveTotalMin / 60);
+  const minutes = effectiveTotalMin % 60;
+
+  const currentStudyTime = studyTime.length > 0 ? studyTime : defaultStudyTimeList;
+  const collegeMin = currentStudyTime.reduce((sum, d) => sum + (d.college || 0), 0) || (isFahim ? 500 : 0);
+  const schoolMin = currentStudyTime.reduce((sum, d) => sum + (d.school || 0), 0) || (institutionType === 'school' ? (isTasnim ? 220 : 380) : 0);
+  const tuitionMin = currentStudyTime.reduce((sum, d) => sum + (d.tuition || 0), 0) || (isFahim ? 435 : isTasnim ? 280 : 405);
+  const selfStudyMin = currentStudyTime.reduce((sum, d) => sum + (d.self_study || 0), 0) || (isFahim ? 450 : isTasnim ? 250 : 340);
+
+  const collegeHours = Math.floor(collegeMin / 60);
+  const collegeRemMin = collegeMin % 60;
+  const schoolHours = Math.floor(schoolMin / 60);
+  const schoolRemMin = schoolMin % 60;
+  const tuitionHours = Math.floor(tuitionMin / 60);
+  const tuitionRemMin = tuitionMin % 60;
+  const selfStudyHours = Math.floor(selfStudyMin / 60);
+  const selfStudyRemMin = selfStudyMin % 60;
 
   // Next 7 days strip for routine schedule
   const next7Days = Array.from({ length: 7 }, (_, i) => {
@@ -587,6 +647,18 @@ export default function KidDashboard() {
               <CardTitle className="text-2xl sm:text-3xl font-extrabold mt-1">
                 {isBn ? `${toBnNum(hours)}ঘ ${toBnNum(minutes)}মি` : `${hours}h ${minutes}m`}
               </CardTitle>
+              {institutionType === 'college' && (
+                <p className="text-[11px] text-cyan-600 dark:text-cyan-400 mt-1 font-bold flex items-center gap-1">
+                  <span>🏛️</span>
+                  <span>{isBn ? `কলেজ: ${toBnNum(collegeHours)}ঘ ${toBnNum(collegeRemMin)}মি` : `College: ${collegeHours}h ${collegeRemMin}m`}</span>
+                </p>
+              )}
+              {institutionType === 'school' && (
+                <p className="text-[11px] text-indigo-600 dark:text-indigo-400 mt-1 font-bold flex items-center gap-1">
+                  <span>🏫</span>
+                  <span>{isBn ? `স্কুল: ${toBnNum(schoolHours)}ঘ ${toBnNum(schoolRemMin)}মি` : `School: ${schoolHours}h ${schoolRemMin}m`}</span>
+                </p>
+              )}
             </CardHeader>
           </Card>
 
@@ -640,6 +712,103 @@ export default function KidDashboard() {
                 <span className="text-xs font-normal text-muted-foreground">{isBn ? 'দিন 🔥' : 'days 🔥'}</span>
               </CardTitle>
             </CardHeader>
+          </Card>
+        </div>
+
+        {/* Weekly Study Time & Source Hours Breakdown */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          <Card className="rounded-2xl border shadow-sm lg:col-span-2">
+            <CardHeader className="p-4 sm:p-6 pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-primary" />
+                    <span>{isBn ? 'সাপ্তাহিক পড়ার সময়কাল (বার চার্ট)' : 'Weekly Study Time Chart'}</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    {institutionType === 'college'
+                      ? (isBn ? 'কলেজ ক্লাস, প্রাইভেট কোচিং ও সেলফ স্টাডির দৈনিক সময়কাল' : 'Daily hours spent across college lectures, tuition, and self-study')
+                      : (isBn ? 'স্কুল ক্লাস, প্রাইভেট টিউশন ও সেলফ স্টাডির দৈনিক সময়কাল' : 'Daily hours spent across school classes, tuition, and self-study')}
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-1">
+              <StudyTimeChart data={currentStudyTime} institutionType={institutionType} isBn={isBn} />
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border shadow-sm flex flex-col justify-between">
+            <CardHeader className="p-4 sm:p-6 pb-2">
+              <CardTitle className="text-base font-bold">
+                {isBn ? 'পড়ার সময়ের বিবরণী' : 'Study Hours Breakdown'}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                {isBn ? 'সপ্তাহের মোট সময় কোন মাধ্যমে কতক্ষণ লেগেছে' : 'Time distribution across educational sources'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-2.5">
+              {institutionType === 'college' && (
+                <div className="p-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 dark:bg-cyan-500/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-bold text-sm">
+                      🏛️
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">{isBn ? 'কলেজ ক্লাসের সময়' : 'College Lecture Time'}</p>
+                      <p className="text-[10px] text-muted-foreground">{isBn ? 'পিরিয়ডভিত্তিক একাডেমিক ক্লাস' : 'Academic periods'}</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-black text-cyan-600 dark:text-cyan-400">
+                    {isBn ? `${toBnNum(collegeHours)}ঘ ${toBnNum(collegeRemMin)}মি` : `${collegeHours}h ${collegeRemMin}m`}
+                  </span>
+                </div>
+              )}
+              {institutionType === 'school' && (
+                <div className="p-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 dark:bg-indigo-500/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                      🏫
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">{isBn ? 'স্কুল ক্লাসের সময়' : 'School Class Time'}</p>
+                      <p className="text-[10px] text-muted-foreground">{isBn ? 'স্কুল পিরিয়ডভিত্তিক ক্লাস' : 'Academic periods'}</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                    {isBn ? `${toBnNum(schoolHours)}ঘ ${toBnNum(schoolRemMin)}মি` : `${schoolHours}h ${schoolRemMin}m`}
+                  </span>
+                </div>
+              )}
+              <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm">
+                    📚
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-foreground">{institutionType === 'admission' ? (isBn ? 'এডমিশন কোচিং ও টেস্ট' : 'Admission Coaching') : (isBn ? 'প্রাইভেট ও কোচিং' : 'Tuition & Coaching')}</p>
+                    <p className="text-[10px] text-muted-foreground">{isBn ? 'গৃহশিক্ষক ও প্রাইভেট ক্লাস' : 'Private lessons'}</p>
+                  </div>
+                </div>
+                <span className="text-sm font-black text-amber-600 dark:text-amber-400">
+                  {isBn ? `${toBnNum(tuitionHours)}ঘ ${toBnNum(tuitionRemMin)}মি` : `${tuitionHours}h ${tuitionRemMin}m`}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
+                    📖
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-foreground">{isBn ? 'সেলফ-স্টাডি ও রিভিশন' : 'Self-Study & Revision'}</p>
+                    <p className="text-[10px] text-muted-foreground">{isBn ? 'পড়ার টেবিলে স্ব-শিক্ষা' : 'Independent study'}</p>
+                  </div>
+                </div>
+                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                  {isBn ? `${toBnNum(selfStudyHours)}ঘ ${toBnNum(selfStudyRemMin)}মি` : `${selfStudyHours}h ${selfStudyRemMin}m`}
+                </span>
+              </div>
+            </CardContent>
           </Card>
         </div>
 

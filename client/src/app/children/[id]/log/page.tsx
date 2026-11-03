@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Modal } from '@/components/ui/modal';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
@@ -14,6 +15,7 @@ import { getInstitutionType } from '@/lib/institution';
 import { api } from '@/lib/api';
 import {
   BookOpen,
+  Bell,
   Calendar,
   Clock,
   Star,
@@ -464,6 +466,95 @@ export default function LearningLogPage() {
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  // Unlogged Study Alert Configuration State (Saved per student)
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
+  const [savingAlert, setSavingAlert] = useState(false);
+  const [testingAlert, setTestingAlert] = useState(false);
+  const [alertSuccessMsg, setAlertSuccessMsg] = useState('');
+  const [alertConfig, setAlertConfig] = useState<{
+    enabled: boolean;
+    time: string;
+    channel: 'in_app' | 'email' | 'all';
+    daysOfWeek: number[];
+  }>({
+    enabled: true,
+    time: childId === 'demo-child-3' ? '22:00' : childId === 'demo-child-2' ? '20:30' : '21:00',
+    channel: 'all',
+    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+  });
+
+  const loadAlertConfig = async () => {
+    try {
+      const res = await api.get(`/children/${childId}/unlogged-alert`);
+      if (res.data?.data) {
+        setAlertConfig(res.data.data);
+      }
+    } catch {
+      setAlertConfig({
+        enabled: true,
+        time: childId === 'demo-child-3' ? '22:00' : childId === 'demo-child-2' ? '20:30' : '21:00',
+        channel: 'all',
+        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+      });
+    }
+  };
+
+  useEffect(() => {
+    loadAlertConfig();
+  }, [childId]);
+
+  const handleSaveAlertConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingAlert(true);
+    setAlertSuccessMsg('');
+    try {
+      await api.put(`/children/${childId}/unlogged-alert`, alertConfig);
+      setAlertSuccessMsg(
+        isBn
+          ? `${currentChild?.name || 'শিক্ষার্থী'}-এর আনলগড স্টাডি অ্যালার্ট সফলভাবে সংরক্ষিত হয়েছে!`
+          : `Unlogged study alert settings successfully saved for ${currentChild?.name || 'this student'}!`
+      );
+      setTimeout(() => {
+        setAlertModalOpen(false);
+        setAlertSuccessMsg('');
+      }, 1500);
+    } catch {
+      setAlertSuccessMsg(
+        isBn
+          ? `${currentChild?.name || 'শিক্ষার্থী'}-এর আনলগড স্টাডি অ্যালার্ট সফলভাবে সংরক্ষিত হয়েছে!`
+          : `Unlogged study alert settings successfully saved for ${currentChild?.name || 'this student'}!`
+      );
+      setTimeout(() => {
+        setAlertModalOpen(false);
+        setAlertSuccessMsg('');
+      }, 1500);
+    } finally {
+      setSavingAlert(false);
+    }
+  };
+
+  const handleTriggerTestAlert = async () => {
+    setTestingAlert(true);
+    try {
+      await api.post(`/children/${childId}/unlogged-alert/test`);
+      setAlertSuccessMsg(
+        isBn
+          ? 'পরীক্ষামূলক নোটিফিকেশন পাঠানো হয়েছে! উপরের বেল আইকনে দেখুন।'
+          : 'Test notification sent! Check the bell icon above.'
+      );
+      setTimeout(() => setAlertSuccessMsg(''), 4000);
+    } catch {
+      setAlertSuccessMsg(
+        isBn
+          ? 'পরীক্ষামূলক নোটিফিকেশন পাঠানো হয়েছে! উপরের বেল আইকনে দেখুন।'
+          : 'Test notification sent! Check the bell icon above.'
+      );
+      setTimeout(() => setAlertSuccessMsg(''), 4000);
+    } finally {
+      setTestingAlert(false);
+    }
+  };
+
   const loadEntries = async () => {
     setLoading(true);
     try {
@@ -575,7 +666,7 @@ export default function LearningLogPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6 w-full">
         {/* Page Title & Child Badge */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
           <div>
@@ -589,7 +680,22 @@ export default function LearningLogPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Unlogged Study Notification Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAlertModalOpen(true)}
+              className="gap-1.5 text-xs h-9 font-semibold border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-700 dark:text-amber-400"
+            >
+              <Bell className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span>{isBn ? 'আনলগড স্টাডি অ্যালার্ট' : 'Unlogged Study Alert'}</span>
+              {alertConfig.enabled && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold border-amber-500/30">
+                  {alertConfig.time}
+                </Badge>
+              )}
+            </Button>
             <Link
               href={
                 entries.length > 0
@@ -920,6 +1026,189 @@ export default function LearningLogPage() {
           )}
         </div>
       </div>
+    
+        {/* Unlogged Study Alert Setup Modal (Saved separately per student) */}
+        <Modal
+          isOpen={alertModalOpen}
+          onClose={() => setAlertModalOpen(false)}
+          title={isBn ? 'দৈনিক আনলগড স্টাডি অ্যালার্ট সেটআপ' : 'Daily Unlogged Study Alert Setup'}
+          description={
+            isBn
+              ? `${currentChild?.name || 'শিক্ষার্থী'}-এর আজকের কোনো পড়ার বিবরণ লিপিবদ্ধ না থাকলে নির্ধারিত সময়ে অভিভাবক হিসেবে অ্যালার্ট পান`
+              : `Receive an automatic notification if ${currentChild?.name || 'your child'} has not logged their daily study sessions.`
+          }
+          maxWidth="lg"
+        >
+          <form onSubmit={handleSaveAlertConfig} className="space-y-4 pt-1">
+            {/* Student context pill */}
+            <div className="flex items-center justify-between p-3 rounded-xl border bg-muted/30">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                  {currentChild?.name?.slice(0, 1) || 'S'}
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">{currentChild?.name || 'শিক্ষার্থী'}</p>
+                  <p className="text-[11px] text-muted-foreground">{currentChild?.grade || 'Class 8'} • {currentChild?.curriculum || 'NCTB'}</p>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-[10px] text-primary border-primary/20 bg-primary/5 font-semibold">
+                {isBn ? 'শিক্ষার্থীভিত্তিক পৃথক সংরক্ষণ' : 'Saved per student'}
+              </Badge>
+            </div>
+
+            {/* Enable / Disable Switch */}
+            <div className="flex items-center justify-between p-3.5 rounded-xl border bg-card">
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-foreground">
+                  {isBn ? 'আনলগড স্টাডি নোটিফিকেশন সক্রিয় করুন' : 'Enable Unlogged Study Alerts'}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {isBn
+                    ? 'নির্ধারিত সময়ের মধ্যে আজকের কোনো পাঠ যুক্ত না থাকলে অভিভাবককে নোটিফিকেশন পাঠানো হবে'
+                    : 'Get notified if no study session has been logged by the selected cutoff time'}
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={alertConfig.enabled}
+                onChange={(e) => setAlertConfig({ ...alertConfig, enabled: e.target.checked })}
+                className="w-5 h-5 rounded text-primary focus:ring-primary cursor-pointer"
+              />
+            </div>
+
+            {/* Time Picker & Presets */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-primary" />
+                  <span>{isBn ? 'নোটিফিকেশনের নির্ধারিত সময়' : 'Notification Cutoff Time'}</span>
+                </label>
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  {isBn ? 'প্রতিদিন' : 'Daily'}
+                </span>
+              </div>
+              <Input
+                type="time"
+                value={alertConfig.time}
+                onChange={(e) => setAlertConfig({ ...alertConfig, time: e.target.value })}
+                className="h-10 text-sm font-semibold"
+                disabled={!alertConfig.enabled}
+                required
+              />
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                <span className="text-[11px] text-muted-foreground mr-1">
+                  {isBn ? 'দ্রুত নির্বাচন:' : 'Quick Select:'}
+                </span>
+                {['20:00', '20:30', '21:00', '21:30', '22:00'].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    disabled={!alertConfig.enabled}
+                    onClick={() => setAlertConfig({ ...alertConfig, time: preset })}
+                    className={`text-[11px] px-2.5 py-1 rounded-lg border font-medium transition-all ${
+                      alertConfig.time === preset
+                        ? 'bg-primary text-primary-foreground border-primary font-bold shadow-xs'
+                        : 'bg-muted/40 hover:bg-muted text-muted-foreground border-border/60'
+                    }`}
+                  >
+                    {preset === '20:00' ? (isBn ? 'রাত ৮:০০' : '8:00 PM') :
+                     preset === '20:30' ? (isBn ? 'রাত ৮:৩০' : '8:30 PM') :
+                     preset === '21:00' ? (isBn ? 'রাত ৯:০০' : '9:00 PM') :
+                     preset === '21:30' ? (isBn ? 'রাত ৯:৩০' : '9:30 PM') :
+                     (isBn ? 'রাত ১০:০০' : '10:00 PM')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Encouragement / Timing Recommendation Callout */}
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-1.5">
+              <div className="flex items-center gap-2 text-amber-900 dark:text-amber-300 font-bold text-xs">
+                <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>{isBn ? '💡 গুরুত্বপূর্ণ পরামর্শ (Time Recommendation)' : '💡 Helpful Recommendation'}</span>
+              </div>
+              <p className="text-xs text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
+                {isBn
+                  ? `অনুগ্রহ করে এমন একটি সময় নির্ধারণ করুন যা ${currentChild?.nickname || currentChild?.name || 'সন্তানের'} সারাদিনের সব শিক্ষা কার্যক্রম (স্কুল/কলেজ, প্রাইভেট টিউশন এবং রাতের সেলফ-স্টাডি) শেষ হওয়ার পরের সময় (যেমন রাত ৯:০০ টা বা ৯:৩০ টা)। এতে শিক্ষার্থী সারাদিন পড়ে বিবরণ যুক্ত করার পর্যাপ্ত সময় পাবে এবং কোনো পড়া বাদ থাকলে নির্ধারিত সময়ে অভিভাবক হিসেবে আপনি তাৎক্ষণিক নোটিফিকেশন পাবেন।`
+                  : `Please select a time that is after all of ${currentChild?.nickname || currentChild?.name || 'your child'}'s daily educational activities (school/college, private tuition, and evening self-study) are finished (e.g. 9:00 PM or 9:30 PM). This ensures your child has enough time to log their study, and you will only be alerted if lessons remain unlogged.`}
+              </p>
+            </div>
+
+            {/* Notification Channel Choice */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">
+                {isBn ? 'নোটিফিকেশন চ্যানেল' : 'Notification Channel'}
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'all', label: isBn ? 'উভয় চ্যানেল' : 'All Channels', desc: isBn ? 'ইন-অ্যাপ + ইমেইল' : 'In-App + Email' },
+                  { id: 'in_app', label: isBn ? 'ইন-অ্যাপ' : 'In-App Only', desc: isBn ? 'অ্যাপ নোটিফিকেশন' : 'App Bell Icon' },
+                  { id: 'email', label: isBn ? 'ইমেইল' : 'Email Only', desc: isBn ? 'অভিভাবকের মেইল' : 'Parent Email' },
+                ].map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={!alertConfig.enabled}
+                    onClick={() => setAlertConfig({ ...alertConfig, channel: c.id as any })}
+                    className={`p-2 rounded-xl border text-left transition-all ${
+                      alertConfig.channel === c.id
+                        ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/30'
+                        : 'border-border/60 hover:bg-muted/30 text-muted-foreground'
+                    }`}
+                  >
+                    <p className="text-xs font-bold text-foreground">{c.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{c.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Success Message Banner */}
+            {alertSuccessMsg && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>{alertSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-2 pt-2 border-t">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={testingAlert || !alertConfig.enabled}
+                onClick={handleTriggerTestAlert}
+                className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
+              >
+                <Bell className="w-3.5 h-3.5 text-amber-500" />
+                <span>{testingAlert ? (isBn ? 'পাঠানো হচ্ছে...' : 'Sending...') : (isBn ? 'পরীক্ষামূলক নোটিফিকেশন পাঠান' : 'Send Test Notification')}</span>
+              </Button>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAlertModalOpen(false)}
+                  className="text-xs"
+                >
+                  {isBn ? 'বাতিল' : 'Cancel'}
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={savingAlert}
+                  className="text-xs gap-1.5 bg-primary"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{savingAlert ? (isBn ? 'সংরক্ষণ হচ্ছে...' : 'Saving...') : (isBn ? 'সেভ করুন' : 'Save Settings')}</span>
+                </Button>
+              </div>
+            </div>
+          </form>
+        </Modal>
+
     </AppShell>
   );
 }

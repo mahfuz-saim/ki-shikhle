@@ -1,3 +1,4 @@
+import { create as createNotification } from '../notifications/notifications.service';
 import { prisma } from '../../db/client';
 import { hashPassword, hashPin, verifyPin } from '../../services/password';
 import { getPlanLimits, canCreateChild } from '../../services/entitlements';
@@ -193,4 +194,85 @@ export async function enterChildMode(parentId: string, childId: string, pin: str
   // child scoped token (limited routes, 8h)
   const token = jwt.sign({ userId: parentId, childId, role: 'child', type: 'child' }, env.JWT_ACCESS_SECRET, { expiresIn: '8h' });
   return { token, child: { id: child.id, name: child.name, grade: child.grade } };
+}
+
+export interface UnloggedStudyAlertConfig {
+  childId: string;
+  enabled: boolean;
+  time: string; // e.g. "21:00"
+  channel: 'in_app' | 'email' | 'all';
+  daysOfWeek: number[];
+  updatedAt?: string;
+}
+
+export const memUnloggedAlertConfigs: Record<string, UnloggedStudyAlertConfig> = {
+  'demo-child-1': {
+    childId: 'demo-child-1',
+    enabled: true,
+    time: '21:00',
+    channel: 'all',
+    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+  },
+  'demo-child-2': {
+    childId: 'demo-child-2',
+    enabled: true,
+    time: '20:30',
+    channel: 'all',
+    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+  },
+  'demo-child-3': {
+    childId: 'demo-child-3',
+    enabled: true,
+    time: '22:00',
+    channel: 'all',
+    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+  },
+};
+
+export async function getUnloggedAlertConfig(parentId: string, childId: string): Promise<UnloggedStudyAlertConfig> {
+  await getChild(parentId, childId);
+  const existing = memUnloggedAlertConfigs[childId];
+  if (existing) return existing;
+
+  const defaultCfg: UnloggedStudyAlertConfig = {
+    childId,
+    enabled: true,
+    time: '21:00',
+    channel: 'all',
+    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+  };
+  memUnloggedAlertConfigs[childId] = defaultCfg;
+  return defaultCfg;
+}
+
+export async function saveUnloggedAlertConfig(
+  parentId: string,
+  childId: string,
+  config: Partial<UnloggedStudyAlertConfig>
+): Promise<UnloggedStudyAlertConfig> {
+  await getChild(parentId, childId);
+  const current = await getUnloggedAlertConfig(parentId, childId);
+  const updated: UnloggedStudyAlertConfig = {
+    ...current,
+    ...config,
+    childId,
+    updatedAt: new Date().toISOString(),
+  };
+  memUnloggedAlertConfigs[childId] = updated;
+  return updated;
+}
+
+export async function triggerTestUnloggedAlert(parentId: string, childId: string) {
+  const child: any = await getChild(parentId, childId);
+  const cfg = await getUnloggedAlertConfig(parentId, childId);
+
+  const notif = await createNotification(parentId, 'missed_sessions', {
+    childId,
+    childName: child.name,
+    time: cfg.time,
+    title: 'দৈনিক পড়ার বিবরণ অ্যালার্ট (Unlogged Study Alert)',
+    message: `${child.name}-এর আজকের কোনো পড়ার বিবরণ এখনও লিপিবদ্ধ করা হয়নি। নির্ধারিত সময়: ${cfg.time}। শিক্ষার্থীকে পোর্টাল থেকে পড়ার বিবরণ যুক্ত করতে বলুন।`,
+  });
+
+  return { success: true, notification: notif };
 }
