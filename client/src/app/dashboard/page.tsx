@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
+import { getInstitutionType } from '@/lib/institution';
 import { api } from '@/lib/api';
 import {
   StudyTimeChart,
@@ -49,6 +50,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   const childId = activeChild?.id || childrenList[0]?.id || 'demo-child-1';
+  const currentChild = childrenList.find((c) => c.id === childId) || activeChild || childrenList[0];
+  const institutionType = getInstitutionType(currentChild?.grade);
 
   useEffect(() => {
     if (!childId) return;
@@ -64,60 +67,100 @@ export default function DashboardPage() {
       api.get(`/children/${childId}/dashboard/topics`),
     ]).then(([sumRes, stRes, subjRes, scrRes, mastRes, consRes, topRes]) => {
       const isTasnim = childId === 'demo-child-2';
+      const isFahim = childId === 'demo-child-3';
 
       // Summary
       if (sumRes.status === 'fulfilled' && sumRes.value.data?.data && (sumRes.value.data.data.kpis?.totalTime > 0 || sumRes.value.data.data.kpis?.studyDays > 0)) {
         setSummary(sumRes.value.data.data);
       } else {
         setSummary(
-          isTasnim
+          isFahim
             ? {
-                kpis: { studyDays: 6, totalTime: 360, quizzes: 6, avgScore: 95, streak: 6 },
+                kpis: { studyDays: 6, totalTime: 1560, quizzes: 4, avgScore: 92, streak: 7 },
                 recent: [
-                  { date: new Date().toISOString(), topicsText: 'Mathematics - Fractions & Decimals (লসাগু ও গসাগু)', source: 'tuition' },
-                  { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'Primary Science - Living & Non-living Things', source: 'school' },
-                  { date: new Date(Date.now() - 172800000).toISOString(), topicsText: 'English for Today - Lesson 4 Story Reading', source: 'self_study' },
-                  { date: new Date(Date.now() - 259200000).toISOString(), topicsText: 'BGS - Liberation War 1971 History', source: 'tuition' },
-                  { date: new Date(Date.now() - 345600000).toISOString(), topicsText: 'Bangla - হাতি আর শিয়ালের গল্প ও শব্দার্থ', source: 'school' },
+                  { date: new Date().toISOString(), topicsText: 'Physics 1st Paper - Projectile Motion (প্রক্ষেপকের গাণিতিক সমাধান)', source: 'college' },
+                  { date: new Date(Date.now() - 3600000 * 3).toISOString(), topicsText: 'Chemistry 1st Paper - Bohr Atomic Model & Quantum Numbers', source: 'college' },
+                  { date: new Date(Date.now() - 3600000 * 6).toISOString(), topicsText: 'Physics Coaching - Advanced Trajectory Equations', source: 'tuition' },
+                  { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'Higher Math - Matrix Multiplication & Inverse Matrix', source: 'college' },
+                  { date: new Date(Date.now() - 86400000 * 2).toISOString(), topicsText: 'ICT - Binary, Octal & Hexadecimal Conversions', source: 'college' },
+                ],
+              }
+            : isTasnim
+            ? {
+                kpis: { studyDays: 6, totalTime: 1080, quizzes: 6, avgScore: 95, streak: 6 },
+                recent: [
+                  { date: new Date().toISOString(), topicsText: 'Elementary Math - Factors & Multiples (লসাগু ও গসাগু নির্ণয়)', source: 'school' },
+                  { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'Primary Science - Safe Drinking Water & Purification Steps', source: 'school' },
+                  { date: new Date(Date.now() - 3600000 * 7).toISOString(), topicsText: 'Math Tutor - Word Problems on Bell Intervals', source: 'tuition' },
+                  { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'English - Food Pyramid & Healthy Eating Vocabulary', source: 'school' },
+                  { date: new Date(Date.now() - 86400000 * 2).toISOString(), topicsText: 'BGS - 25th March Crackdown & Liberation War History', source: 'school' },
                 ],
               }
             : {
-                kpis: { studyDays: 5, totalTime: 420, quizzes: 4, avgScore: 88, streak: 5 },
+                kpis: { studyDays: 6, totalTime: 1350, quizzes: 5, avgScore: 88, streak: 6 },
                 recent: [
-                  { date: new Date().toISOString(), topicsText: 'Algebra - Quadratic Equations Formula (বর্গের সূত্রাবলী)', source: 'tuition' },
-                  { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'Physics - Newton Laws of Motion & Acceleration', source: 'school' },
-                  { date: new Date(Date.now() - 172800000).toISOString(), topicsText: 'English - Right Forms of Verbs & Prepositions', source: 'self_study' },
-                  { date: new Date(Date.now() - 259200000).toISOString(), topicsText: 'ICT - Spreadsheet Formulas in Excel', source: 'tuition' },
-                  { date: new Date(Date.now() - 345600000).toISOString(), topicsText: 'Bangla - বঙ্গভূমির প্রতি কবিতা ও ভাবসম্প্রসারণ', source: 'self_study' },
+                  { date: new Date().toISOString(), topicsText: 'Mathematics - Algebraic Formulae (বর্গের সূত্রাবলী ও প্রয়োগ)', source: 'school' },
+                  { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'General Science - 3 Equations of Motion & v-t Graphs', source: 'school' },
+                  { date: new Date(Date.now() - 3600000 * 7).toISOString(), topicsText: 'Math Tuition - Value Finding with Rahim Sir', source: 'tuition' },
+                  { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'ICT - Microsoft Excel Spreadsheet Formulas', source: 'school' },
+                  { date: new Date(Date.now() - 86400000 * 2).toISOString(), topicsText: 'Bangla 1st Paper - "Bongobhumir Proti" Poem Comprehension', source: 'school' },
                 ],
               }
         );
       }
 
+      const formatStudyTime = (arr: any[]) =>
+        arr.map((d: any) => {
+          const base = d.school || d.college || 0;
+          if (institutionType === 'college') {
+            return { date: d.date, college: base, tuition: d.tuition || 0, self_study: d.self_study || 0 };
+          }
+          if (institutionType === 'admission') {
+            return {
+              date: d.date,
+              tuition: (d.tuition || 0) + Math.round(base * 0.6),
+              self_study: (d.self_study || 0) + Math.round(base * 0.4),
+            };
+          }
+          return { date: d.date, school: base, tuition: d.tuition || 0, self_study: d.self_study || 0 };
+        });
+
       // Study time
-      if (stRes.status === 'fulfilled' && stRes.value.data?.data?.length && stRes.value.data.data.some((x: any) => (x.school || 0) + (x.tuition || 0) + (x.self_study || 0) > 0)) {
-        setStudyTime(stRes.value.data.data);
+      if (stRes.status === 'fulfilled' && stRes.value.data?.data?.length && stRes.value.data.data.some((x: any) => (x.school || 0) + (x.college || 0) + (x.tuition || 0) + (x.self_study || 0) > 0)) {
+        setStudyTime(formatStudyTime(stRes.value.data.data));
       } else {
         setStudyTime(
-          isTasnim
-            ? [
-                { date: 'Mon', school: 45, tuition: 0, self_study: 30 },
-                { date: 'Tue', school: 45, tuition: 60, self_study: 20 },
-                { date: 'Wed', school: 45, tuition: 0, self_study: 35 },
-                { date: 'Thu', school: 45, tuition: 60, self_study: 20 },
-                { date: 'Fri', school: 0, tuition: 45, self_study: 30 },
-                { date: 'Sat', school: 0, tuition: 0, self_study: 40 },
-                { date: 'Sun', school: 45, tuition: 60, self_study: 25 },
-              ]
-            : [
-                { date: 'Mon', school: 60, tuition: 75, self_study: 45 },
-                { date: 'Tue', school: 60, tuition: 90, self_study: 40 },
-                { date: 'Wed', school: 60, tuition: 75, self_study: 50 },
-                { date: 'Thu', school: 60, tuition: 90, self_study: 45 },
-                { date: 'Fri', school: 0, tuition: 60, self_study: 60 },
-                { date: 'Sat', school: 0, tuition: 0, self_study: 60 },
-                { date: 'Sun', school: 60, tuition: 90, self_study: 45 },
-              ]
+          formatStudyTime(
+            isFahim
+              ? [
+                  { date: 'Mon', college: 100, tuition: 75, self_study: 60 },
+                  { date: 'Tue', college: 100, tuition: 60, self_study: 60 },
+                  { date: 'Wed', college: 100, tuition: 75, self_study: 45 },
+                  { date: 'Thu', college: 100, tuition: 60, self_study: 60 },
+                  { date: 'Fri', college: 0, tuition: 90, self_study: 75 },
+                  { date: 'Sat', college: 0, tuition: 0, self_study: 90 },
+                  { date: 'Sun', college: 100, tuition: 75, self_study: 60 },
+                ]
+              : isTasnim
+              ? [
+                  { date: 'Mon', school: 45, tuition: 60, self_study: 45 },
+                  { date: 'Tue', school: 45, tuition: 50, self_study: 45 },
+                  { date: 'Wed', school: 40, tuition: 60, self_study: 45 },
+                  { date: 'Thu', school: 45, tuition: 50, self_study: 40 },
+                  { date: 'Fri', school: 0, tuition: 60, self_study: 45 },
+                  { date: 'Sat', school: 0, tuition: 0, self_study: 50 },
+                  { date: 'Sun', school: 45, tuition: 60, self_study: 45 },
+                ]
+              : [
+                  { date: 'Mon', school: 95, tuition: 75, self_study: 45 },
+                  { date: 'Tue', school: 90, tuition: 60, self_study: 50 },
+                  { date: 'Wed', school: 50, tuition: 75, self_study: 45 },
+                  { date: 'Thu', school: 50, tuition: 60, self_study: 40 },
+                  { date: 'Fri', school: 0, tuition: 75, self_study: 45 },
+                  { date: 'Sat', school: 0, tuition: 60, self_study: 60 },
+                  { date: 'Sun', school: 95, tuition: 75, self_study: 45 },
+                ]
+          )
         );
       }
 
@@ -126,7 +169,15 @@ export default function DashboardPage() {
         setSubjects(subjRes.value.data.data);
       } else {
         setSubjects(
-          isTasnim
+          isFahim
+            ? [
+                { subject: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র' : 'Physics 1st Paper', value: 14 },
+                { subject: isBn ? 'উচ্চতর গণিত ১ম পত্র' : 'Higher Math 1st Paper', value: 12 },
+                { subject: isBn ? 'রসায়ন ১ম পত্র' : 'Chemistry 1st Paper', value: 10 },
+                { subject: isBn ? 'তথ্য ও প্রযুক্তি' : 'ICT', value: 8 },
+                { subject: isBn ? 'উদ্ভিদবিজ্ঞান' : 'Biology 1st Paper', value: 6 },
+              ]
+            : isTasnim
             ? [
                 { subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math', value: 9 },
                 { subject: isBn ? 'প্রাথমিক বিজ্ঞান' : 'Primary Science', value: 6 },
@@ -136,10 +187,10 @@ export default function DashboardPage() {
               ]
             : [
                 { subject: isBn ? 'গণিত' : 'Mathematics', value: 12 },
-                { subject: isBn ? 'পদার্থবিজ্ঞান' : 'Physics', value: 8 },
-                { subject: isBn ? 'ইংরেজি' : 'English 1st Paper', value: 6 },
-                { subject: isBn ? 'তথ্যপ্রযুক্তি' : 'ICT', value: 5 },
-                { subject: isBn ? 'বাংলা' : 'Bangla 1st Paper', value: 4 },
+                { subject: isBn ? 'সাধারণ বিজ্ঞান' : 'General Science', value: 8 },
+                { subject: isBn ? 'ইংরেজি ১ম পত্র' : 'English 1st Paper', value: 6 },
+                { subject: isBn ? 'তথ্য ও প্রযুক্তি' : 'ICT', value: 5 },
+                { subject: isBn ? 'বাংলা ১ম পত্র' : 'Bangla 1st Paper', value: 4 },
               ]
         );
       }
@@ -149,7 +200,15 @@ export default function DashboardPage() {
         setScores(scrRes.value.data.data);
       } else {
         setScores(
-          isTasnim
+          isFahim
+            ? [
+                { date: 'Oct 12', score: 85 },
+                { date: 'Oct 18', score: 88 },
+                { date: 'Oct 24', score: 90 },
+                { date: 'Oct 28', score: 92 },
+                { date: 'Nov 01', score: 95 },
+              ]
+            : isTasnim
             ? [
                 { date: 'Oct 12', score: 90 },
                 { date: 'Oct 18', score: 92 },
@@ -172,20 +231,28 @@ export default function DashboardPage() {
         setMastery(mastRes.value.data.data);
       } else {
         setMastery(
-          isTasnim
+          isFahim
             ? [
-                { subject: isBn ? 'গণিত (লসাগু-গসাগু)' : 'Math (LCM-HCF)', accuracy: 96 },
-                { subject: isBn ? 'বিজ্ঞান (পানি চক্র)' : 'Science (Water Cycle)', accuracy: 92 },
-                { subject: isBn ? 'ইংরেজি (Vocabulary)' : 'English (Vocabulary)', accuracy: 90 },
-                { subject: isBn ? 'বিজিএস (মুক্তিযুদ্ধ)' : 'BGS (Liberation War)', accuracy: 94 },
-                { subject: isBn ? 'বাংলা (ব্যাকরণ)' : 'Bangla (Grammar)', accuracy: 88 },
+                { subject: isBn ? 'পদার্থবিজ্ঞান (গতিবিদ্যা ও প্রক্ষেপক)' : 'Physics (Projectile Motion)', accuracy: 95 },
+                { subject: isBn ? 'উচ্চতর গণিত (ম্যাট্রিক্স ও নির্ণায়ক)' : 'Higher Math (Matrices)', accuracy: 92 },
+                { subject: isBn ? 'রসায়ন (গুণগত রসায়ন ও কোয়ান্টাম)' : 'Chemistry (Quantum Numbers)', accuracy: 88 },
+                { subject: isBn ? 'তথ্যপ্রযুক্তি (সংখ্যা পদ্ধতি)' : 'ICT (Number Systems)', accuracy: 85 },
+                { subject: isBn ? 'উদ্ভিদবিজ্ঞান (কোষ ও এর গঠন)' : 'Biology (Cell Structure)', accuracy: 82 },
+              ]
+            : isTasnim
+            ? [
+                { subject: isBn ? 'গণিত (লসাগু ও গসাগু)' : 'Math (LCM-HCF)', accuracy: 96 },
+                { subject: isBn ? 'বিজ্ঞান (পানি চক্র ও নিরাপদ পানি)' : 'Science (Water Cycle)', accuracy: 92 },
+                { subject: isBn ? 'ইংরেজি (Vocabulary & Reading)' : 'English (Vocabulary)', accuracy: 90 },
+                { subject: isBn ? 'বিজিএস (আমাদের মুক্তিযুদ্ধ)' : 'BGS (Liberation War)', accuracy: 94 },
+                { subject: isBn ? 'বাংলা (যুক্তবর্ণ ও শব্দার্থ)' : 'Bangla (Grammar)', accuracy: 88 },
               ]
             : [
-                { subject: isBn ? 'বিজ্ঞান (পদার্থ ও গতি)' : 'Science (Physics & Motion)', accuracy: 92 },
-                { subject: isBn ? 'গণিত (বীজগণিত)' : 'Math (Algebra)', accuracy: 88 },
-                { subject: isBn ? 'বাংলা (সাহিত্য)' : 'Bangla (Literature)', accuracy: 85 },
-                { subject: isBn ? 'ইংরেজি (Grammar)' : 'English (Grammar)', accuracy: 80 },
-                { subject: isBn ? 'আইসিটি (Spreadsheet)' : 'ICT (Spreadsheet)', accuracy: 75 },
+                { subject: isBn ? 'বিজ্ঞান (পদার্থ ও গতিসূত্র)' : 'Science (Physics & Motion)', accuracy: 92 },
+                { subject: isBn ? 'গণিত (বীজগণিতীয় সূত্রাবলী)' : 'Math (Algebra)', accuracy: 88 },
+                { subject: isBn ? 'বাংলা (বঙ্গভূমির প্রতি)' : 'Bangla (Literature)', accuracy: 85 },
+                { subject: isBn ? 'ইংরেজি (Grammar & Verbs)' : 'English (Grammar)', accuracy: 80 },
+                { subject: isBn ? 'আইসিটি (স্প্রেডশিট ফর্মুলা)' : 'ICT (Spreadsheet)', accuracy: 75 },
               ]
         );
       }
@@ -197,7 +264,7 @@ export default function DashboardPage() {
         const out: Record<string, number> = {};
         for (let i = 0; i < 180; i++) {
           const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-          out[d] = isTasnim ? (i % 2 === 0 ? 1 : i % 5 === 0 ? 0 : 1) : (i % 7 === 0 ? 0 : i % 4 === 0 ? 2 : 1);
+          out[d] = isFahim ? (i % 7 === 0 ? 1 : 2) : isTasnim ? (i % 2 === 0 ? 2 : i % 5 === 0 ? 0 : 1) : (i % 7 === 0 ? 0 : i % 4 === 0 ? 3 : 2);
         }
         setConsistency(out);
       }
@@ -207,33 +274,43 @@ export default function DashboardPage() {
         setTopics(topRes.value.data.data);
       } else {
         setTopics(
-          isTasnim
+          isFahim
+            ? {
+                weakest: [
+                  { subject: isBn ? 'রসায়ন: কোয়ান্টাম সংখ্যা ও পলির নীতি' : 'Chemistry: Quantum Numbers', accuracy: 72 },
+                  { subject: isBn ? 'পদার্থবিজ্ঞান: প্রক্ষেপকের উচ্চতর গাণিতিক সমস্যা' : 'Physics: Projectile Equations', accuracy: 76 },
+                ],
+                strongest: [
+                  { subject: isBn ? 'উচ্চতর গণিত: ম্যাট্রিক্সের গুণন ও বিপরীত ম্যাট্রিক্স' : 'Higher Math: Inverse Matrix', accuracy: 96 },
+                  { subject: isBn ? 'আইসিটি: বাইনারি ও হেক্সাডেসিমেল রূপান্তর' : 'ICT: Number System Conversion', accuracy: 94 },
+                ],
+              }
+            : isTasnim
             ? {
                 weakest: [
                   { subject: isBn ? 'ইংরেজি: Spelling & Prepositions' : 'English: Spelling & Prepositions', accuracy: 84 },
-                  { subject: isBn ? 'বিজ্ঞান: পরিবেশ ও বাস্তুসংস্থান' : 'Science: Ecosystem & Food Chain', accuracy: 86 },
+                  { subject: isBn ? 'বিজ্ঞান: পরিবেশ দূষণ ও পানি বিশুদ্ধকরণ' : 'Science: Water Purification', accuracy: 86 },
                 ],
                 strongest: [
-                  { subject: isBn ? 'গণিত: ভগ্নাংশের যোগ-বিয়োগ' : 'Math: Fractions Addition & Subtraction', accuracy: 98 },
-                  { subject: isBn ? 'বিজিএস: আমাদের পরিবেশ ও ঐতিহ্য' : 'BGS: Historical Heritage Sites', accuracy: 96 },
+                  { subject: isBn ? 'গণিত: লসাগু ও গসাগু ডাকের অঙ্ক' : 'Math: LCM & HCF Word Problems', accuracy: 98 },
+                  { subject: isBn ? 'বিজিএস: আমাদের মুক্তিযুদ্ধ ও বীরশ্রেষ্ঠ' : 'BGS: Liberation War History', accuracy: 96 },
                 ],
               }
             : {
                 weakest: [
-                  { subject: isBn ? 'রসায়ন: পর্যায় সারণি' : 'Chemistry: Periodic Table Trends', accuracy: 64 },
-                  { subject: isBn ? 'পদার্থ: নিউটনের ৩য় সূত্র' : 'Physics: Action & Reaction Vectors', accuracy: 72 },
+                  { subject: isBn ? 'আইসিটি: স্প্রেডশিটে সেল ফর্মুলার প্রয়োগ' : 'ICT: Excel Spreadsheet Formulas', accuracy: 72 },
+                  { subject: isBn ? 'ইংরেজি: Right Forms of Verbs' : 'English: Right Forms of Verbs', accuracy: 78 },
                 ],
                 strongest: [
-                  { subject: isBn ? 'গণিত: দ্বিঘাত সমীকরণ' : 'Math: Quadratic Formula & Roots', accuracy: 92 },
-                  { subject: isBn ? 'ইংরেজি: Tense & Verb Forms' : 'English: Verb Conjugations', accuracy: 88 },
+                  { subject: isBn ? 'বিজ্ঞান: গতির সমীকরণ ও ত্বরণ নির্ণয়' : 'Science: Motion Equations', accuracy: 92 },
+                  { subject: isBn ? 'গণিত: বর্গের সূত্রাবলী ও মান নির্ণয়' : 'Math: Algebraic Formulae', accuracy: 90 },
                 ],
               }
         );
       }
-
       setLoading(false);
     });
-  }, [childId, isBn]);
+  }, [childId, isBn, institutionType]);
 
   const isCurrentTasnim = childId === 'demo-child-2';
   const defaultKpis = isCurrentTasnim
@@ -243,7 +320,26 @@ export default function DashboardPage() {
   const hours = Math.floor(kpis.totalTime / 60);
   const minutes = kpis.totalTime % 60;
 
-  const upcomingRoutines = isCurrentTasnim
+  const isCurrentFahim = childId === 'demo-child-3';
+  const upcomingRoutines = isCurrentFahim
+    ? [
+        {
+          name: isBn ? 'পদার্থবিজ্ঞান কোচিং — গতিবিদ্যা' : 'Physics Coaching – Dynamics',
+          time: isBn ? 'রবিবার বিকাল ৪:৩০' : 'Sun 4:30 PM',
+          source: 'tuition',
+        },
+        {
+          name: isBn ? 'রসায়ন প্রাইভেট — গুণগত রসায়ন' : 'Chemistry Tuition – Qualitative Chemistry',
+          time: isBn ? 'মঙ্গলবার বিকাল ৫:০০' : 'Tue 5:00 PM',
+          source: 'tuition',
+        },
+        {
+          name: isBn ? 'উচ্চতর গণিত সেলফ স্টাডি — ম্যাট্রিক্স' : 'Higher Math Self-Study – Matrices',
+          time: isBn ? 'প্রতিদিন রাত ৮:৩০' : 'Daily 8:30 PM',
+          source: 'self_study',
+        },
+      ]
+    : isCurrentTasnim
     ? [
         {
           name: isBn ? 'প্রাথমিক গণিত প্রাইভেট' : 'Elementary Math Tuition',

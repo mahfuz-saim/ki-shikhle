@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/modal';
 import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
+import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
 import {
   Calendar as CalendarIcon,
@@ -84,6 +85,10 @@ function getSubjectColor(subjectName: string = '') {
 export default function KidSchedulePage() {
   const { activeChild, user } = useAuth();
   const { isBn } = useI18n();
+
+  const studentGrade = user?.grade || activeChild?.grade || 'Class 8';
+  const institutionType = getInstitutionType(studentGrade);
+  const instInfo = getInstitutionInfo(institutionType, isBn);
 
   const childId = activeChild?.id || (user as any)?.childId || user?.id || 'demo-child-1';
   const isTasnim = childId === 'demo-child-2' || user?.email?.includes('tasnim') || activeChild?.name?.includes('Tasnim');
@@ -403,8 +408,15 @@ export default function KidSchedulePage() {
   const filteredRoutines = routines
     .filter((r) => r.weekdays?.includes(selectedWeekday))
     .filter((r) => {
-      if (categoryFilter === 'school') return r.source === 'school' || r.source === 'college';
-      if (categoryFilter === 'tuition') return r.source === 'tuition' || r.source === 'self_study';
+      if (categoryFilter === 'school') {
+        if (institutionType === 'college') return r.source === 'college';
+        if (institutionType === 'admission') return r.source === 'tuition';
+        return r.source === 'school';
+      }
+      if (categoryFilter === 'tuition') {
+        if (institutionType === 'admission') return r.source === 'self_study';
+        return r.source === 'tuition' || r.source === 'self_study';
+      }
       return true;
     })
     .sort((a, b) => (a.startTime || '00:00').localeCompare(b.startTime || '00:00'));
@@ -632,14 +644,14 @@ export default function KidSchedulePage() {
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
                 <School className="w-3.5 h-3.5" />
-                {isBn ? 'সাপ্তাহিক রুটিন ও সময়সূচী' : 'School & College Routine'}
+                {instInfo.routineTitle}
               </span>
               <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border border-primary/25 font-bold">
                 {isBn ? `${toBnNum(routines.length)} টি নির্ধারিত ক্লাস` : `${routines.length} Scheduled Classes`}
               </Badge>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2.5">
-              <span>{isBn ? 'আমার স্কুল ও কলেজ ক্লাস রুটিন' : 'My School & College Schedule'}</span>
+              <span>{instInfo.classesHeading}</span>
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
               {isBn
@@ -700,7 +712,7 @@ export default function KidSchedulePage() {
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  🏫 {isBn ? 'স্কুল / কলেজ' : 'School/College'}
+                  {instInfo.categoryFilterPill}
                 </button>
                 <button
                   type="button"
@@ -1434,10 +1446,14 @@ export default function KidSchedulePage() {
                 onChange={(e) => setRoutineForm({ ...routineForm, source: e.target.value })}
                 className="w-full mt-1 px-3 py-2 text-xs rounded-xl border bg-background text-foreground"
               >
+                {institutionType === 'school' && (
                 <option value="school">{isBn ? 'স্কুল (School)' : 'School'}</option>
+              )}
+              {institutionType === 'college' && (
                 <option value="college">{isBn ? 'কলেজ (College)' : 'College'}</option>
-                <option value="tuition">{isBn ? 'প্রাইভেট / কোচিং' : 'Tuition / Coaching'}</option>
-                <option value="self_study">{isBn ? 'সেলফ স্টাডি' : 'Self Study'}</option>
+              )}
+              <option value="tuition">{institutionType === 'admission' ? (isBn ? 'এডমিশন কোচিং / টেস্ট' : 'Admission Coaching') : (isBn ? 'প্রাইভেট / কোচিং' : 'Tuition / Coaching')}</option>
+              <option value="self_study">{institutionType === 'admission' ? (isBn ? 'সেলফ স্টাডি ও প্রশ্নব্যাংক' : 'Self-Study & Question Bank') : (isBn ? 'সেলফ স্টাডি' : 'Self Study')}</option>
               </select>
             </div>
           </div>
@@ -1556,7 +1572,9 @@ export default function KidSchedulePage() {
         maxWidth="md"
       >
         <div className="space-y-3 pt-1">
-          <button
+          {institutionType === 'school' && (
+            <>
+              <button
             type="button"
             onClick={() => handleApplyTemplate('school_8')}
             className="w-full p-4 rounded-2xl border bg-card hover:bg-primary/5 hover:border-primary/40 text-left transition-all group"
@@ -1597,10 +1615,15 @@ export default function KidSchedulePage() {
                 : 'Sun-Thu: Bangla, English, Math, Science, BGS.'}
             </p>
           </button>
+            </>
+          )}
 
-          <button
-            type="button"
-            onClick={() => handleApplyTemplate('college_science')}
+          {/* College Templates: Only shown for Class 11-12 */}
+          {institutionType === 'college' && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleApplyTemplate('college_science')}
             className="w-full p-4 rounded-2xl border bg-card hover:bg-primary/5 hover:border-primary/40 text-left transition-all group"
           >
             <div className="flex items-center justify-between">
@@ -1639,6 +1662,34 @@ export default function KidSchedulePage() {
                 : 'Sun-Thu: Accounting, Business, Finance, Economics.'}
             </p>
           </button>
+            </>
+          )}
+
+          {/* Admission Templates: Only shown for Admission Prep */}
+          {institutionType === 'admission' && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleApplyTemplate('college_science')}
+                className="w-full p-4 rounded-2xl border bg-card hover:bg-primary/5 hover:border-primary/40 text-left transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                    <GraduationCap className="w-4 h-4 text-amber-500" />
+                    {isBn ? 'মেডিকেল ও বিশ্ববিদ্যালয় এডমিশন প্রস্তুতি রুটিন' : 'Medical & Varsity Admission Routine'}
+                  </span>
+                  <Badge variant="outline" className="text-[10px]">
+                    {isBn ? 'মডেল টেস্ট ও রিভিশন' : 'Mock Tests & Revision'}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {isBn
+                    ? 'প্রতিদিন: জীববিজ্ঞান ও রসায়ন প্রশ্নব্যাংক, পদার্থবিজ্ঞান ম্যাথ সলভিং ও ডেইলি ফুল-লেংথ মডেল টেস্ট।'
+                    : 'Daily: Biology & Chemistry Question Bank, Physics Math Solving, Full-length Mock Tests.'}
+                </p>
+              </button>
+            </>
+          )}
         </div>
       </Modal>
     </KidShell>

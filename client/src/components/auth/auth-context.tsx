@@ -35,6 +35,10 @@ interface AuthContextType {
   setActiveChild: (child: Child | null) => void;
   isChildMode: boolean;
   refreshChildren: () => Promise<Child[]>;
+  subscription: any | null;
+  setSubscription: (sub: any) => void;
+  refreshSubscription: () => Promise<any>;
+  updateUser: (fields: Partial<User>) => void;
   login: (token: string, user: User, refreshToken?: string) => void;
   logout: () => void;
   loading: boolean;
@@ -64,6 +68,16 @@ const DEFAULT_DEMO_CHILDREN: Child[] = [
     medium: 'Bangla',
     avatar: '/avatars/girl-1.png',
   },
+  {
+    id: 'demo-child-3',
+    name: 'Fahim Islam',
+    nickname: 'Fahim',
+    email: 'fahim@demo.com',
+    grade: 'Class 11',
+    curriculum: 'NCTB',
+    medium: 'Bangla',
+    avatar: '/avatars/boy-2.png',
+  },
 ];
 
 const AuthContext = createContext<AuthContextType>({
@@ -74,6 +88,10 @@ const AuthContext = createContext<AuthContextType>({
   setActiveChild: () => {},
   isChildMode: false,
   refreshChildren: async () => [],
+  subscription: null,
+  setSubscription: () => {},
+  refreshSubscription: async () => null,
+  updateUser: () => {},
   login: () => {},
   logout: () => {},
   loading: true,
@@ -85,10 +103,40 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<any | null>(null);
   const [childrenList, setChildrenList] = useState<Child[]>([]);
   const [activeChild, setActiveChildState] = useState<Child | null>(null);
   const [isChildMode, setIsChildMode] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+
+  const fetchSubscription = useCallback(async (): Promise<any> => {
+    try {
+      const res = await api.get('/billing/subscription');
+      const sub = res.data?.data;
+      if (sub) {
+        setSubscription(sub);
+        return sub;
+      }
+    } catch {}
+    const defaultProSub = {
+      id: 'sub-demo-parent-pro',
+      status: 'active',
+      planCode: 'pro',
+      childSlots: 5,
+      plan: {
+        code: 'pro',
+        name: 'Pro Family (প্রো ফ্যামিলি)',
+        priceBdt: 999,
+      },
+      currentPeriodEnd: new Date(Date.now() + 30 * 86400000).toISOString(),
+    };
+    setSubscription(defaultProSub);
+    return defaultProSub;
+  }, []);
+
+  const updateUser = useCallback((fields: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...fields } : null));
+  }, []);
 
   const fetchChildren = useCallback(async (): Promise<Child[]> => {
     try {
@@ -167,6 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setChildrenList([selfChild]);
     } else {
       fetchChildren();
+      fetchSubscription();
     }
   };
 
@@ -194,6 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (storedToken) {
         setToken(storedToken);
+        fetchSubscription();
         api
           .get('/auth/me')
           .then((r) => {
@@ -251,7 +301,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 name: 'Rafiqul Islam',
                 email: 'parent@demo.com',
                 role: 'parent',
-                trialEndsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
               });
               setChildrenList(DEFAULT_DEMO_CHILDREN);
               setActiveChildState(DEFAULT_DEMO_CHILDREN[0]);
@@ -344,6 +393,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setActiveChild,
         isChildMode,
         refreshChildren: fetchChildren,
+        subscription,
+        setSubscription,
+        refreshSubscription: fetchSubscription,
+        updateUser,
         login,
         logout,
         loading,

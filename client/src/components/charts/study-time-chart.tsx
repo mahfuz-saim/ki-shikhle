@@ -25,7 +25,15 @@ import { Button } from '@/components/ui/button';
 
 const COLORS = ['#4F46E5', '#F59E0B', '#10B981', '#06B6D4', '#8B5CF6', '#EF4444'];
 
-export function StudyTimeChart({ data }: { data: any[] }) {
+export function StudyTimeChart({
+  data,
+  institutionType = 'school',
+  isBn = false,
+}: {
+  data: any[];
+  institutionType?: 'school' | 'college' | 'admission';
+  isBn?: boolean;
+}) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data}>
@@ -33,10 +41,24 @@ export function StudyTimeChart({ data }: { data: any[] }) {
         <YAxis fontSize={12} />
         <Tooltip />
         <Legend />
-        <Bar dataKey="school" stackId="a" fill="#4F46E5" name="School" />
-        <Bar dataKey="tuition" stackId="a" fill="#F59E0B" name="Tuition" />
-        <Bar dataKey="self_study" stackId="a" fill="#10B981" name="Self-study" />
-        <Bar dataKey="college" stackId="a" fill="#06B6D4" name="College" />
+        {institutionType === 'school' && (
+          <Bar dataKey="school" stackId="a" fill="#4F46E5" name={isBn ? 'স্কুল' : 'School'} />
+        )}
+        {institutionType === 'college' && (
+          <Bar dataKey="college" stackId="a" fill="#06B6D4" name={isBn ? 'কলেজ' : 'College'} />
+        )}
+        <Bar
+          dataKey="tuition"
+          stackId="a"
+          fill="#F59E0B"
+          name={institutionType === 'admission' ? (isBn ? 'কোচিং / টেস্ট' : 'Coaching / Test') : (isBn ? 'প্রাইভেট / টিউশন' : 'Tuition')}
+        />
+        <Bar
+          dataKey="self_study"
+          stackId="a"
+          fill="#10B981"
+          name={isBn ? 'সেলফ-স্টাডি' : 'Self-study'}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

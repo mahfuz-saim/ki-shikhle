@@ -21,7 +21,7 @@ export const memUsers: any[] = [
     language: 'en',
     country: 'BD',
     timezone: 'Asia/Dhaka',
-    trialEndsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
+    trialEndsAt: null,
     createdAt: new Date().toISOString(),
   },
 ];

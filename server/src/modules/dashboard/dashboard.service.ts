@@ -8,7 +8,41 @@ const now = Date.now();
 const dayMs = 86400000;
 
 function getDemoRecentEntries(childId: string) {
+  const fromMem = memEntries.filter((e: any) => e.childId === childId);
+  if (fromMem.length > 0) {
+    return fromMem.slice(0, 8);
+  }
+
   const isTasnim = childId === 'demo-child-2';
+  const isFahim = childId === 'demo-child-3';
+
+  if (isFahim) {
+    return [
+      {
+        id: 'entry-fahim-t1',
+        childId: 'demo-child-3',
+        subject: 'Physics 1st Paper',
+        subjectName: 'পদার্থবিজ্ঞান ১ম পত্র',
+        topicsText: 'অধ্যায় ৩: গতিবিদ্যা — প্রক্ষেপক (Projectile Motion), সর্বাধিক উচ্চতা ও পাল্লা নির্ণয়।',
+        durationMin: 50,
+        source: 'college',
+        confidence: 5,
+        date: new Date(now).toISOString(),
+      },
+      {
+        id: 'entry-fahim-t2',
+        childId: 'demo-child-3',
+        subject: 'Chemistry 1st Paper',
+        subjectName: 'রসায়ন ১ম পত্র',
+        topicsText: 'অধ্যায় ২: গুণগত রসায়ন — বোর পরমাণু মডেল ও কোয়ান্টাম সংখ্যা।',
+        durationMin: 50,
+        source: 'college',
+        confidence: 5,
+        date: new Date(now - 1 * dayMs).toISOString(),
+      },
+    ];
+  }
+
   if (isTasnim) {
     return [
       {
@@ -16,7 +50,7 @@ function getDemoRecentEntries(childId: string) {
         childId: 'demo-child-2',
         subject: 'Elementary Math',
         subjectName: 'প্রাথমিক গণিত',
-        topicsText: 'অধ্যায় ৫: গুণনীয়ক ও গুণিতক — মৌলিক উৎপাদকে বিশ্লেষণ করে লসাগু (LCM) ও গসাগু (HCF) নির্ণয়।',
+        topicsText: 'অধ্যায় ৫: গুণনীয়ক ও গুণিতক — মৌলিক উৎপাদকে বিশ্লেষণ করে লসাগু ও গসাগু নির্ণয়।',
         durationMin: 60,
         source: 'tuition',
         confidence: 5,
@@ -33,50 +67,16 @@ function getDemoRecentEntries(childId: string) {
         confidence: 4,
         date: new Date(now - 1 * dayMs).toISOString(),
       },
-      {
-        id: 'entry-tasnim-3',
-        childId: 'demo-child-2',
-        subject: 'English for Today',
-        subjectName: 'ইংরেজি',
-        topicsText: 'Unit 6: Eat Healthy — Food pyramid vocabulary and simple present tense reading.',
-        durationMin: 45,
-        source: 'tuition',
-        confidence: 5,
-        date: new Date(now - 2 * dayMs).toISOString(),
-      },
-      {
-        id: 'entry-tasnim-4',
-        childId: 'demo-child-2',
-        subject: 'Bangladesh & Global Studies',
-        subjectName: 'বাংলাদেশ ও বিশ্বপরিচয়',
-        topicsText: 'অধ্যায় ১: আমাদের মুক্তিযুদ্ধ — ১৯৭১ সালের ২৫শে মার্চের কালরাত ও ঐতিহাসিক পটভূমি।',
-        durationMin: 40,
-        source: 'self_study',
-        confidence: 5,
-        date: new Date(now - 3 * dayMs).toISOString(),
-      },
-      {
-        id: 'entry-tasnim-5',
-        childId: 'demo-child-2',
-        subject: 'Bangla',
-        subjectName: 'বাংলা',
-        topicsText: 'গল্প: "হাতি আর শিয়ালের গল্প" — শব্দার্থ, যুক্তবর্ণ ও অনুশীলনীর প্রশ্ন সমাধান।',
-        durationMin: 45,
-        source: 'school',
-        confidence: 5,
-        date: new Date(now - 4 * dayMs).toISOString(),
-      },
     ];
   }
 
-  // Rahim (Class 8)
   return [
     {
       id: 'entry-rahim-1',
       childId: 'demo-child-1',
       subject: 'Mathematics',
       subjectName: 'গণিত',
-      topicsText: 'অধ্যায় ৪: বীজগণিতীয় সূত্রাবলী ও প্রয়োগ (অনুশীলনী ৪.১) — বর্গের সূত্র (a+b)^2 সমাধান।',
+      topicsText: 'অধ্যায় ৪: বীজগণিতীয় সূত্রাবলী ও প্রয়োগ (অনুশীলনী ৪.১) — বর্গের সূত্র সমাধান।',
       durationMin: 75,
       source: 'tuition',
       confidence: 4,
@@ -92,39 +92,6 @@ function getDemoRecentEntries(childId: string) {
       source: 'school',
       confidence: 5,
       date: new Date(now - 1 * dayMs).toISOString(),
-    },
-    {
-      id: 'entry-rahim-3',
-      childId: 'demo-child-1',
-      subject: 'English 1st Paper',
-      subjectName: 'ইংরেজি ১ম পত্র',
-      topicsText: 'Unit 3: Health and Hygiene — Passage comprehension and vocabulary with synonyms.',
-      durationMin: 45,
-      source: 'self_study',
-      confidence: 4,
-      date: new Date(now - 2 * dayMs).toISOString(),
-    },
-    {
-      id: 'entry-rahim-4',
-      childId: 'demo-child-1',
-      subject: 'ICT',
-      subjectName: 'তথ্য ও যোগাযোগ প্রযুক্তি',
-      topicsText: 'অধ্যায় ৩: স্প্রেডশিট সফটওয়্যারের ব্যবহার — মাইক্রোসফট এক্সেলে যোগ, গড় ও শতকরা হিসাব।',
-      durationMin: 60,
-      source: 'tuition',
-      confidence: 5,
-      date: new Date(now - 3 * dayMs).toISOString(),
-    },
-    {
-      id: 'entry-rahim-5',
-      childId: 'demo-child-1',
-      subject: 'Bangla 1st Paper',
-      subjectName: 'বাংলা ১ম পত্র',
-      topicsText: 'কবিতা: "বঙ্গভূমির প্রতি" (মাইকেল মধুসূদন দত্ত) — মূলভাব বিশ্লেষণ ও কবি পরিচিতি।',
-      durationMin: 50,
-      source: 'self_study',
-      confidence: 4,
-      date: new Date(now - 4 * dayMs).toISOString(),
     },
   ];
 }

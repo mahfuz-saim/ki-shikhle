@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/modal';
 import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
+import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
 import { MonthlyActivityCalendar } from '@/components/charts/study-time-chart';
 import {
@@ -41,6 +42,10 @@ export default function KidDashboard() {
 
   const childId = activeChild?.id || (user as any)?.childId || user?.id || 'demo-child-1';
   const isTasnim = childId === 'demo-child-2' || user?.email?.includes('tasnim') || activeChild?.name?.includes('Tasnim');
+  const isFahim = childId === 'demo-child-3' || user?.email?.includes('fahim') || activeChild?.name?.includes('Fahim');
+  const studentGrade = user?.grade || activeChild?.grade || (isFahim ? 'Class 11' : isTasnim ? 'Class 5' : 'Class 8');
+  const institutionType = getInstitutionType(studentGrade);
+  const instInfo = getInstitutionInfo(institutionType, isBn);
 
   const [summary, setSummary] = useState<any>(null);
   const [quizzes, setQuizzes] = useState<any[]>([]);
@@ -70,7 +75,13 @@ export default function KidDashboard() {
     { index: 6, en: 'Sat', bn: 'শনি' },
   ];
 
-  const routinePresets = isTasnim
+  const routinePresets = isFahim
+    ? [
+        { name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:30', durationMin: 75 },
+        { name: isBn ? 'রসায়ন প্রাইভেট' : 'Chemistry Tuition', source: 'tuition', weekdays: [1, 3], startTime: '17:00', durationMin: 60 },
+        { name: isBn ? 'উচ্চতর গণিত সেলফ স্টাডি' : 'Higher Math Self-Study', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:30', durationMin: 60 },
+      ]
+    : isTasnim
     ? [
         { name: isBn ? 'প্রাথমিক গণিত প্রাইভেট' : 'Elementary Math Tuition', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:00', durationMin: 60 },
         { name: isBn ? 'ইংরেজি টিউটর' : 'English Tutor', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 45 },
@@ -128,36 +139,51 @@ export default function KidDashboard() {
           setSummary(r.data.data);
         } else {
           setSummary({
-            kpis: isTasnim
-              ? { studyDays: 6, totalTime: 360, streak: 6, quizzes: 6, avgScore: 95 }
-              : { studyDays: 5, totalTime: 420, streak: 5, quizzes: 4, avgScore: 88 },
-            recent: isTasnim
+            kpis: isFahim
+              ? { studyDays: 6, totalTime: 1560, streak: 7, quizzes: 4, avgScore: 92 }
+              : isTasnim
+              ? { studyDays: 6, totalTime: 1080, streak: 6, quizzes: 6, avgScore: 95 }
+              : { studyDays: 6, totalTime: 1350, streak: 6, quizzes: 5, avgScore: 88 },
+            recent: isFahim
               ? [
-                  { date: new Date().toISOString(), topicsText: 'Mathematics - Fractions & Decimals (লসাগু ও গসাগু)', source: 'tuition' },
-                  { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'Primary Science - Living & Non-living Things', source: 'school' },
-                  { date: new Date(Date.now() - 172800000).toISOString(), topicsText: 'English for Today - Lesson 4 Story Reading', source: 'self_study' },
+                  { date: new Date().toISOString(), topicsText: 'Physics 1st Paper - Projectile Motion (প্রক্ষেপকের গাণিতিক সমাধান)', source: 'college' },
+                  { date: new Date(Date.now() - 3600000 * 3).toISOString(), topicsText: 'Chemistry 1st Paper - Bohr Atomic Model & Quantum Numbers', source: 'college' },
+                  { date: new Date(Date.now() - 3600000 * 6).toISOString(), topicsText: 'Physics Coaching - Advanced Trajectory Equations', source: 'tuition' },
+                ]
+              : isTasnim
+              ? [
+                  { date: new Date().toISOString(), topicsText: 'Elementary Math - Factors & Multiples (লসাগু ও গসাগু নির্ণয়)', source: 'school' },
+                  { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'Primary Science - Safe Drinking Water & Purification Steps', source: 'school' },
+                  { date: new Date(Date.now() - 3600000 * 7).toISOString(), topicsText: 'Math Tutor - Word Problems on Bell Intervals', source: 'tuition' },
                 ]
               : [
-                  { date: new Date().toISOString(), topicsText: 'Algebra - Quadratic Equations Formula (বর্গের সূত্রাবলী)', source: 'tuition' },
-                  { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'Physics - Newton Laws of Motion & Acceleration', source: 'school' },
-                  { date: new Date(Date.now() - 172800000).toISOString(), topicsText: 'English - Right Forms of Verbs & Prepositions', source: 'self_study' },
+                  { date: new Date().toISOString(), topicsText: 'Mathematics - Algebraic Formulae (বর্গের সূত্রাবলী ও প্রয়োগ)', source: 'school' },
+                  { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'General Science - 3 Equations of Motion & v-t Graphs', source: 'school' },
+                  { date: new Date(Date.now() - 3600000 * 7).toISOString(), topicsText: 'Math Tuition - Value Finding with Rahim Sir', source: 'tuition' },
                 ],
           });
         }
       })
       .catch(() =>
         setSummary({
-          kpis: isTasnim
-            ? { studyDays: 6, totalTime: 360, streak: 6, quizzes: 6, avgScore: 95 }
-            : { studyDays: 5, totalTime: 420, streak: 5, quizzes: 4, avgScore: 88 },
-          recent: isTasnim
+          kpis: isFahim
+            ? { studyDays: 6, totalTime: 1560, streak: 7, quizzes: 4, avgScore: 92 }
+            : isTasnim
+            ? { studyDays: 6, totalTime: 1080, streak: 6, quizzes: 6, avgScore: 95 }
+            : { studyDays: 6, totalTime: 1350, streak: 6, quizzes: 5, avgScore: 88 },
+          recent: isFahim
             ? [
-                { date: new Date().toISOString(), topicsText: 'Mathematics - Fractions & Decimals (লসাগু ও গসাগু)', source: 'tuition' },
-                { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'Primary Science - Living & Non-living Things', source: 'school' },
+                { date: new Date().toISOString(), topicsText: 'Physics 1st Paper - Projectile Motion (প্রক্ষেপকের গাণিতিক সমাধান)', source: 'college' },
+                { date: new Date(Date.now() - 3600000 * 3).toISOString(), topicsText: 'Chemistry 1st Paper - Bohr Atomic Model & Quantum Numbers', source: 'college' },
+              ]
+            : isTasnim
+            ? [
+                { date: new Date().toISOString(), topicsText: 'Elementary Math - Factors & Multiples (লসাগু ও গসাগু নির্ণয়)', source: 'school' },
+                { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'Primary Science - Safe Drinking Water & Purification Steps', source: 'school' },
               ]
             : [
-                { date: new Date().toISOString(), topicsText: 'Algebra - Quadratic Equations Formula (বর্গের সূত্রাবলী)', source: 'tuition' },
-                { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'Physics - Newton Laws of Motion & Acceleration', source: 'school' },
+                { date: new Date().toISOString(), topicsText: 'Mathematics - Algebraic Formulae (বর্গের সূত্রাবলী ও প্রয়োগ)', source: 'school' },
+                { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'General Science - 3 Equations of Motion & v-t Graphs', source: 'school' },
               ],
         })
       );
@@ -642,7 +668,7 @@ export default function KidDashboard() {
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-primary" />
-                  <span>{isBn ? 'আজকের স্কুলের ক্লাস ও রুটিন' : "Today's School Classes & Schedule"}</span>
+                  <span>{instInfo.classesHeading}</span>
                 </CardTitle>
                 <div className="flex items-center gap-1.5">
                   <Button
@@ -710,22 +736,58 @@ export default function KidDashboard() {
                 {(() => {
                   const todayWeekday = new Date().getDay();
                   const todayClasses = routines.filter((r) => r.weekdays?.includes(todayWeekday));
-                  const displayList = todayClasses.length > 0 ? todayClasses : (routines.length > 0 ? routines.slice(0, 4) : [
-                    {
-                      id: 'r-fallback-1',
-                      name: isTasnim ? (isBn ? '১ম পিরিয়ড: প্রাথমিক বাংলা' : '1st Period: Primary Bangla') : (isBn ? '১ম পিরিয়ড: বাংলা ১ম পত্র' : '1st Period: Bangla 1st'),
-                      startTime: '09:00',
-                      durationMin: 45,
-                      source: 'school',
-                    },
-                    {
-                      id: 'r-fallback-2',
-                      name: isTasnim ? (isBn ? '২য় পিরিয়ড: প্রাথমিক ইংরেজি' : '2nd Period: Primary English') : (isBn ? '২য় পিরিয়ড: ইংরেজি ১ম পত্র' : '2nd Period: English 1st'),
-                      startTime: '09:45',
-                      durationMin: 45,
-                      source: 'school',
-                    },
-                  ]);
+                  const displayList = todayClasses.length > 0 ? todayClasses : (routines.length > 0 ? routines.slice(0, 4) : (
+                    institutionType === 'college'
+                      ? [
+                          {
+                            id: 'r-college-1',
+                            name: isBn ? '১ম পিরিয়ড: পদার্থবিজ্ঞান ১ম পত্র' : '1st Period: Physics 1st Paper',
+                            startTime: '08:30',
+                            durationMin: 50,
+                            source: 'college',
+                          },
+                          {
+                            id: 'r-college-2',
+                            name: isBn ? '২য় পিরিয়ড: রসায়ন ১ম পত্র' : '2nd Period: Chemistry 1st Paper',
+                            startTime: '09:20',
+                            durationMin: 50,
+                            source: 'college',
+                          },
+                        ]
+                      : institutionType === 'admission'
+                      ? [
+                          {
+                            id: 'r-adm-1',
+                            name: isBn ? 'মেডিকেল ও ভার্সিটি মডেল টেস্ট' : 'Varsity & Medical Mock Test',
+                            startTime: '09:00',
+                            durationMin: 60,
+                            source: 'tuition',
+                          },
+                          {
+                            id: 'r-adm-2',
+                            name: isBn ? 'বিগত বছরের প্রশ্নব্যাংক সলভিং ও রিভিশন' : 'Question Bank Practice & Revision',
+                            startTime: '10:30',
+                            durationMin: 90,
+                            source: 'self_study',
+                          },
+                        ]
+                      : [
+                          {
+                            id: 'r-fallback-1',
+                            name: isTasnim ? (isBn ? '১ম পিরিয়ড: প্রাথমিক বাংলা' : '1st Period: Primary Bangla') : (isBn ? '১ম পিরিয়ড: বাংলা ১ম পত্র' : '1st Period: Bangla 1st'),
+                            startTime: '09:00',
+                            durationMin: 45,
+                            source: 'school',
+                          },
+                          {
+                            id: 'r-fallback-2',
+                            name: isTasnim ? (isBn ? '২য় পিরিয়ড: প্রাথমিক ইংরেজি' : '2nd Period: Primary English') : (isBn ? '২য় পিরিয়ড: ইংরেজি ১ম পত্র' : '2nd Period: English 1st'),
+                            startTime: '09:45',
+                            durationMin: 45,
+                            source: 'school',
+                          },
+                        ]
+                  ));
 
                   return displayList.map((r, rIdx) => (
                     <div
@@ -1009,9 +1071,14 @@ export default function KidDashboard() {
                 onChange={(e) => setRoutineForm({ ...routineForm, source: e.target.value })}
                 className="w-full mt-1 px-3 py-2 text-xs rounded-xl border bg-background text-foreground"
               >
-                <option value="tuition">{isBn ? 'প্রাইভেট / কোচিং' : 'Tuition / Coaching'}</option>
-                <option value="school">{isBn ? 'স্কুল' : 'School'}</option>
-                <option value="self_study">{isBn ? 'সেলফ স্টাডি / স্ব-অধ্যয়ন' : 'Self-Study'}</option>
+                {institutionType === 'school' && (
+                  <option value="school">{isBn ? 'স্কুল ক্লাস' : 'School'}</option>
+                )}
+                {institutionType === 'college' && (
+                  <option value="college">{isBn ? 'কলেজ ক্লাস' : 'College'}</option>
+                )}
+                <option value="tuition">{institutionType === 'admission' ? (isBn ? 'এডমিশন কোচিং / প্রাইভেট' : 'Admission Coaching') : (isBn ? 'প্রাইভেট / কোচিং' : 'Tuition / Coaching')}</option>
+                <option value="self_study">{institutionType === 'admission' ? (isBn ? 'সেলফ স্টাডি ও মডেল টেস্ট' : 'Self-Study & Mock Tests') : (isBn ? 'সেলফ স্টাডি / স্ব-অধ্যয়ন' : 'Self-Study')}</option>
               </select>
             </div>
             <div>

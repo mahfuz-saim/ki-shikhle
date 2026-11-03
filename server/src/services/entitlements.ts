@@ -103,6 +103,10 @@ export const PLANS: Record<string, { code: string; name: string; priceBDT: numbe
   },
 };
 
+PLANS.starter = PLANS.basic;
+PLANS.standard = PLANS.premium;
+PLANS.trial = PLANS.free;
+
 export function getPlanLimits(code: string): PlanLimits {
   if (code === 'starter') return PLANS.basic.limits;
   if (code === 'standard') return PLANS.basic.limits;

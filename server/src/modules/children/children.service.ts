@@ -33,6 +33,19 @@ export const memChildren: any[] = [
     avatar: '/avatars/girl-1.png',
     createdAt: new Date(Date.now() - 25 * 86400000).toISOString(),
   },
+  {
+    id: 'demo-child-3',
+    parentId: 'parent-demo',
+    name: 'Fahim Islam',
+    nickname: 'Fahim',
+    email: 'fahim@demo.com',
+    password: 'Password123!',
+    grade: 'Class 11',
+    curriculum: 'NCTB',
+    medium: 'Bangla',
+    avatar: '/avatars/boy-2.png',
+    createdAt: new Date(Date.now() - 20 * 86400000).toISOString(),
+  },
 ];
 
 export async function listChildren(parentId: string) {

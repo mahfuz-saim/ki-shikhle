@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 
 export default function BillingPage() {
-  const { user } = useAuth();
+  const { user, subscription, setSubscription, updateUser } = useAuth();
   const { t, isBn } = useI18n();
 
   const [plans, setPlans] = useState<any[]>([]);
@@ -224,13 +224,21 @@ export default function BillingPage() {
 
     api
       .get('/billing/subscription')
-      .then((r) => setSub(r.data.data))
+      .then((r) => {
+        setSub(r.data.data);
+        if (setSubscription) setSubscription(r.data.data);
+      })
       .catch(() =>
         setSub({
           status: 'active',
-          planCode: 'free',
-          childSlots: 1,
-          currentPeriodEnd: null,
+          planCode: 'pro',
+          childSlots: 5,
+          plan: {
+            code: 'pro',
+            name: isBn ? 'প্রো ফ্যামিলি (Pro)' : 'Pro Family',
+            priceBdt: 999,
+          },
+          currentPeriodEnd: new Date(Date.now() + 30 * 86400000).toISOString(),
         })
       );
 
@@ -241,8 +249,8 @@ export default function BillingPage() {
         setInvoices([
           {
             id: 'inv-1',
-            invoiceNo: 'INV-2026-001',
-            amount: 599,
+            invoiceNo: 'INV-2026-8801',
+            amount: 999,
             currency: 'BDT',
             status: 'paid',
             isDemo: true,
@@ -286,9 +294,17 @@ export default function BillingPage() {
       );
       setCheckoutModalOpen(false);
 
+      // Clear trial state on client immediately
+      if (updateUser) {
+        updateUser({ trialEndsAt: undefined });
+      }
+
       // Refresh sub & invoices
       const s = await api.get('/billing/subscription');
       setSub(s.data.data);
+      if (setSubscription) {
+        setSubscription(s.data.data);
+      }
       const invList = await api.get('/billing/invoices');
       setInvoices(invList.data.data || []);
     } catch (err: any) {
@@ -300,7 +316,11 @@ export default function BillingPage() {
 
   const effectivePlans = plans.length > 0 ? plans : defaultPlans;
   const currentPricing = getPlanPricing(checkoutForm.planCode, checkoutForm.childCount, checkoutForm.billingPeriod);
-  const currentPlanCode = sub?.plan?.code || sub?.planCode || 'free';
+  const rawPlanCode = sub?.plan?.code || sub?.planCode || subscription?.plan?.code || subscription?.planCode || 'free';
+  const currentPlanCode =
+    rawPlanCode === 'trial' || rawPlanCode === 'starter' || rawPlanCode === 'standard'
+      ? 'free'
+      : rawPlanCode;
 
   const toBn = (n: number) => {
     if (!isBn) return n.toString();
@@ -373,7 +393,7 @@ export default function BillingPage() {
               <h3 className="text-lg font-bold text-foreground">
                 {currentPlanCode === 'free'
                   ? (isBn ? 'বিনামূল্যে ব্যবহার করছেন (Free Tier)' : 'Free Tier Active (Forever Free)')
-                  : `${sub?.plan?.name || currentPlanCode.toUpperCase()} (${isBn ? 'সক্রিয়' : 'Active'})`}
+                  : `${sub?.plan?.name?.replace(/Trial/i, 'Free') || currentPlanCode.toUpperCase()} (${isBn ? 'সক্রিয়' : 'Active'})`}
               </h3>
               <p className="text-xs text-muted-foreground max-w-xl">
                 {isBn

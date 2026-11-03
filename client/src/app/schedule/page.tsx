@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/modal';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
+import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
 import {
   Calendar as CalendarIcon,
@@ -34,10 +35,13 @@ const WEEKDAYS = [
 ];
 
 export default function SchedulePage() {
-  const { activeChild } = useAuth();
+  const { activeChild, childrenList } = useAuth();
   const { t, isBn } = useI18n();
 
-  const childId = activeChild?.id || 'demo-child';
+  const childId = activeChild?.id || childrenList[0]?.id || 'demo-child';
+  const currentChild = childrenList.find((c) => c.id === childId) || activeChild || childrenList[0];
+  const institutionType = getInstitutionType(currentChild?.grade);
+  const instInfo = getInstitutionInfo(institutionType, isBn);
 
   const [routines, setRoutines] = useState<any[]>([]);
   const [schedule, setSchedule] = useState<any>(null);
@@ -298,9 +302,7 @@ export default function SchedulePage() {
               {t('schedule.title', 'Routine & Schedule')}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {isBn
-                ? 'সাপ্তাহিক রুটিন, ক্লাসের সময় ও সেশন পুনর্নির্ধারণের হিসাব'
-                : 'Manage recurring school/tuition routines, reschedule sessions, and detect missed classes.'}
+              {instInfo.description}
             </p>
           </div>
 
@@ -430,8 +432,14 @@ export default function SchedulePage() {
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-sm text-foreground truncate">{r.name}</span>
-                      <Badge variant="outline" className="text-[10px] capitalize">
-                        {r.source}
+                      <Badge variant="outline" className="text-[10px] font-semibold">
+                        {r.source === 'school'
+                          ? (isBn ? 'স্কুল' : 'School')
+                          : r.source === 'college'
+                          ? (isBn ? 'কলেজ' : 'College')
+                          : r.source === 'tuition'
+                          ? (institutionType === 'admission' ? (isBn ? 'কোচিং' : 'Coaching') : (isBn ? 'টিউশন' : 'Tuition'))
+                          : (isBn ? 'সেলফ-স্টাডি' : 'Self-study')}
                       </Badge>
                     </div>
 
@@ -493,7 +501,7 @@ export default function SchedulePage() {
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         title={t('schedule.createRoutine', 'Add Recurring Routine')}
-        description="Set up recurring days and times for school or private tuition."
+        description={institutionType === 'college' ? (isBn ? 'কলেজ ক্লাস ও প্রাইভেট টিউশনের রুটিন যুক্ত করুন।' : 'Set up recurring days and times for college lectures or private tuition.') : institutionType === 'admission' ? (isBn ? 'কোচিং, টেস্ট ও সেলফ-স্টাডির রুটিন যুক্ত করুন।' : 'Set up recurring days and times for admission coaching or self-study.') : (isBn ? 'স্কুল ক্লাস ও প্রাইভেট টিউশনের রুটিন যুক্ত করুন।' : 'Set up recurring days and times for school periods or private tuition.')}
       >
         <form onSubmit={handleCreateRoutine} className="space-y-4 pt-1">
           <div>
@@ -515,10 +523,22 @@ export default function SchedulePage() {
                 onChange={(e) => setForm({ ...form, source: e.target.value })}
                 className="h-10 w-full border rounded-xl px-3 bg-background text-sm mt-1"
               >
-                <option value="tuition">Tuition / Private</option>
-                <option value="school">School</option>
-                <option value="college">College</option>
-                <option value="self_study">Self-Study</option>
+                {institutionType === 'school' && (
+                <option value="school">{isBn ? 'স্কুল' : 'School'}</option>
+              )}
+              {institutionType === 'college' && (
+                <option value="college">{isBn ? 'কলেজ' : 'College'}</option>
+              )}
+              <option value="tuition">
+                {institutionType === 'admission'
+                  ? (isBn ? 'কোচিং / প্রাইভেট' : 'Coaching / Tuition')
+                  : (isBn ? 'প্রাইভেট / কোচিং' : 'Tuition / Private')}
+              </option>
+              <option value="self_study">
+                {institutionType === 'admission'
+                  ? (isBn ? 'সেলফ-স্টাডি ও মডেল টেস্ট' : 'Self-Study & Mock Tests')
+                  : (isBn ? 'সেলফ-স্টাডি' : 'Self-Study')}
+              </option>
               </select>
             </div>
             <div>

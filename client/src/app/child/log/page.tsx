@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
+import { getInstitutionType } from '@/lib/institution';
 import { api } from '@/lib/api';
 import {
   Sparkles,
@@ -48,8 +49,11 @@ interface StructuredVoiceLog {
 function KidLogContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { activeChild } = useAuth();
+  const { activeChild, user } = useAuth();
   const { isBn } = useI18n();
+
+  const studentGrade = user?.grade || activeChild?.grade || 'Class 8';
+  const institutionType = getInstitutionType(studentGrade);
 
   const childId = activeChild?.id || 'demo-child-1';
   const isTasnim = childId === 'demo-child-2' || activeChild?.name?.toLowerCase().includes('tasnim');
@@ -683,9 +687,13 @@ function KidLogContent() {
                                 }
                                 className="w-full h-9 border rounded-xl px-2.5 bg-background text-xs"
                               >
-                                <option value="tuition">Private Tuition</option>
-                                <option value="school">School</option>
-                                <option value="college">College</option>
+                                {institutionType === 'school' && (
+                                  <option value="school">{isBn ? 'স্কুল ক্লাস' : 'School'}</option>
+                                )}
+                                {institutionType === 'college' && (
+                                  <option value="college">{isBn ? 'কলেজ' : 'College'}</option>
+                                )}
+                                <option value="tuition">{institutionType === 'admission' ? (isBn ? 'এডমিশন কোচিং' : 'Admission Coaching') : 'Private Tuition'}</option>
                                 <option value="self_study">Self-Study</option>
                               </select>
                             </div>
@@ -849,10 +857,14 @@ function KidLogContent() {
                           onChange={(e) => setSource(e.target.value)}
                           className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
                         >
-                          <option value="tuition">Private Tuition</option>
-                          <option value="school">School</option>
-                          <option value="college">College</option>
-                          <option value="self_study">Self-Study</option>
+                          {institutionType === 'school' && (
+                            <option value="school">{isBn ? 'স্কুল ক্লাস' : 'School'}</option>
+                          )}
+                          {institutionType === 'college' && (
+                            <option value="college">{isBn ? 'কলেজ' : 'College'}</option>
+                          )}
+                          <option value="tuition">{institutionType === 'admission' ? (isBn ? 'এডমিশন কোচিং' : 'Admission Coaching') : (isBn ? 'প্রাইভেট টিউশন' : 'Private Tuition')}</option>
+                          <option value="self_study">{isBn ? 'সেলফ-স্টাডি' : 'Self-Study'}</option>
                         </select>
                       </div>
 

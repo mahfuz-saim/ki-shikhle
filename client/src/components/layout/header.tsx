@@ -20,17 +20,23 @@ import { Button } from '@/components/ui/button';
 
 export function Header() {
   const { theme, setTheme } = useTheme();
-  const { user, activeChild, setActiveChild, childrenList, logout } = useAuth();
+  const { user, activeChild, setActiveChild, childrenList, logout, subscription } = useAuth();
   const { locale, toggleLocale, t, isBn } = useI18n();
 
   const [childDropdownOpen, setChildDropdownOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  // Calculate trial days
+  // Active plan resolution
+  const activePlanCode =
+    subscription?.plan?.code ||
+    subscription?.planCode ||
+    'free';
+
+  // Calculate trial days if user has a trial expiration set
   const trialEnds = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
   const trialDaysLeft = trialEnds
     ? Math.max(0, Math.ceil((trialEnds.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 12;
+    : 0;
 
   return (
     <>
@@ -117,12 +123,38 @@ export function Header() {
 
         {/* Right Controls */}
         <div className="flex items-center gap-2">
-          {/* Trial countdown badge */}
+          {/* Active Subscription Plan Badge */}
           <Link href="/billing" className="hidden lg:flex items-center">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 transition-colors">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-colors border ${
+                activePlanCode === 'pro'
+                  ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 hover:bg-purple-500/20'
+                  : activePlanCode === 'premium'
+                  ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/20'
+                  : activePlanCode === 'basic'
+                  ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30 hover:bg-sky-500/20'
+                  : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                  activePlanCode === 'pro'
+                    ? 'bg-purple-500'
+                    : activePlanCode === 'premium'
+                    ? 'bg-indigo-500'
+                    : activePlanCode === 'basic'
+                    ? 'bg-sky-500'
+                    : 'bg-emerald-500'
+                }`}
+              />
               <span>
-                {isBn ? 'ফ্রি প্ল্যান (২ AI কুইজ/মাস)' : 'Free Tier (2 Quizzes/mo)'}
+                {activePlanCode === 'pro'
+                  ? (isBn ? 'প্রো ফ্যামিলি (১৫০ AI কুইজ/মাস)' : 'Pro Family (150 Quizzes/mo)')
+                  : activePlanCode === 'premium'
+                  ? (isBn ? 'প্রিমিয়াম (৫০ AI কুইজ + অটো কুইজ)' : 'Premium (50 Quizzes + Auto Quiz)')
+                  : activePlanCode === 'basic'
+                  ? (isBn ? 'বেসিক (১০ AI কুইজ/মাস)' : 'Basic Plan (10 Quizzes/mo)')
+                  : (isBn ? 'ফ্রি প্ল্যান (২ AI কুইজ/মাস)' : 'Free Tier (2 Quizzes/mo)')}
               </span>
             </div>
           </Link>
@@ -217,18 +249,9 @@ export function TrialBanner() {
   const trialEnds = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
   const trialDays = trialEnds
     ? Math.max(0, Math.ceil((trialEnds.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 12;
+    : 0;
 
   return null;
-
-  return (
-    <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs py-1.5 px-4 text-center font-medium shadow-sm flex items-center justify-center gap-2">
-      <span>🎉 15-Day Free Trial: {trialDays} days remaining with full Standard AI features!</span>
-      <Link href="/billing" className="underline font-bold hover:text-white/90">
-        Upgrade now
-      </Link>
-    </div>
-  );
 }
 
 export default Header;

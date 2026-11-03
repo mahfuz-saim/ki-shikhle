@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
+import { getInstitutionType } from '@/lib/institution';
 import { api } from '@/lib/api';
 import {
   BookOpen,
@@ -28,6 +29,424 @@ import {
   UserCheck,
 } from 'lucide-react';
 
+function getFallbackEntries(childId: string, isBn: boolean) {
+  const isTasnim = childId === 'demo-child-2';
+  const isFahim = childId === 'demo-child-3';
+
+  if (isFahim) {
+    return [
+      // Today (4 entries)
+      {
+        id: 'e-f1',
+        date: new Date().toISOString().slice(0, 10),
+        source: 'college',
+        providerName: isBn ? 'নটর ডেম কলেজ' : 'College',
+        subject: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র' : 'Physics 1st Paper',
+        topicsText: isBn
+          ? 'অধ্যায় ৩: গতিবিদ্যা — প্রক্ষেপক (Projectile Motion), সর্বাধিক উচ্চতা H ও পাল্লা R নির্ণয়ের গাণিতিক সমাধান'
+          : 'Chapter 3: Dynamics – Projectile Motion, Maximum Height & Horizontal Range calculations',
+        durationMin: 50,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-f2',
+        date: new Date().toISOString().slice(0, 10),
+        source: 'college',
+        providerName: isBn ? 'নটর ডেম কলেজ' : 'College',
+        subject: isBn ? 'রসায়ন ১ম পত্র' : 'Chemistry 1st Paper',
+        topicsText: isBn
+          ? 'অধ্যায় ২: গুণগত রসায়ন — বোর পরমাণু মডেল, কোয়ান্টাম সংখ্যা (n, l, m, s) এবং পলির বর্জন নীতি'
+          : 'Chapter 2: Qualitative Chemistry – Bohr Model, Quantum Numbers & Pauli Exclusion Principle',
+        durationMin: 50,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-f3',
+        date: new Date().toISOString().slice(0, 10),
+        source: 'tuition',
+        providerName: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching',
+        subject: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র' : 'Physics 1st Paper',
+        topicsText: isBn
+          ? 'প্রক্ষেপকের উচ্চতর গাণিতিক সমস্যা ও বিভিন্ন কোণে নিক্ষিপ্ত বস্তুর গতিপথ বিশ্লেষণ'
+          : 'Advanced Mathematical Problems on Projectiles & Trajectory analysis',
+        durationMin: 75,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-f4',
+        date: new Date().toISOString().slice(0, 10),
+        source: 'self_study',
+        providerName: 'Self Study',
+        subject: isBn ? 'উচ্চতর গণিত ১ম পত্র' : 'Higher Math',
+        topicsText: isBn
+          ? 'অধ্যায় ১: ম্যাট্রিক্স ও নির্ণায়ক — ক্র্যামারের নিয়মে তিন চলকের সমীকরণ জোট সমাধান'
+          : 'Chapter 1: Matrices & Determinants – Cramers Rule for 3-variable equations',
+        durationMin: 60,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      // Yesterday (3 entries)
+      {
+        id: 'e-f5',
+        date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+        source: 'college',
+        providerName: isBn ? 'নটর ডেম কলেজ' : 'College',
+        subject: isBn ? 'উচ্চতর গণিত ১ম পত্র' : 'Higher Math',
+        topicsText: isBn
+          ? 'ম্যাট্রিক্সের গুণন বিধি ও বিপরীত ম্যাট্রিক্স (Inverse Matrix) নির্ণয়'
+          : 'Matrix Multiplication Rules & Inverse Matrix calculations',
+        durationMin: 50,
+        confidence: 4,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-f6',
+        date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+        source: 'tuition',
+        providerName: isBn ? 'রসায়ন প্রাইভেট' : 'Chemistry Tuition',
+        subject: isBn ? 'রসায়ন ১ম পত্র' : 'Chemistry 1st Paper',
+        topicsText: isBn
+          ? 'আউফবাউ নীতি, হুন্ডের নীতি প্রয়োগ করে ক্রোমিয়াম ও কপারের ব্যতিক্রমী ইলেকট্রন বিন্যাস'
+          : 'Aufbau Principle & Hunds Rule – Exceptional electronic configuration of Cr & Cu',
+        durationMin: 60,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-f7',
+        date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+        source: 'self_study',
+        providerName: 'Self Study',
+        subject: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র' : 'Physics 1st Paper',
+        topicsText: isBn
+          ? 'ক্যালকুলাস ও ব্যবকলনের সাহায্যে তাৎক্ষণিক বেগ ও ত্বরণ প্রতিপাদন'
+          : 'Calculus derivations of instantaneous velocity & acceleration',
+        durationMin: 60,
+        confidence: 4,
+        verifiedByParent: true,
+      },
+      // 2 Days Ago (3 entries)
+      {
+        id: 'e-f8',
+        date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
+        source: 'college',
+        providerName: isBn ? 'নটর ডেম কলেজ' : 'College',
+        subject: isBn ? 'তথ্য ও যোগাযোগ প্রযুক্তি' : 'ICT',
+        topicsText: isBn
+          ? 'অধ্যায় ৩: সংখ্যা পদ্ধতি — বাইনারি, ডেসিমাল, অক্টাল ও হেক্সাডেসিমেল রূপান্তর ও ২ এর পরিপূরক'
+          : 'Chapter 3: Number Systems – Binary, Octal, Hexadecimal conversions & 2s complement',
+        durationMin: 50,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-f9',
+        date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
+        source: 'tuition',
+        providerName: isBn ? 'গণিত কোচিং' : 'Math Coaching',
+        subject: isBn ? 'উচ্চতর গণিত ১ম পত্র' : 'Higher Math',
+        topicsText: isBn
+          ? 'নির্ণায়কের ধর্মাবলী ও অনুরাশি-সহগুণক প্রয়োগ করে মান নির্ণয়'
+          : 'Determinant properties, Minors & Cofactors evaluation',
+        durationMin: 75,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-f10',
+        date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
+        source: 'self_study',
+        providerName: 'Self Study',
+        subject: isBn ? 'ইংরেজি ১ম পত্র' : 'English 1st Paper',
+        topicsText: isBn
+          ? 'Poem Analysis: "The Traffic Policeman" — Theme writing and critical explanation'
+          : 'Poem Analysis: "The Traffic Policeman" — Theme writing and critical explanation',
+        durationMin: 45,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+    ];
+  }
+
+  if (isTasnim) {
+    return [
+      // Today (3 entries)
+      {
+        id: 'e-t1',
+        date: new Date().toISOString().slice(0, 10),
+        source: 'school',
+        providerName: 'School',
+        subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math',
+        topicsText: isBn
+          ? 'অধ্যায় ৫: গুণনীয়ক ও গুণিতক — মৌলিক উৎপাদকে বিশ্লেষণ করে লসাগু ও গসাগু নির্ণয়'
+          : 'Chapter 5: Factors & Multiples – LCM & HCF problem solving using prime factors',
+        durationMin: 45,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-t2',
+        date: new Date().toISOString().slice(0, 10),
+        source: 'school',
+        providerName: 'School',
+        subject: isBn ? 'প্রাথমিক বিজ্ঞান' : 'Primary Science',
+        topicsText: isBn
+          ? 'অধ্যায় ৩: জীবনের জন্য পানি — নিরাপদ পানির গুরুত্ব ও পানি দূষণের ক্ষতিকর প্রভাব'
+          : 'Chapter 3: Water for Life – Importance of safe water and impacts of pollution',
+        durationMin: 40,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-t3',
+        date: new Date().toISOString().slice(0, 10),
+        source: 'tuition',
+        providerName: isBn ? 'ম্যাথ টিউটর' : 'Math Tutor',
+        subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math',
+        topicsText: isBn
+          ? 'ডাকের কথার অঙ্ক সমাধান, লসাগুর সাহায্যে ঘণ্টা বাজার সময় নির্ণয় সংক্রান্ত সমস্যা'
+          : 'Word problem solving, LCM based bell ringing interval questions',
+        durationMin: 60,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      // Yesterday (3 entries)
+      {
+        id: 'e-t4',
+        date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+        source: 'school',
+        providerName: 'School',
+        subject: isBn ? 'ইংরেজি' : 'English',
+        topicsText: isBn
+          ? 'Unit 6: Eat Healthy — Food pyramid, healthy fruits and vegetables vocabulary'
+          : 'Unit 6: Eat Healthy – Food pyramid, healthy fruits and vegetables vocabulary',
+        durationMin: 45,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-t5',
+        date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+        source: 'tuition',
+        providerName: isBn ? 'ইংরেজি টিউটর' : 'English Tutor',
+        subject: isBn ? 'ইংরেজি' : 'English',
+        topicsText: isBn
+          ? 'Reading aloud, question-answer matching & spelling test with 10 new words'
+          : 'Reading aloud, question-answer matching & spelling test with 10 new words',
+        durationMin: 50,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-t6',
+        date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+        source: 'self_study',
+        providerName: 'Self Study',
+        subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math',
+        topicsText: isBn
+          ? 'পৃষ্ঠা ৩১ এর ১ থেকে ৫ নং লসাগু অংক খাতায় অনুশীলন সম্পন্ন'
+          : 'Page 31: Exercises 1-5 LCM practice completed in exercise notebook',
+        durationMin: 45,
+        confidence: 4,
+        verifiedByParent: true,
+      },
+      // 2 Days Ago (3 entries)
+      {
+        id: 'e-t7',
+        date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
+        source: 'school',
+        providerName: 'School',
+        subject: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS',
+        topicsText: isBn
+          ? 'অধ্যায় ১: আমাদের মুক্তিযুদ্ধ — ১৯৭১ সালের ২৫শে মার্চের কালরাত ও সাধারণ মানুষের অবদান'
+          : 'Chapter 1: Liberation War – 25th March Crackdown & contribution of masses',
+        durationMin: 40,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-t8',
+        date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
+        source: 'tuition',
+        providerName: isBn ? 'ম্যাথ টিউটর' : 'Math Tutor',
+        subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math',
+        topicsText: isBn
+          ? 'গসাগু নির্ণয়ের সহজ নিয়ম ও ৩টি সংখ্যার গসাগু সমাধান'
+          : 'Easy method for HCF and solving 3-number HCF problems',
+        durationMin: 60,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+      {
+        id: 'e-t9',
+        date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
+        source: 'self_study',
+        providerName: 'Self Study',
+        subject: isBn ? 'প্রাথমিক বিজ্ঞান' : 'Primary Science',
+        topicsText: isBn
+          ? 'পানি চক্রের ছবি আঁকা এবং পানি বিশুদ্ধকরণের ৪টি ধাপ খাতায় নোট তৈরি'
+          : 'Water cycle diagram drawing & 4 water purification steps note',
+        durationMin: 45,
+        confidence: 5,
+        verifiedByParent: true,
+      },
+    ];
+  }
+
+  // Default: Rahim Ahmed (Class 8)
+  return [
+    // Today (4 entries)
+    {
+      id: 'e-r1',
+      date: new Date().toISOString().slice(0, 10),
+      source: 'school',
+      providerName: 'School',
+      subject: isBn ? 'গণিত' : 'Mathematics',
+      topicsText: isBn
+        ? 'অধ্যায় ৪: বীজগণিতীয় সূত্রাবলী ও প্রয়োগ (অনুশীলনী ৪.১) — বর্গের সূত্র (a+b)^2 ও (a-b)^2 সমাধান'
+        : 'Chapter 4: Algebraic Formulae & Applications – (a+b)^2 and (a-b)^2 solutions',
+      durationMin: 45,
+      confidence: 5,
+      verifiedByParent: true,
+    },
+    {
+      id: 'e-r2',
+      date: new Date().toISOString().slice(0, 10),
+      source: 'school',
+      providerName: 'School',
+      subject: isBn ? 'সাধারণ বিজ্ঞান' : 'General Science',
+      topicsText: isBn
+        ? 'অধ্যায় ২: গতি ও ত্বরণ — গতির ৩টি মৌলিক সমীকরণ, বেগ-সময় লেখচিত্র ও তাৎক্ষণিক দ্রুতি নির্ণয়'
+        : 'Chapter 2: Motion & Acceleration – 3 Equations of Motion & v-t graphs',
+      durationMin: 50,
+      confidence: 4,
+      verifiedByParent: true,
+    },
+    {
+      id: 'e-r3',
+      date: new Date().toISOString().slice(0, 10),
+      source: 'tuition',
+      providerName: isBn ? 'রহিম স্যার' : 'Rahim Sir',
+      subject: isBn ? 'গণিত' : 'Mathematics',
+      topicsText: isBn
+        ? 'বর্গের মান নির্ণয়, (a+b)^2 ও (a-b)^2 এর অনুসিদ্ধান্ত প্রয়োগ এবং ৪টি সৃজনশীল অংক সমাধান'
+        : 'Algebraic value determination, corollaries & 4 creative questions',
+      durationMin: 75,
+      confidence: 5,
+      verifiedByParent: true,
+    },
+    {
+      id: 'e-r4',
+      date: new Date().toISOString().slice(0, 10),
+      source: 'self_study',
+      providerName: 'Self Study',
+      subject: isBn ? 'ইংরেজি ১ম পত্র' : 'English 1st Paper',
+      topicsText: isBn
+        ? 'Unit 3: Health and Hygiene — Passage comprehension, new vocabulary with synonyms & theme'
+        : 'Unit 3: Health and Hygiene – Passage comprehension, new vocabulary with synonyms & theme',
+      durationMin: 45,
+      confidence: 4,
+      verifiedByParent: true,
+    },
+    // Yesterday (4 entries)
+    {
+      id: 'e-r5',
+      date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+      source: 'school',
+      providerName: 'School',
+      subject: isBn ? 'তথ্য ও যোগাযোগ প্রযুক্তি' : 'ICT',
+      topicsText: isBn
+        ? 'অধ্যায় ৩: স্প্রেডশিট সফটওয়্যারের ব্যবহার — মাইক্রোসফট এক্সেলে যোগ, গড়, গুণ এবং শতকরা সেল ফর্মুলা'
+        : 'Chapter 3: Spreadsheet Software – Microsoft Excel sum, average, percentage formulas',
+      durationMin: 45,
+      confidence: 5,
+      verifiedByParent: true,
+    },
+    {
+      id: 'e-r6',
+      date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+      source: 'school',
+      providerName: 'School',
+      subject: isBn ? 'বাংলা ১ম পত্র' : 'Bangla 1st Paper',
+      topicsText: isBn
+        ? 'কবিতা: "বঙ্গভূমির প্রতি" (মাইকেল মধুসূদন দত্ত) — মূলভাব বিশ্লেষণ ও অনুধাবনমূলক প্রশ্ন অনুশীলন'
+        : 'Poem: "Bongobhumir Proti" – Theme analysis and comprehension practice',
+      durationMin: 45,
+      confidence: 4,
+      verifiedByParent: true,
+    },
+    {
+      id: 'e-r7',
+      date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+      source: 'tuition',
+      providerName: isBn ? 'বিজ্ঞান কোচিং' : 'Science Coaching',
+      subject: isBn ? 'সাধারণ বিজ্ঞান' : 'General Science',
+      topicsText: isBn
+        ? 'অধ্যায় ৩: পরমাণুর গঠন — ইলেকট্রন বিন্যাস, পারমাণবিক সংখ্যা ও ভর সংখ্যা সংক্রান্ত গাণিতিক হিসাব'
+        : 'Chapter 3: Atomic Structure – Electron configuration & mass number calculations',
+      durationMin: 60,
+      confidence: 5,
+      verifiedByParent: true,
+    },
+    {
+      id: 'e-r8',
+      date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+      source: 'self_study',
+      providerName: 'Self Study',
+      subject: isBn ? 'গণিত হোমওয়ার্ক' : 'Math Homework',
+      topicsText: isBn
+        ? 'অনুশীলনী ৪.১ এর ৮ থেকে ১৫ নম্বর সমস্যা সমাধান ও নোটবুকে ফেয়ার সম্পন্ন'
+        : 'Exercise 4.1 questions 8 to 15 solved and fair notes written',
+      durationMin: 50,
+      confidence: 5,
+      verifiedByParent: true,
+    },
+    // 2 Days Ago (3 entries)
+    {
+      id: 'e-r9',
+      date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
+      source: 'school',
+      providerName: 'School',
+      subject: isBn ? 'গণিত' : 'Mathematics',
+      topicsText: isBn
+        ? 'অধ্যায় ৮: চতুর্ভুজ — সামান্তরিকের বিপরীত বাহু ও কোণ পরস্পর সমান সংক্রান্ত উপপাদ্য ১ প্রমাণ'
+        : 'Chapter 8: Quadrilateral – Theorem 1 opposite sides & angles equal proof',
+      durationMin: 50,
+      confidence: 4,
+      verifiedByParent: true,
+    },
+    {
+      id: 'e-r10',
+      date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
+      source: 'tuition',
+      providerName: isBn ? 'রহিম স্যার' : 'Rahim Sir',
+      subject: isBn ? 'গণিত' : 'Mathematics',
+      topicsText: isBn
+        ? 'চতুর্ভুজের উপপাদ্য ১ ও ২ এর অনুশীলনীর সমস্যা ও এক্সট্রা জ্যামিতি প্রমাণ'
+        : 'Quadrilateral theorem 1 & 2 exercise geometry proofs',
+      durationMin: 75,
+      confidence: 4,
+      verifiedByParent: true,
+    },
+    {
+      id: 'e-r11',
+      date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
+      source: 'self_study',
+      providerName: 'Self Study',
+      subject: isBn ? 'ইংরেজি ২য় পত্র' : 'English 2nd Paper',
+      topicsText: isBn
+        ? 'Right forms of verbs — 10 basic grammar rules and 20 practice fill-in-the-blanks'
+        : 'Right forms of verbs – 10 basic grammar rules and 20 practice fill-in-the-blanks',
+      durationMin: 45,
+      confidence: 4,
+      verifiedByParent: true,
+    },
+  ];
+}
+
 export default function LearningLogPage() {
   const params = useParams();
   const router = useRouter();
@@ -36,6 +455,7 @@ export default function LearningLogPage() {
 
   const childId = (params as any)?.id || activeChild?.id || 'demo-child';
   const currentChild = childrenList.find((c) => c.id === childId) || activeChild;
+  const institutionType = getInstitutionType(currentChild?.grade);
 
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,219 +472,10 @@ export default function LearningLogPage() {
       if (list && list.length > 0) {
         setEntries(list);
       } else {
-        const isTasnim = childId === 'demo-child-2';
-        setEntries(
-          isTasnim
-            ? [
-                {
-                  id: 'e-t1',
-                  date: new Date().toISOString().slice(0, 10),
-                  source: 'tuition',
-                  providerName: isBn ? 'ম্যাথ টিউটর' : 'Math Tutor',
-                  subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math',
-                  topicsText: isBn
-                    ? 'অধ্যায় ৫: গুণনীয়ক ও গুণিতক — লসাগু ও গসাগু নির্ণয়'
-                    : 'Chapter 5: Factors & Multiples – LCM & HCF problem solving',
-                  durationMin: 60,
-                  confidence: 5,
-                  verifiedByParent: true,
-                },
-                {
-                  id: 'e-t2',
-                  date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
-                  source: 'school',
-                  providerName: 'School',
-                  subject: isBn ? 'প্রাথমিক বিজ্ঞান' : 'Primary Science',
-                  topicsText: isBn
-                    ? 'অধ্যায় ৩: জীবনের জন্য পানি — নিরাপদ পানি ও পানি বিশুদ্ধকরণ'
-                    : 'Chapter 3: Water for Life – Safe Water & Purification',
-                  durationMin: 50,
-                  confidence: 4,
-                  verifiedByParent: true,
-                },
-                {
-                  id: 'e-t3',
-                  date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
-                  source: 'tuition',
-                  providerName: isBn ? 'ইংরেজি টিউটর' : 'English Tutor',
-                  subject: isBn ? 'ইংরেজি' : 'English',
-                  topicsText: isBn
-                    ? 'Unit 6: Eat Healthy — Food pyramid vocabulary & reading'
-                    : 'Unit 6: Eat Healthy – Food pyramid vocabulary & reading',
-                  durationMin: 45,
-                  confidence: 5,
-                  verifiedByParent: false,
-                },
-                {
-                  id: 'e-t4',
-                  date: new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10),
-                  source: 'self_study',
-                  providerName: 'Self Study',
-                  subject: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS',
-                  topicsText: isBn
-                    ? 'অধ্যায় ১: আমাদের মুক্তিযুদ্ধ — ২৫শে মার্চের কালরাত'
-                    : 'Chapter 1: Liberation War – Historical background',
-                  durationMin: 45,
-                  confidence: 5,
-                  verifiedByParent: true,
-                },
-                {
-                  id: 'e-t5',
-                  date: new Date(Date.now() - 4 * 86400000).toISOString().slice(0, 10),
-                  source: 'school',
-                  providerName: 'School',
-                  subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math',
-                  topicsText: isBn
-                    ? 'অধ্যায় ৪: গাণিতিক প্রতীক ও খোলা বাক্য সমাধান'
-                    : 'Chapter 4: Mathematical Symbols & Open Sentences',
-                  durationMin: 60,
-                  confidence: 5,
-                  verifiedByParent: true,
-                },
-              ]
-            : [
-                {
-                  id: 'e-r1',
-                  date: new Date().toISOString().slice(0, 10),
-                  source: 'tuition',
-                  providerName: isBn ? 'রহিম স্যার' : 'Rahim Sir',
-                  subject: isBn ? 'গণিত' : 'Mathematics',
-                  topicsText: isBn
-                    ? 'অধ্যায় ৪: বীজগণিতীয় সূত্রাবলী ও প্রয়োগ — বর্গের সূত্র (a+b)^2'
-                    : 'Chapter 4: Algebraic Formulae & Applications – (a+b)^2 solutions',
-                  durationMin: 75,
-                  confidence: 5,
-                  verifiedByParent: true,
-                },
-                {
-                  id: 'e-r2',
-                  date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
-                  source: 'school',
-                  providerName: 'School',
-                  subject: isBn ? 'সাধারণ বিজ্ঞান' : 'General Science',
-                  topicsText: isBn
-                    ? 'অধ্যায় ২: গতি ও ত্বরণ — গতির ৩টি মৌলিক সমীকরণ'
-                    : 'Chapter 2: Motion & Acceleration – 3 Equations of Motion',
-                  durationMin: 60,
-                  confidence: 4,
-                  verifiedByParent: true,
-                },
-                {
-                  id: 'e-r3',
-                  date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
-                  source: 'self_study',
-                  providerName: 'Self Study',
-                  subject: isBn ? 'ইংরেজি ১ম পত্র' : 'English 1st Paper',
-                  topicsText: isBn
-                    ? 'Unit 3: Health and Hygiene — Passage comprehension & synonyms'
-                    : 'Unit 3: Health and Hygiene – Passage comprehension & synonyms',
-                  durationMin: 45,
-                  confidence: 4,
-                  verifiedByParent: false,
-                },
-                {
-                  id: 'e-r4',
-                  date: new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10),
-                  source: 'tuition',
-                  providerName: isBn ? 'আইসিটি শিক্ষক' : 'ICT Tutor',
-                  subject: isBn ? 'তথ্যপ্রযুক্তি' : 'ICT',
-                  topicsText: isBn
-                    ? 'অধ্যায় ৩: স্প্রেডশিট সফটওয়্যারের ব্যবহার — এক্সেলে হিসাব'
-                    : 'Chapter 3: Spreadsheet Software – Formulas in Excel',
-                  durationMin: 60,
-                  confidence: 5,
-                  verifiedByParent: true,
-                },
-                {
-                  id: 'e-r5',
-                  date: new Date(Date.now() - 4 * 86400000).toISOString().slice(0, 10),
-                  source: 'tuition',
-                  providerName: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching',
-                  subject: isBn ? 'পদার্থবিজ্ঞান' : 'Physics',
-                  topicsText: isBn
-                    ? 'অধ্যায় ৫: কাজ, ক্ষমতা ও শক্তি — গতিশক্তি ও বিভবশক্তি গণনা'
-                    : 'Chapter 5: Work, Power & Energy – Kinetic & Potential Energy',
-                  durationMin: 70,
-                  confidence: 4,
-                  verifiedByParent: true,
-                },
-              ]
-        );
+        setEntries(getFallbackEntries(childId, isBn));
       }
     } catch {
-      const isTasnim = childId === 'demo-child-2';
-      setEntries(
-        isTasnim
-          ? [
-              {
-                id: 'e-t1',
-                date: new Date().toISOString().slice(0, 10),
-                source: 'tuition',
-                providerName: isBn ? 'ম্যাথ টিউটর' : 'Math Tutor',
-                subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math',
-                topicsText: isBn
-                  ? 'অধ্যায় ৫: গুণনীয়ক ও গুণিতক — লসাগু ও গসাগু নির্ণয়'
-                  : 'Chapter 5: Factors & Multiples – LCM & HCF problem solving',
-                durationMin: 60,
-                confidence: 5,
-                verifiedByParent: true,
-              },
-              {
-                id: 'e-t2',
-                date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
-                source: 'school',
-                providerName: 'School',
-                subject: isBn ? 'প্রাথমিক বিজ্ঞান' : 'Primary Science',
-                topicsText: isBn
-                  ? 'অধ্যায় ৩: জীবনের জন্য পানি — নিরাপদ পানি ও পানি বিশুদ্ধকরণ'
-                  : 'Chapter 3: Water for Life – Safe Water & Purification',
-                durationMin: 50,
-                confidence: 4,
-                verifiedByParent: true,
-              },
-              {
-                id: 'e-t3',
-                date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
-                source: 'tuition',
-                providerName: isBn ? 'ইংরেজি টিউটর' : 'English Tutor',
-                subject: isBn ? 'ইংরেজি' : 'English',
-                topicsText: isBn
-                  ? 'Unit 6: Eat Healthy — Food pyramid vocabulary & reading'
-                  : 'Unit 6: Eat Healthy – Food pyramid vocabulary & reading',
-                durationMin: 45,
-                confidence: 5,
-                verifiedByParent: false,
-              },
-            ]
-          : [
-              {
-                id: 'e-r1',
-                date: new Date().toISOString().slice(0, 10),
-                source: 'tuition',
-                providerName: isBn ? 'রহিম স্যার' : 'Rahim Sir',
-                subject: isBn ? 'গণিত' : 'Mathematics',
-                topicsText: isBn
-                  ? 'অধ্যায় ৪: বীজগণিতীয় সূত্রাবলী ও প্রয়োগ — বর্গের সূত্র (a+b)^2'
-                  : 'Chapter 4: Algebraic Formulae & Applications – (a+b)^2 solutions',
-                durationMin: 75,
-                confidence: 5,
-                verifiedByParent: true,
-              },
-              {
-                id: 'e-r2',
-                date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
-                source: 'school',
-                providerName: 'School',
-                subject: isBn ? 'সাধারণ বিজ্ঞান' : 'General Science',
-                topicsText: isBn
-                  ? 'অধ্যায় ২: গতি ও ত্বরণ — গতির ৩টি মৌলিক সমীকরণ'
-                  : 'Chapter 2: Motion & Acceleration – 3 Equations of Motion',
-                durationMin: 60,
-                confidence: 4,
-                verifiedByParent: true,
-              },
-            ]
-      );
+      setEntries(getFallbackEntries(childId, isBn));
     } finally {
       setLoading(false);
     }
@@ -333,6 +544,12 @@ export default function LearningLogPage() {
         return (
           <Badge variant="secondary" className="text-[11px] bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20">
             {isBn ? 'প্রাইভেট টিউশন' : 'Private Tuition'}
+          </Badge>
+        );
+      case 'college':
+        return (
+          <Badge variant="secondary" className="text-[11px] bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20">
+            {isBn ? 'কলেজ' : 'College'}
           </Badge>
         );
       case 'school':
@@ -416,7 +633,7 @@ export default function LearningLogPage() {
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
                 {isBn
-                  ? 'প্রতিদিনের পড়ার বিবরণ শিক্ষার্থীরা তাদের নির্দিষ্ট স্টুডেন্ট পোর্টাল (/child/log) থেকে ১ মিনিটে লিপিবদ্ধ করে। অভিভাবক হিসেবে আপনি এখান থেকে প্রতিটি টপিক নির্ভুল কিনা যাচাই করতে পারেন এবং টপিক অনুসারে এআই রিভিশন কুইজ তৈরি করতে পারেন।'
+                  ? 'প্রতিদিনের পড়ার বিবরণ শিক্ষার্থীরা তাদের নির্দিষ্ট স্টুডেন্ট পোর্টাল (/kid/log) থেকে ১ মিনিটে লিপিবদ্ধ করে। অভিভাবক হিসেবে আপনি এখান থেকে প্রতিটি টপিক নির্ভুল কিনা যাচাই করতে পারেন এবং টপিক অনুসারে এআই রিভিশন কুইজ তৈরি করতে পারেন।'
                   : 'Daily learning logs are recorded exclusively by students via their dedicated portal in under 1 minute. Parents review accuracy, approve lessons, and convert topics into AI revision quizzes.'}
               </p>
             </div>

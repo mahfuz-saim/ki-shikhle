@@ -57,4 +57,24 @@ describe('Billing', () => {
     // Free includes 1 child:
     expect(calculateSubscriptionAmount('free', 1, 'monthly')).toBe(0);
   });
+
+  it('validates checkout schema and performs demo checkout for all plans', async () => {
+    const { checkoutSchema } = await import('./billing.schema');
+    const { demoCheckout } = await import('./billing.service');
+
+    for (const planCode of ['free', 'basic', 'premium', 'pro']) {
+      const parsed = checkoutSchema.parse({
+        body: {
+          planCode,
+          childCount: planCode === 'pro' ? 5 : planCode === 'premium' ? 2 : 1,
+          billingPeriod: 'monthly',
+        },
+      });
+      expect(parsed.body.planCode).toBe(planCode);
+
+      const res = await demoCheckout('test-user-' + planCode, parsed.body);
+      expect(res.subscription.status).toBe('active');
+      expect(res.payment.status).toBe('succeeded');
+    }
+  });
 });
