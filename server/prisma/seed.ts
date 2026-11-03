@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import { hashPassword } from '../src/services/password';
 
 const prisma = new PrismaClient();
 
@@ -49,8 +49,7 @@ async function main() {
 
   // Demo Parent & Pro Family Subscription
   console.log('Seeding demo accounts...');
-  const salt = await bcrypt.genSalt(10);
-  const passwordHash = await bcrypt.hash('Password123!', salt);
+  const passwordHash = await hashPassword('Password123!');
 
   const demoUser = await prisma.user.upsert({
     where: { email: 'parent@demo.com' },

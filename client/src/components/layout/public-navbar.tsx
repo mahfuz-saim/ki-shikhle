@@ -116,7 +116,7 @@ export function PublicNavbar({ hideBadge }: { hideBadge?: boolean } = {}) {
             variant="ghost"
             size="sm"
             onClick={toggleLocale}
-            className="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-muted"
+            className="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1 text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
             title="Toggle Language"
           >
             <Globe className="h-3.5 w-3.5 text-muted-foreground" />
@@ -128,7 +128,7 @@ export function PublicNavbar({ hideBadge }: { hideBadge?: boolean } = {}) {
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="h-8 w-8 rounded-lg"
+            className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             aria-label="Toggle theme"
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

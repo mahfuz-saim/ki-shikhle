@@ -103,21 +103,37 @@ export function KidShell({ children }: { children: React.ReactNode }) {
     );
   };
 
-  // Close dropdowns on click outside
+  // Close dropdowns on click outside or escape key
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node;
+      if (notifRef.current && !notifRef.current.contains(target)) {
         setNotifOpen(false);
       }
-      if (childDropdownRef.current && !childDropdownRef.current.contains(event.target as Node)) {
+      if (childDropdownRef.current && !childDropdownRef.current.contains(target)) {
         setChildDropdownOpen(false);
       }
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
         setUserMenuOpen(false);
       }
     }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setNotifOpen(false);
+        setChildDropdownOpen(false);
+        setUserMenuOpen(false);
+      }
+    }
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   useEffect(() => {
@@ -526,7 +542,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
               variant="ghost"
               size="sm"
               onClick={toggleLocale}
-              className="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-muted"
+              className="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1 text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
               title="Toggle Language"
             >
               <Globe className="h-3.5 w-3.5 text-muted-foreground" />
@@ -538,7 +554,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               aria-label="Toggle theme"
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

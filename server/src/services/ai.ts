@@ -58,17 +58,37 @@ export async function callAI(prompt: { system: string; user: string; model: AIMo
     const text = res.content.filter(c => c.type === 'text').map(c => (c as any).text).join('');
     return { content: text, inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens, model };
   } catch (e: any) {
-    logger.error(e, 'AI call failed, falling back to mock');
-    return { content: mockResponses['quiz'], inputTokens: 0, outputTokens: 0, model, cached: false };
+    logger.warn({ error: e.message, status: e.status, model }, 'AI primary model failed, attempting fallback model');
+    // Fallback model attempt before dropping to static mock
+    const fallbackModel = model === env.AI_MODEL_FAST ? env.AI_MODEL_SMART : env.AI_MODEL_FAST;
+    try {
+      const { default: Anthropic } = await import('@anthropic-ai/sdk');
+      const client = new Anthropic({ apiKey });
+      const res = await client.messages.create({
+        model: fallbackModel,
+        max_tokens: prompt.maxTokens || 2048,
+        system: prompt.system,
+        messages: [{ role: 'user', content: prompt.user }],
+      });
+      const text = res.content.filter(c => c.type === 'text').map(c => (c as any).text).join('');
+      return { content: text, inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens, model: fallbackModel };
+    } catch (err2: any) {
+      logger.error({ error: err2.message, status: err2.status, model: fallbackModel }, 'AI call failed, falling back to mock');
+      return { content: mockResponses['quiz'], inputTokens: 0, outputTokens: 0, model, cached: false };
+    }
   }
 }
 
 export function estimateCost(inputTokens: number, outputTokens: number, model: string): number {
   // Simplified pricing estimate
   const rates: Record<string, { in: number; out: number }> = {
+    'claude-haiku-4-5-20251001': { in: 0.8 / 1e6, out: 4 / 1e6 },
     'claude-3-5-haiku-latest': { in: 0.8 / 1e6, out: 4 / 1e6 },
     'claude-haiku-4-5': { in: 1 / 1e6, out: 5 / 1e6 },
+    'claude-sonnet-4-6': { in: 3 / 1e6, out: 15 / 1e6 },
     'claude-sonnet-4-20250514': { in: 3 / 1e6, out: 15 / 1e6 },
+    'claude-haiku-5-5': { in: 0.8 / 1e6, out: 4 / 1e6 },
+    'claude-sonnet-5-5': { in: 3 / 1e6, out: 15 / 1e6 },
   };
   const r = rates[model] || { in: 1 / 1e6, out: 5 / 1e6 };
   return inputTokens * r.in + outputTokens * r.out;

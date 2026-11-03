@@ -763,16 +763,17 @@ Output strictly valid JSON, no markdown codeblocks or preamble.`;
     const jsonMatch = aiResult.content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
+      const fallback = extractStructuredVoiceFallback(trimmed);
       structured = {
-        subject: parsed.subject || 'General Science',
-        subjectBn: parsed.subjectBn || parsed.subject || 'সাধারণ বিজ্ঞান',
-        topicsText: parsed.topicsText || trimmed,
-        source: ['school', 'tuition', 'self_study', 'college'].includes(parsed.source) ? parsed.source : 'tuition',
-        durationMin: Number(parsed.durationMin) || 60,
-        confidence: Math.min(5, Math.max(1, Number(parsed.confidence) || 4)),
-        keyConcepts: Array.isArray(parsed.keyConcepts) ? parsed.keyConcepts : [],
-        homeworkAssigned: parsed.homeworkAssigned || null,
-        summaryMessage: parsed.summaryMessage || 'দারুণ! আজকের পড়ার রেকর্ড তৈরি হয়েছে।',
+        subject: parsed.subject || fallback.subject,
+        subjectBn: parsed.subjectBn || fallback.subjectBn,
+        topicsText: parsed.topicsText || fallback.topicsText,
+        source: ['school', 'tuition', 'self_study', 'college'].includes(parsed.source) ? parsed.source : fallback.source,
+        durationMin: Number(parsed.durationMin) || fallback.durationMin,
+        confidence: Math.min(5, Math.max(1, Number(parsed.confidence) || fallback.confidence)),
+        keyConcepts: Array.isArray(parsed.keyConcepts) && parsed.keyConcepts.length > 0 ? parsed.keyConcepts : fallback.keyConcepts,
+        homeworkAssigned: parsed.homeworkAssigned !== undefined ? parsed.homeworkAssigned : fallback.homeworkAssigned,
+        summaryMessage: parsed.summaryMessage || fallback.summaryMessage,
         rawTranscript: trimmed,
         aiModelUsed: modelUsed,
       };

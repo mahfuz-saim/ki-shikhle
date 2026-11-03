@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
@@ -25,6 +25,39 @@ export function Header() {
 
   const [childDropdownOpen, setChildDropdownOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const childDropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on click outside or escape key
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node;
+      if (childDropdownRef.current && !childDropdownRef.current.contains(target)) {
+        setChildDropdownOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
+        setUserMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setChildDropdownOpen(false);
+        setUserMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Active plan resolution
   const activePlanCode =
@@ -62,7 +95,7 @@ export function Header() {
 
           {/* Active Child Selector Dropdown */}
           {childrenList.length > 0 && (
-            <div className="relative">
+            <div ref={childDropdownRef} className="relative">
               <button
                 onClick={() => setChildDropdownOpen(!childDropdownOpen)}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-background/80 hover:bg-muted text-xs font-semibold transition-all shadow-xs"
@@ -172,7 +205,7 @@ export function Header() {
             variant="ghost"
             size="sm"
             onClick={toggleLocale}
-            className="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-muted"
+            className="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1 text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
             title="Toggle Language"
           >
             <Globe className="h-3.5 w-3.5 text-muted-foreground" />
@@ -184,7 +217,7 @@ export function Header() {
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="h-8 w-8 rounded-lg"
+            className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             aria-label="Toggle theme"
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
@@ -192,7 +225,7 @@ export function Header() {
           </Button>
 
           {/* User profile avatar dropdown */}
-          <div className="relative">
+          <div ref={userMenuRef} className="relative">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
               className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-xs hover:ring-2 hover:ring-primary/20 transition-all"

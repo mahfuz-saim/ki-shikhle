@@ -398,6 +398,38 @@ const quizOutputSchema = z.object({
   })).min(1),
 });
 
+function normalizeQuizJson(raw: any): any {
+  if (!raw || typeof raw !== 'object') return raw;
+  let questions = Array.isArray(raw.questions) ? raw.questions : [];
+  if (!Array.isArray(raw.questions) && Array.isArray(raw.quiz?.questions)) {
+    questions = raw.quiz.questions;
+  }
+  const normalized = questions.map((q: any) => {
+    const prompt = q.prompt || q.question || 'Question';
+    const options = Array.isArray(q.options) ? q.options.map((o: any) => String(o)) : [];
+    let correct = q.correct_answer !== undefined ? q.correct_answer : (q.correctAnswer !== undefined ? q.correctAnswer : q.answer);
+    if (typeof correct === 'number' && options[correct] !== undefined) {
+      correct = options[correct];
+    } else {
+      correct = String(correct !== undefined ? correct : (options[0] || 'Correct Answer'));
+    }
+    const type = ['mcq', 'true_false', 'fill_blank'].includes(q.type)
+      ? q.type
+      : (options.length === 2 && (options.includes('True') || options.includes('সত্য')) ? 'true_false' : (options.length > 0 ? 'mcq' : 'fill_blank'));
+    const explanation = q.explanation || 'Explanation provided by NCTB curriculum.';
+    const topic = q.topic || 'General';
+    return {
+      type,
+      prompt: String(prompt),
+      options,
+      correct_answer: String(correct),
+      explanation: String(explanation),
+      topic: String(topic),
+    };
+  });
+  return { questions: normalized };
+}
+
 function hashRequest(digests: string, settings: any) {
   return sha256Hex(digests + JSON.stringify(settings));
 }
@@ -442,14 +474,16 @@ export async function generateQuiz(childId: string, parentId: string, input: any
   try {
     // extract JSON even if wrapped
     const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-    parsed = quizOutputSchema.parse(JSON.parse(jsonMatch ? jsonMatch[0] : result.content));
+    const rawParsed = JSON.parse(jsonMatch ? jsonMatch[0] : result.content);
+    parsed = quizOutputSchema.parse(normalizeQuizJson(rawParsed));
   } catch (e) {
     // retry once with repair prompt
     console.warn('Quiz parse failed, retrying with repair');
     result = await callAI({ system: system + ' Repair: output valid JSON only.', user: `Previous output was invalid JSON: ${result.content}\n\nFix and return valid JSON.`, model:'fast', maxTokens: 3000, responseFormat:'json' });
     try {
       const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-      parsed = quizOutputSchema.parse(JSON.parse(jsonMatch ? jsonMatch[0] : result.content));
+      const rawParsed = JSON.parse(jsonMatch ? jsonMatch[0] : result.content);
+      parsed = quizOutputSchema.parse(normalizeQuizJson(rawParsed));
     } catch (e2) {
       throw badRequest('AI returned malformed quiz — try again. Bad question reported.');
     }

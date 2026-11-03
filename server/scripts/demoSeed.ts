@@ -9,7 +9,7 @@ async function main() {
   // 1. Parent Account
   const parent = await prisma.user.upsert({
     where: { email: 'parent@demo.com' },
-    update: { name: 'Rafiqul Islam', passwordHash: pw },
+    update: { name: 'Rafiqul Islam', passwordHash: pw, trialEndsAt: null },
     create: {
       name: 'Rafiqul Islam',
       email: 'parent@demo.com',
@@ -18,23 +18,30 @@ async function main() {
       language: 'en',
       country: 'BD',
       timezone: 'Asia/Dhaka',
-      trialEndsAt: new Date(Date.now() + 15 * 86400000),
+      trialEndsAt: null,
     },
   });
 
-  // 2. Subscription
-  const plan = await prisma.plan.findUnique({ where: { code: 'trial' } });
+  // 2. Subscription (Pro Family Plan - Most Upgraded)
+  const plan =
+    (await prisma.plan.findUnique({ where: { code: 'pro' } })) ||
+    (await prisma.plan.findFirst({ orderBy: { priceBdt: 'desc' } }));
   if (plan) {
     await prisma.subscription.upsert({
       where: { id: parent.id + '-sub' },
-      update: {},
+      update: {
+        planId: plan.id,
+        status: 'active',
+        childSlots: 5,
+        currentPeriodEnd: new Date(Date.now() + 365 * 86400000),
+      },
       create: {
         id: parent.id + '-sub',
         userId: parent.id,
         planId: plan.id,
-        status: 'trialing',
+        status: 'active',
         childSlots: 5,
-        currentPeriodEnd: new Date(Date.now() + 15 * 86400000),
+        currentPeriodEnd: new Date(Date.now() + 365 * 86400000),
       },
     });
   }

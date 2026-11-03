@@ -48,8 +48,8 @@ const envSchema = z.object({
 
   // Optional integrations — the app runs without any of them (see README)
   ANTHROPIC_API_KEY: z.string().optional(), // absent → deterministic mock AI
-  AI_MODEL_FAST: z.string().default('claude-3-5-haiku-latest'),
-  AI_MODEL_SMART: z.string().default('claude-sonnet-4-20250514'),
+  AI_MODEL_FAST: z.string().default('claude-haiku-4-5-20251001'),
+  AI_MODEL_SMART: z.string().default('claude-sonnet-4-6'),
   AI_MONTHLY_BUDGET_USD: z.coerce.number().optional(),
   SMTP_URL: z.string().optional(), // absent → emails logged to console
 
