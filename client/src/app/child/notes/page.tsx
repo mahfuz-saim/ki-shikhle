@@ -671,7 +671,7 @@ ${cleanLines.map((l) => `- ${l}`).join('\n')}
               </Button>
 
               <div className="flex items-center gap-2">
-                <Link href={`/kid/log?subject=${encodeURIComponent(selectedNote.subject || '')}`}>
+                <Link href={`/child/log?subject=${encodeURIComponent(selectedNote.subject || '')}`}>
                   <Button
                     size="sm"
                     className="h-8 rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"

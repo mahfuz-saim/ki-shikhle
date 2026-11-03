@@ -12,6 +12,6 @@ test('parent creates child and quiz', async ({ page }) => {
   await expect(page.getByText('AI Quiz Builder')).toBeVisible();
 });
 test('child takes quiz and sees results', async ({ page }) => {
-  await page.goto('/kid/quiz/demo-quiz');
+  await page.goto('/child/quiz/demo-quiz');
   await expect(page.getByText('Take Quiz')).toBeVisible();
 });

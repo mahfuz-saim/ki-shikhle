@@ -8,6 +8,20 @@ const nextConfig = {
   async headers() {
     return [{ source: '/(.*)', headers: [{ key: 'X-Frame-Options', value: 'ALLOWALL' }] }];
   },
+  async redirects() {
+    return [
+      {
+        source: '/kid/:path*',
+        destination: '/child/:path*',
+        permanent: true,
+      },
+      {
+        source: '/kid',
+        destination: '/child',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -35,7 +35,7 @@ export default function LoginPage() {
       if (data?.accessToken && data?.user) {
         login(data.accessToken, data.user, data.refreshToken);
         if (data.user.role === 'child') {
-          router.push('/kid');
+          router.push('/child');
         } else {
           router.push('/dashboard');
         }
@@ -62,7 +62,7 @@ export default function LoginPage() {
           grade: 'Class 5',
           curriculum: 'NCTB',
         });
-        router.push('/kid');
+        router.push('/child');
       } else if (normEmail.includes('rahim') || normEmail.includes('student')) {
         login('demo-child-token-rahim', {
           id: 'demo-child-1',
@@ -73,7 +73,7 @@ export default function LoginPage() {
           grade: 'Class 8',
           curriculum: 'NCTB',
         });
-        router.push('/kid');
+        router.push('/child');
       } else {
         login('demo-parent-token', {
           id: 'parent-demo',

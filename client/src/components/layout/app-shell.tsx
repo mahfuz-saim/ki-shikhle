@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (!token && !user) {
         router.replace('/login');
       } else if (user?.role === 'child') {
-        router.replace('/kid');
+        router.replace('/child');
       }
     }
   }, [loading, token, user, router]);

@@ -433,7 +433,7 @@ export default function KidDashboard() {
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-            <Link href="/kid/log?mode=voice">
+            <Link href="/child/log?mode=voice">
               <Button size="lg" className="bg-white text-indigo-600 hover:bg-white/90 font-bold rounded-2xl shadow-md h-11 text-xs sm:text-sm gap-1.5">
                 <Mic className="w-4 h-4 text-rose-500 animate-pulse" />
                 <span>{isBn ? 'ভয়েসে বলুন ও লগ করুন' : 'Voice Log (Claude AI)'}</span>
@@ -448,7 +448,7 @@ export default function KidDashboard() {
               <Plus className="w-4 h-4" />
               <span>{isBn ? 'রুটিন যোগ' : 'Add Routine'}</span>
             </Button>
-            <Link href="/kid/notes">
+            <Link href="/child/notes">
               <Button size="lg" variant="outline" className="border-white/40 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-2xl h-11 text-xs sm:text-sm">
                 <Camera className="w-4 h-4 mr-1.5" />
                 <span>{isBn ? 'নোট স্ক্যান' : 'Scan Notes'}</span>
@@ -489,7 +489,7 @@ export default function KidDashboard() {
                 </p>
               </div>
             </div>
-            <Link href="/kid/log" className="shrink-0 self-end sm:self-auto">
+            <Link href="/child/log" className="shrink-0 self-end sm:self-auto">
               <Button size="sm" className="h-8 sm:h-9 text-xs font-bold gap-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-sm">
                 <BookOpen className="w-3.5 h-3.5" />
                 <span>{isBn ? 'এখনই লগ দিন' : 'Log Lesson Now'}</span>
@@ -518,7 +518,7 @@ export default function KidDashboard() {
                   </p>
                 </div>
               </div>
-              <Link href={`/kid/quiz/${assignedQuiz.id}`} className="shrink-0 self-end sm:self-auto">
+              <Link href={`/child/quiz/${assignedQuiz.id}`} className="shrink-0 self-end sm:self-auto">
                 <Button size="sm" className="h-8 sm:h-9 text-xs font-bold gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm">
                   <Play className="w-3.5 h-3.5" />
                   <span>{isBn ? 'কুইজ শুরু করো' : 'Start Quiz'}</span>
@@ -653,7 +653,7 @@ export default function KidDashboard() {
                     <Plus className="w-3.5 h-3.5" />
                     <span>{isBn ? 'রুটিন যোগ' : 'Add Routine'}</span>
                   </Button>
-                  <Link href="/kid/schedule">
+                  <Link href="/child/schedule">
                     <Button
                       size="sm"
                       variant="outline"
@@ -753,7 +753,7 @@ export default function KidDashboard() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Link href="/kid/schedule">
+                        <Link href="/child/schedule">
                           <Button size="sm" className="text-xs h-8 gap-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-xs">
                             <BookOpen className="w-3.5 h-3.5" />
                             <span>{isBn ? 'ক্লাস বিবরণী লগ করুন' : 'Log Class'}</span>
@@ -815,7 +815,7 @@ export default function KidDashboard() {
                     </p>
                   </div>
 
-                  <Link href={`/kid/quiz/${q.id}`} className="shrink-0">
+                  <Link href={`/child/quiz/${q.id}`} className="shrink-0">
                     <Button
                       size="sm"
                       className="h-8 sm:h-9 text-xs font-bold gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md"
@@ -897,7 +897,7 @@ export default function KidDashboard() {
                 <BookOpen className="w-4 h-4 text-primary" />
                 <span>{isBn ? 'সর্বশেষ পড়ার বিবরণী' : 'Recent Study Logs'}</span>
               </CardTitle>
-              <Link href="/kid/log" className="text-xs text-primary hover:underline font-medium">
+              <Link href="/child/log" className="text-xs text-primary hover:underline font-medium">
                 {isBn ? 'নতুন লগ দিন' : 'Add Log'} →
               </Link>
             </div>

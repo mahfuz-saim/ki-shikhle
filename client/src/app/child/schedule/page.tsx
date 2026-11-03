@@ -1068,7 +1068,7 @@ export default function KidSchedulePage() {
                               </Button>
 
                               <Link
-                                href={isTasnim ? '/kid/quiz/q-t1' : '/kid/quiz/q-r1'}
+                                href={isTasnim ? '/child/quiz/q-t1' : '/child/quiz/q-r1'}
                                 className="w-full md:w-auto"
                               >
                                 <Button

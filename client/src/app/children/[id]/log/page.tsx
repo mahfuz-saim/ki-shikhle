@@ -416,7 +416,7 @@ export default function LearningLogPage() {
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
                 {isBn
-                  ? 'প্রতিদিনের পড়ার বিবরণ শিক্ষার্থীরা তাদের নির্দিষ্ট স্টুডেন্ট পোর্টাল (/kid/log) থেকে ১ মিনিটে লিপিবদ্ধ করে। অভিভাবক হিসেবে আপনি এখান থেকে প্রতিটি টপিক নির্ভুল কিনা যাচাই করতে পারেন এবং টপিক অনুসারে এআই রিভিশন কুইজ তৈরি করতে পারেন।'
+                  ? 'প্রতিদিনের পড়ার বিবরণ শিক্ষার্থীরা তাদের নির্দিষ্ট স্টুডেন্ট পোর্টাল (/child/log) থেকে ১ মিনিটে লিপিবদ্ধ করে। অভিভাবক হিসেবে আপনি এখান থেকে প্রতিটি টপিক নির্ভুল কিনা যাচাই করতে পারেন এবং টপিক অনুসারে এআই রিভিশন কুইজ তৈরি করতে পারেন।'
                   : 'Daily learning logs are recorded exclusively by students via their dedicated portal in under 1 minute. Parents review accuracy, approve lessons, and convert topics into AI revision quizzes.'}
               </p>
             </div>

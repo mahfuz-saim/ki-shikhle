@@ -126,7 +126,7 @@ export default function QuizDetailPage() {
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
               <span>{assigned || quiz.status === 'assigned' ? 'Assigned to Child' : 'Assign to Child'}</span>
             </Button>
-            <Link href={`/kid/quiz/${id}`}>
+            <Link href={`/child/quiz/${id}`}>
               <Button size="sm" className="text-xs h-9 gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white">
                 <Play className="w-4 h-4" />
                 <span>Take in Child Mode</span>

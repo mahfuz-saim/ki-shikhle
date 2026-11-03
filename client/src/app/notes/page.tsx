@@ -313,8 +313,8 @@ export default function NotesPage() {
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
                 {isBn
-                  ? 'শিক্ষার্থীরা তাদের স্টুডেন্ট পোর্টাল (/kid/notes) থেকে সরাসরি খাতার পাতার ছবি তুলে ওসিআর সংরক্ষণ করে। অভিভাবক হিসেবে আপনি এখানে সেই নোটের সঠিকতা নিরীক্ষণ করতে পারেন এবং রিভিশন কুইজ তৈরি করতে পারেন।'
-                  : 'Students photograph and scan their class notebooks directly via their dedicated student portal (/kid/notes). Parents audit the extracted text here and convert topics into AI revision quizzes.'}
+                  ? 'শিক্ষার্থীরা তাদের স্টুডেন্ট পোর্টাল (/child/notes) থেকে সরাসরি খাতার পাতার ছবি তুলে ওসিআর সংরক্ষণ করে। অভিভাবক হিসেবে আপনি এখানে সেই নোটের সঠিকতা নিরীক্ষণ করতে পারেন এবং রিভিশন কুইজ তৈরি করতে পারেন।'
+                  : 'Students photograph and scan their class notebooks directly via their dedicated student portal (/child/notes). Parents audit the extracted text here and convert topics into AI revision quizzes.'}
               </p>
             </div>
           </div>

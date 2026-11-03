@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,7 @@ interface StructuredVoiceLog {
   aiModelUsed: string;
 }
 
-export default function KidLogPage() {
+function KidLogContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { activeChild } = useAuth();
@@ -310,7 +310,7 @@ export default function KidLogPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push('/kid')}
+            onClick={() => router.push('/child')}
             className="text-xs h-8 gap-1.5"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -377,7 +377,7 @@ export default function KidLogPage() {
                 {isBn ? 'আরেকটি ভয়েস লগ দিন' : 'Log Another Lesson'}
               </Button>
               <Button
-                onClick={() => router.push('/kid')}
+                onClick={() => router.push('/child')}
                 className="rounded-xl text-xs h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/20"
               >
                 {isBn ? 'ড্যাশবোর্ডে দেখুন' : 'Go to Dashboard'}
@@ -914,5 +914,13 @@ export default function KidLogPage() {
         )}
       </div>
     </KidShell>
+  );
+}
+
+export default function KidLogPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background p-6 flex items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
+      <KidLogContent />
+    </Suspense>
   );
 }

@@ -57,7 +57,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
       message: isBn
         ? (isTasnim ? 'অভিভাবক কর্তৃক নতুন কুইজ: "প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি"' : 'অভিভাবক কর্তৃক নতুন কুইজ: "পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ"')
         : (isTasnim ? 'Parent assigned a new quiz: "Primary Science: Safe Water"' : 'Parent assigned a new quiz: "Physics: Equations of Motion"'),
-      link: isTasnim ? '/kid/quiz/q-t2' : '/kid/quiz/q-r2',
+      link: isTasnim ? '/child/quiz/q-t2' : '/child/quiz/q-r2',
       actionText: isBn ? 'কুইজ দাও' : 'Take Quiz',
       icon: 'quiz',
       read: false,
@@ -70,7 +70,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
       message: isBn
         ? (isTasnim ? 'বিকাল ৪:০০ টায় প্রাথমিক গণিত প্রাইভেট শেষ হয়েছে। কী কী শিখেছ তা ১ মিনিটে লিখে ফেলো!' : 'বিকাল ৪:০০ টায় গণিত প্রাইভেট (রহিম স্যার) শেষ হয়েছে। পড়ার লগ দিয়ে স্ট্রিক রক্ষা করো!')
         : (isTasnim ? 'Elementary Math Tuition finished at 4:00 PM. Log your topics to keep your streak!' : 'Math Tuition finished at 4:00 PM. Add your study log to protect your streak!'),
-      link: '/kid/log',
+      link: '/child/log',
       actionText: isBn ? 'লগ লিখুন' : 'Log Now',
       icon: 'log',
       read: false,
@@ -83,7 +83,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
       message: isBn
         ? (isTasnim ? 'টানা ৬ দিন পড়ার লগ সম্পন্ন হয়েছে! দারুণ হচ্ছে!' : 'টানা ৫ দিন পড়ার লগ সম্পন্ন হয়েছে! চালিয়ে যাও!')
         : (isTasnim ? '6 days study streak achieved! Amazing dedication!' : '5 days study streak achieved! Keep going!'),
-      link: '/kid',
+      link: '/child',
       actionText: isBn ? 'দেখা হয়েছে' : 'Got it',
       icon: 'streak',
       read: true,
@@ -142,11 +142,11 @@ export function KidShell({ children }: { children: React.ReactNode }) {
   const gradeLabel = activeChild?.grade || (user as any)?.grade || (isTasnim ? 'Class 5' : 'Class 8');
 
   const kidNavItems = [
-    { href: '/kid', label: isBn ? 'ড্যাশবোর্ড' : 'Dashboard', icon: LayoutDashboard },
-    { href: '/kid/schedule', label: isBn ? 'ক্লাস রুটিন' : 'Class Routines', icon: Calendar },
-    { href: '/kid/log', label: isBn ? 'পড়ার বিবরণ দিন' : 'Quick Study Log', icon: BookOpen },
-    { href: '/kid/notes', label: isBn ? 'ক্লাস নোটসমূহ' : 'Class Notes', icon: FileText },
-    { href: '/kid#quizzes', label: isBn ? 'কুইজ দিন' : 'Take Quizzes', icon: Brain },
+    { href: '/child', label: isBn ? 'ড্যাশবোর্ড' : 'Dashboard', icon: LayoutDashboard },
+    { href: '/child/schedule', label: isBn ? 'ক্লাস রুটিন' : 'Class Routines', icon: Calendar },
+    { href: '/child/log', label: isBn ? 'পড়ার বিবরণ দিন' : 'Quick Study Log', icon: BookOpen },
+    { href: '/child/notes', label: isBn ? 'ক্লাস নোটসমূহ' : 'Class Notes', icon: FileText },
+    { href: '/child#quizzes', label: isBn ? 'কুইজ দিন' : 'Take Quizzes', icon: Brain },
   ];
 
   return (
@@ -157,7 +157,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex flex-col w-64 border-r bg-card/60 backdrop-blur-md sticky top-0 h-screen select-none z-30">
         {/* Brand Header */}
         <div className="p-4 border-b flex items-center justify-between">
-          <Link href="/kid" className="flex items-center group py-0.5">
+          <Link href="/child" className="flex items-center group py-0.5">
             <Image
               src="/logo-light.png"
               alt="কি শিখলে?"
@@ -181,7 +181,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
           {kidNavItems.map((item) => {
             const isExact = pathname === item.href;
-            const isSubPath = item.href !== '/kid' && !item.href.includes('#') && pathname.startsWith(item.href);
+            const isSubPath = item.href !== '/child' && !item.href.includes('#') && pathname.startsWith(item.href);
             const isActive = isExact || isSubPath;
             const Icon = item.icon;
 
@@ -277,7 +277,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
           {/* Left Section: Mobile Brand & Student Switcher / Badge */}
           <div className="flex items-center gap-3">
             {/* Mobile Brand Logo (hidden on desktop where left sidebar is shown) */}
-            <Link href="/kid" className="md:hidden flex items-center">
+            <Link href="/child" className="md:hidden flex items-center">
               <Image
                 src="/logo-light.png"
                 alt="কি শিখলে?"
@@ -541,7 +541,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                   </div>
 
                   <Link
-                    href="/kid"
+                    href="/child"
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
                   >
@@ -550,7 +550,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                   </Link>
 
                   <Link
-                    href="/kid/schedule"
+                    href="/child/schedule"
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
                   >
@@ -559,7 +559,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                   </Link>
 
                   <Link
-                    href="/kid/log"
+                    href="/child/log"
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
                   >
@@ -568,7 +568,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                   </Link>
 
                   <Link
-                    href="/kid/notes"
+                    href="/child/notes"
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
                   >
@@ -577,7 +577,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                   </Link>
 
                   <Link
-                    href="/kid#quizzes"
+                    href="/child#quizzes"
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
                   >
@@ -622,7 +622,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t bg-card/95 backdrop-blur-lg flex justify-around items-center py-2 px-2 shadow-lg">
           {kidNavItems.map((item) => {
             const isExact = pathname === item.href;
-            const isSubPath = item.href !== '/kid' && !item.href.includes('#') && pathname.startsWith(item.href);
+            const isSubPath = item.href !== '/child' && !item.href.includes('#') && pathname.startsWith(item.href);
             const isActive = isExact || isSubPath;
             const Icon = item.icon;
 
@@ -645,4 +645,5 @@ export function KidShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+export const ChildShell = KidShell;
 export default KidShell;
