@@ -32,7 +32,6 @@ import {
   Calculator,
   Flame,
   Info,
-  User as UserIcon,
 } from 'lucide-react';
 
 const DEFAULT_DEMO_CHILDREN: Child[] = [
@@ -77,38 +76,13 @@ interface AutoQuizScheduleConfig {
 }
 
 export default function QuizzesPage() {
-  const { activeChild, childrenList, setActiveChild } = useAuth();
+  const { activeChild, childrenList } = useAuth();
   const { t, isBn } = useI18n();
 
   const availableChildren = childrenList && childrenList.length > 0 ? childrenList : DEFAULT_DEMO_CHILDREN;
-
-  // By default show present selected child
-  const [selectedChildId, setSelectedChildId] = useState<string>(() => {
-    if (activeChild?.id && availableChildren.some((c) => c.id === activeChild.id)) {
-      return activeChild.id;
-    }
-    return availableChildren[0]?.id || 'demo-child-1';
-  });
-
-  // Sync if activeChild changes externally
-  useEffect(() => {
-    if (activeChild?.id && availableChildren.some((c) => c.id === activeChild.id)) {
-      setSelectedChildId(activeChild.id);
-    }
-  }, [activeChild?.id]);
-
-  const childId = selectedChildId;
-  const currentChild = availableChildren.find((c) => c.id === childId) || activeChild || availableChildren[0];
+  const currentChild = activeChild || availableChildren[0];
+  const childId = currentChild?.id || 'demo-child-1';
   const childName = currentChild?.name || (childId === 'demo-child-2' ? 'Tasnim Islam' : childId === 'demo-child-3' ? 'Fahim Islam' : 'Rahim Ahmed');
-
-  const handleSelectChild = (newChildId: string) => {
-    if (newChildId === selectedChildId) return;
-    setSelectedChildId(newChildId);
-    const matched = availableChildren.find((c) => c.id === newChildId);
-    if (matched) {
-      setActiveChild(matched);
-    }
-  };
 
   const toBnNum = (n: number | string) => {
     if (!isBn) return String(n);
@@ -424,61 +398,6 @@ export default function QuizzesPage() {
               <Zap className="w-4 h-4 fill-amber-300 text-amber-300" />
               <span>{runningAutoQuiz ? (isBn ? 'প্রস্তুত হচ্ছে...' : 'Generating...') : (isBn ? '⚡ অটো কুইজ এখনই নাও' : 'Run Auto Quiz Now')}</span>
             </Button>
-          </div>
-        </div>
-
-        {/* Child / Student Selector Bar */}
-        <div className="p-3 sm:p-4 rounded-2xl bg-card border shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <UserIcon className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-bold text-foreground">
-                  {isBn ? 'শিক্ষার্থী নির্বাচন করুন' : 'Select Student'}
-                </p>
-                <Badge variant="secondary" className="text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
-                  {currentChild?.name} ({currentChild?.grade})
-                </Badge>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {isBn
-                  ? 'বর্তমান শিক্ষার্থীর কুইজ প্রদর্শিত হচ্ছে। অন্য শিক্ষার্থীর জন্য কুইজ তৈরি বা অটো-শিডিউল করতে নিচে ক্লিক করুন।'
-                  : 'Currently showing quizzes for active student. Click any child below to switch or generate quizzes for them.'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            {availableChildren.map((c) => {
-              const isSelected = c.id === selectedChildId;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => handleSelectChild(c.id)}
-                  className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all ${
-                    isSelected
-                      ? 'bg-primary text-primary-foreground border-primary shadow-xs ring-2 ring-primary/20'
-                      : 'bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground'
-                  }`}
-                >
-                  <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                      isSelected
-                        ? 'bg-primary-foreground/20 text-primary-foreground'
-                        : 'bg-muted-foreground/20 text-muted-foreground'
-                    }`}
-                  >
-                    {c.name ? c.name.charAt(0).toUpperCase() : 'S'}
-                  </span>
-                  <span>{c.name}</span>
-                  <span className="text-[10px] opacity-75">({c.grade})</span>
-                  {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                </button>
-              );
-            })}
           </div>
         </div>
 

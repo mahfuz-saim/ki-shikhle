@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Modal } from '@/components/ui/modal';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
+import { FormattedMarkdown, stripMarkdown } from '@/components/ui/formatted-markdown';
 import {
   Camera,
   Upload,
@@ -46,6 +48,9 @@ export default function NotesPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [showUploader, setShowUploader] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<any>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [noteInputView, setNoteInputView] = useState<'preview' | 'edit'>('preview');
 
   // Preloaded subject options
   const subjects = [
@@ -441,22 +446,57 @@ export default function NotesPage() {
                   </div>
 
                   <div>
-                    <Label className="text-xs font-semibold">
-                      {isBn ? 'এআই প্রস্তুতকৃত সুবিন্যস্ত স্টাডি নোট' : 'AI Generated Structured Note'}
-                    </Label>
-                    <textarea
-                      value={textClean}
-                      onChange={(e) => {
-                        setTextClean(e.target.value);
-                        setAiSummary(e.target.value);
-                      }}
-                      placeholder={
-                        isBn
-                          ? 'ছবি আপলোড করলে Claude Vision AI স্বয়ংক্রিয়ভাবে মূল সংজ্ঞা, সূত্র ও সারসংক্ষেপ তৈরি করে দেবে...'
-                          : 'AI structured note with core concepts, formulas, and checklist will appear here...'
-                      }
-                      className="w-full h-36 border rounded-xl p-3 text-xs bg-background mt-1 leading-relaxed"
-                    />
+                    <div className="flex items-center justify-between mb-1">
+                      <Label className="text-xs font-semibold">
+                        {isBn ? 'এআই প্রস্তুতকৃত সুবিন্যস্ত স্টাডি নোট' : 'AI Generated Structured Note'}
+                      </Label>
+                      {(textClean || aiSummary) && (
+                        <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => setNoteInputView('preview')}
+                            className={`px-2 py-0.5 rounded-md font-bold transition-all ${
+                              noteInputView === 'preview'
+                                ? 'bg-primary text-primary-foreground shadow-2xs'
+                                : 'text-muted-foreground'
+                            }`}
+                          >
+                            {isBn ? 'সাজানো প্রিভিউ' : 'Formatted'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNoteInputView('edit')}
+                            className={`px-2 py-0.5 rounded-md font-bold transition-all ${
+                              noteInputView === 'edit'
+                                ? 'bg-primary text-primary-foreground shadow-2xs'
+                                : 'text-muted-foreground'
+                            }`}
+                          >
+                            {isBn ? 'এডিট' : 'Edit'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {noteInputView === 'preview' && (textClean || aiSummary) ? (
+                      <div className="w-full h-40 overflow-y-auto border rounded-xl p-3 bg-muted/10 text-xs">
+                        <FormattedMarkdown content={aiSummary || textClean} />
+                      </div>
+                    ) : (
+                      <textarea
+                        value={textClean}
+                        onChange={(e) => {
+                          setTextClean(e.target.value);
+                          setAiSummary(e.target.value);
+                        }}
+                        placeholder={
+                          isBn
+                            ? 'ছবি আপলোড করলে Claude Vision AI স্বয়ংক্রিয়ভাবে মূল সংজ্ঞা, সূত্র ও সারসংক্ষেপ তৈরি করে দেবে...'
+                            : 'AI structured note with core concepts, formulas, and checklist will appear here...'
+                        }
+                        className="w-full h-36 border rounded-xl p-3 text-xs bg-background mt-1 leading-relaxed"
+                      />
+                    )}
                   </div>
 
                   {confidence !== null && (
@@ -527,21 +567,30 @@ export default function NotesPage() {
                         </h4>
                       )}
 
-                      <p className="text-xs text-foreground leading-relaxed line-clamp-4 whitespace-pre-wrap break-words">
-                        {n.aiSummary || n.textClean}
+                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 bg-muted/20 p-2.5 rounded-xl border border-border/40 font-normal">
+                        {stripMarkdown(n.aiSummary || n.textClean).slice(0, 160) + '...'}
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t text-xs">
-                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                        <CheckCircle2 className="w-3 h-3" /> Digest Ready
-                      </span>
+                    <div className="flex items-center justify-between pt-2 border-t text-xs gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedNote(n);
+                          setDetailModalOpen(true);
+                        }}
+                        className="flex-1 h-8 text-xs font-bold gap-1.5 rounded-xl border-primary/30 text-primary hover:bg-primary/5"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>{isBn ? 'সম্পূর্ণ নোট পড়ুন' : 'Read Full Note'}</span>
+                      </Button>
 
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteNote(n.id)}
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive rounded-xl"
                         title="Delete note"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -557,6 +606,86 @@ export default function NotesPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Note Detail Modal with Formatted Markdown */}
+        <Modal
+          isOpen={detailModalOpen}
+          onClose={() => setDetailModalOpen(false)}
+          title={selectedNote?.title || `${selectedNote?.subject || 'Study'} Note`}
+          description={`${selectedNote?.subject || 'General'} • ${selectedNote?.date || ''}`}
+          maxWidth="lg"
+        >
+          {selectedNote && (
+            <div className="space-y-4 pt-1 max-h-[75vh] overflow-y-auto pr-1">
+              <div className="flex items-center justify-between gap-2 pb-2.5 border-b">
+                <Badge variant="secondary" className="text-xs font-bold">
+                  {selectedNote.subject || 'General'}
+                </Badge>
+                <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Claude Vision AI Synthesized</span>
+                </span>
+              </div>
+
+              {selectedNote.fileUrl && (
+                <div className="rounded-2xl border p-3 bg-muted/10 space-y-2">
+                  <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                    <span>{isBn ? 'মূল আপলোডকৃত ছবি' : 'Attached Photo'}</span>
+                  </span>
+                  <div className="max-h-56 overflow-hidden rounded-xl border bg-background">
+                    <img
+                      src={selectedNote.fileUrl}
+                      alt={selectedNote.title || 'Note image'}
+                      className="w-full h-auto object-contain max-h-56 mx-auto"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-2xl border p-4 sm:p-5 bg-card shadow-xs space-y-3">
+                <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-border/60">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                      {isBn ? 'সাজানো স্টাডি নোট (Formatted Study Note)' : 'Formatted Study Note'}
+                    </span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-semibold text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
+                    {isBn ? 'ফরম্যাটেড' : 'Formatted'}
+                  </Badge>
+                </div>
+                <div className="p-1">
+                  <FormattedMarkdown content={selectedNote.aiSummary || selectedNote.textClean} />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDetailModalOpen(false)}
+                  className="rounded-xl text-xs"
+                >
+                  {isBn ? 'বন্ধ করুন' : 'Close'}
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    handleDeleteNote(selectedNote.id);
+                    setDetailModalOpen(false);
+                  }}
+                  className="h-8 rounded-xl text-xs gap-1"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>{isBn ? 'মুছুন' : 'Delete'}</span>
+                </Button>
+              </div>
+            </div>
+          )}
+        </Modal>
       </div>
     </AppShell>
   );

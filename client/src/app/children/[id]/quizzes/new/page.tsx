@@ -24,8 +24,6 @@ import {
   BookOpen,
   CheckCircle2,
   FileCheck,
-  User as UserIcon,
-  Info,
 } from 'lucide-react';
 
 const DEFAULT_DEMO_CHILDREN: Child[] = [
@@ -90,32 +88,12 @@ function getSubjectsForGrade(gradeStr?: string, isBn?: boolean) {
 function QuizBuilderContent() {
   const params = useParams();
   const router = useRouter();
-  const { activeChild, childrenList, setActiveChild } = useAuth();
+  const { activeChild, childrenList } = useAuth();
   const { t, isBn } = useI18n();
 
   const availableChildren = childrenList && childrenList.length > 0 ? childrenList : DEFAULT_DEMO_CHILDREN;
-
-  // By default, select present selected child
-  const [selectedChildId, setSelectedChildId] = useState<string>(() => {
-    if (activeChild?.id && availableChildren.some((c) => c.id === activeChild.id)) {
-      return activeChild.id;
-    }
-    const routeId = (params as any)?.id;
-    if (routeId && availableChildren.some((c) => c.id === routeId)) {
-      return routeId;
-    }
-    return availableChildren[0]?.id || 'demo-child-1';
-  });
-
-  // Sync if activeChild changes externally
-  useEffect(() => {
-    if (activeChild?.id && availableChildren.some((c) => c.id === activeChild.id)) {
-      setSelectedChildId(activeChild.id);
-    }
-  }, [activeChild?.id]);
-
-  const currentChild = availableChildren.find((c) => c.id === selectedChildId) || activeChild || availableChildren[0];
-  const childId = selectedChildId;
+  const currentChild = activeChild || availableChildren.find((c) => c.id === (params as any)?.id) || availableChildren[0];
+  const childId = currentChild?.id || (params as any)?.id || 'demo-child-1';
 
   const searchParams = useSearchParams();
   const queryTopic = searchParams.get('topic') || '';
@@ -169,28 +147,14 @@ function QuizBuilderContent() {
   const subjects = getSubjectsForGrade(currentChild?.grade, isBn);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(initialSelectedSubjects);
 
-  const handleSelectChild = (childIdToSelect: string) => {
-    setSelectedChildId(childIdToSelect);
-    const matched = availableChildren.find((c) => c.id === childIdToSelect);
-    if (matched) {
-      setActiveChild(matched);
-      const gradeSubs = getSubjectsForGrade(matched.grade, isBn);
+  // Sync subjects when active child changes from navbar
+  useEffect(() => {
+    if (currentChild?.grade && !querySubject && !queryTopic) {
+      const gradeSubs = getSubjectsForGrade(currentChild.grade, isBn);
       setSelectedSubjects(gradeSubs.slice(0, 2).map((s) => s.id));
-      setForm((prev) => ({
-        ...prev,
-        title: `${matched.name} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`,
-      }));
+      setPreview(null);
     }
-    setPreview(null);
-    setMsg(
-      isBn
-        ? `${matched?.name || 'শিক্ষার্থী'}-কে নির্বাচন করা হয়েছে। কুইজ তৈরি করতে নিচে সেটিংস দেখুন।`
-        : `Selected ${matched?.name || 'student'}. Customize settings and generate quiz.`
-    );
-    if (typeof window !== 'undefined') {
-      window.history.replaceState(null, '', `/children/${childIdToSelect}/quizzes/new${window.location.search || ''}`);
-    }
-  };
+  }, [currentChild?.id, isBn]);
 
   // Sync if query parameters change
   useEffect(() => {
@@ -226,7 +190,7 @@ function QuizBuilderContent() {
     setError('');
     setGenerating(true);
     try {
-      const res = await api.post(`/children/${selectedChildId}/quizzes/generate`, {
+      const res = await api.post(`/children/${childId}/quizzes/generate`, {
         ...form,
         numQuestions: form.numQuestions,
         subjectIds: selectedSubjects,
@@ -236,8 +200,8 @@ function QuizBuilderContent() {
       setMsg(isBn ? 'কুইজের প্রশ্ন সফলভাবে তৈরি হয়েছে!' : 'AI Quiz generated from lesson digests!');
     } catch {
       // High-quality mock preview tailored to selected child's curriculum
-      const isClass5 = selectedChildId === 'demo-child-2' || (currentChild?.grade && currentChild.grade.includes('5'));
-      const isClass11 = selectedChildId === 'demo-child-3' || (currentChild?.grade && (currentChild.grade.includes('11') || currentChild.grade.includes('12')));
+      const isClass5 = childId === 'demo-child-2' || (currentChild?.grade && currentChild.grade.includes('5'));
+      const isClass11 = childId === 'demo-child-3' || (currentChild?.grade && (currentChild.grade.includes('11') || currentChild.grade.includes('12')));
 
       setPreview({
         id: 'quiz-' + Date.now(),
@@ -504,73 +468,6 @@ function QuizBuilderContent() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {/* Child / Student Selector */}
-            <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/80 space-y-2.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <UserIcon className="w-3.5 h-3.5 text-primary" />
-                  <span>{isBn ? 'শিক্ষার্থী নির্বাচন করুন' : 'Select Student / Child'}</span>
-                  <span className="text-[11px] font-normal text-muted-foreground hidden sm:inline">
-                    ({isBn ? 'কার জন্য কুইজ তৈরি হবে' : 'Target child for this quiz'})
-                  </span>
-                </Label>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-muted-foreground">{isBn ? 'নির্বাচিত:' : 'Selected:'}</span>
-                  <Badge variant="secondary" className="text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">
-                    {currentChild?.name} ({currentChild?.grade})
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {availableChildren.map((c) => {
-                  const isSelected = c.id === selectedChildId;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => handleSelectChild(c.id)}
-                      className={`relative p-2.5 sm:p-3 rounded-xl border text-left transition-all flex items-center gap-2.5 ${
-                        isSelected
-                          ? 'border-primary bg-primary/10 shadow-sm ring-2 ring-primary/25'
-                          : 'border-border/80 bg-background hover:bg-muted hover:border-muted-foreground/30'
-                      }`}
-                    >
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-                          isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                        }`}
-                      >
-                        {c.name ? c.name.charAt(0).toUpperCase() : 'S'}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-xs font-bold truncate ${isSelected ? 'text-primary' : 'text-foreground'}`}>
-                          {c.name}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {c.grade} • {c.curriculum || 'NCTB'}
-                        </p>
-                      </div>
-                      {isSelected && (
-                        <div className="w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-0.5">
-                <Info className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span>
-                  {isBn
-                    ? 'ডিফল্ট হিসেবে বর্তমান সন্তান দেখানো হচ্ছে। অভিভাবক হিসেবে আপনি অন্য যে কোনো সন্তান বেছে নিয়ে তার জন্য আলাদা কুইজ তৈরি করতে পারেন।'
-                    : 'Defaulting to present selected child. As a parent, you can pick any other child above to generate a quiz specifically for them.'}
-                </span>
-              </p>
-            </div>
-
             {/* Title */}
             <div>
               <Label className="text-xs font-semibold">Quiz Title (Optional)</Label>

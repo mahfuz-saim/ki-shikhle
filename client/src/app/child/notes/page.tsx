@@ -14,6 +14,7 @@ import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
+import { FormattedMarkdown, stripMarkdown } from '@/components/ui/formatted-markdown';
 import {
   Camera,
   Upload,
@@ -92,6 +93,7 @@ export default function KidNotesPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
   const [activeTabInModal, setActiveTabInModal] = useState<'ai' | 'raw'>('ai');
+  const [aiPreviewMode, setAiPreviewMode] = useState<'formatted' | 'edit'>('formatted');
 
   // Load notes from backend
   const loadNotes = async () => {
@@ -619,9 +621,7 @@ export default function KidNotesPage() {
                   <CardContent className="p-4 sm:p-5 pt-0 space-y-3">
                     {/* Summary Excerpt */}
                     <p className="text-xs text-muted-foreground line-clamp-3 bg-muted/20 p-2.5 rounded-xl border border-border/40 font-normal leading-relaxed">
-                      {note.aiSummary
-                        ? note.aiSummary.replace(/###|##|#|\*|_|-/g, '').slice(0, 140) + '...'
-                        : note.textClean?.slice(0, 140) + '...'}
+                      {stripMarkdown(note.aiSummary || note.textClean).slice(0, 160) + '...'}
                     </p>
 
                     {/* Bottom Action Buttons */}
@@ -702,15 +702,20 @@ export default function KidNotesPage() {
             )}
 
             {/* AI Structured Note View */}
-            <div className="rounded-2xl border p-4 bg-card/60 shadow-xs space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  {isBn ? 'এআই পরিচ্ছন্ন ও সাজানো স্টাডি নোট (AI Structured Study Note)' : 'AI Structured Study Note'}
-                </span>
+            <div className="rounded-2xl border p-4 sm:p-5 bg-card shadow-xs space-y-3">
+              <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-border/60">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    {isBn ? 'এআই পরিচ্ছন্ন ও সাজানো স্টাডি নোট (AI Structured Study Note)' : 'AI Structured Study Note'}
+                  </span>
+                </div>
+                <Badge variant="outline" className="text-[10px] font-semibold text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
+                  {isBn ? 'ফরম্যাটেড নোট' : 'Formatted'}
+                </Badge>
               </div>
-              <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm whitespace-pre-line leading-relaxed text-foreground">
-                {selectedNote.aiSummary || selectedNote.textClean}
+              <div className="p-1">
+                <FormattedMarkdown content={selectedNote.aiSummary || selectedNote.textClean} />
               </div>
             </div>
 
@@ -947,23 +952,59 @@ export default function KidNotesPage() {
 
             {/* Tab 1: AI Note Content */}
             {activeTabInModal === 'ai' && (
-              <div>
+              <div className="space-y-2">
                 {aiLoading ? (
-                  <div className="h-48 border rounded-2xl flex flex-col items-center justify-center gap-2 p-4 text-xs text-primary animate-pulse bg-muted/10">
+                  <div className="h-56 border rounded-2xl flex flex-col items-center justify-center gap-2 p-4 text-xs text-primary animate-pulse bg-muted/10">
                     <Sparkles className="w-6 h-6 text-amber-500 animate-spin" />
                     <span className="font-bold">{isBn ? 'এআই ছবি বিশ্লেষণ করে সম্পূর্ণ স্টাডি নোট প্রস্তুত করছে...' : 'Claude Vision AI is synthesizing your study note...'}</span>
                   </div>
                 ) : (
-                  <textarea
-                    value={aiNoteContent}
-                    onChange={(e) => setAiNoteContent(e.target.value)}
-                    placeholder={
-                      isBn
-                        ? 'খাতার ছবি আপলোড করলে Claude Vision AI স্বয়ংক্রিয়ভাবে মূল সংজ্ঞা, সূত্র, সারসংক্ষেপ ও রিভিশন প্রশ্ন সাজিয়ে দেবে...'
-                        : 'AI structured notes with core definitions, formulas, and revision bullet points will appear here...'
-                    }
-                    className="w-full h-48 border rounded-2xl p-3 text-xs bg-background leading-relaxed focus:ring-1 focus:ring-primary focus:outline-none"
-                  />
+                  <>
+                    {aiNoteContent && (
+                      <div className="flex items-center justify-between pb-1 text-xs">
+                        <span className="text-[11px] font-semibold text-muted-foreground">
+                          {aiPreviewMode === 'formatted' ? (isBn ? 'ফরম্যাটেড ভিউ' : 'Formatted View') : (isBn ? 'এডিট মোড' : 'Edit Mode')}
+                        </span>
+                        <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => setAiPreviewMode('formatted')}
+                            className={`px-2 py-0.5 rounded-md font-bold transition-all ${
+                              aiPreviewMode === 'formatted' ? 'bg-primary text-primary-foreground shadow-2xs' : 'text-muted-foreground'
+                            }`}
+                          >
+                            {isBn ? 'সাজানো নোট' : 'Formatted'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAiPreviewMode('edit')}
+                            className={`px-2 py-0.5 rounded-md font-bold transition-all ${
+                              aiPreviewMode === 'edit' ? 'bg-primary text-primary-foreground shadow-2xs' : 'text-muted-foreground'
+                            }`}
+                          >
+                            {isBn ? 'এডিট' : 'Edit'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {aiPreviewMode === 'formatted' && aiNoteContent ? (
+                      <div className="h-56 overflow-y-auto border rounded-2xl p-3.5 bg-card/60 leading-relaxed text-xs">
+                        <FormattedMarkdown content={aiNoteContent} />
+                      </div>
+                    ) : (
+                      <textarea
+                        value={aiNoteContent}
+                        onChange={(e) => setAiNoteContent(e.target.value)}
+                        placeholder={
+                          isBn
+                            ? 'খাতার ছবি আপলোড করলে Claude Vision AI স্বয়ংক্রিয়ভাবে মূল সংজ্ঞা, সূত্র, সারসংক্ষেপ ও রিভিশন প্রশ্ন সাজিয়ে দেবে...'
+                            : 'AI structured notes with core definitions, formulas, and revision bullet points will appear here...'
+                        }
+                        className="w-full h-56 border rounded-2xl p-3 text-xs bg-background leading-relaxed focus:ring-1 focus:ring-primary focus:outline-none"
+                      />
+                    )}
+                  </>
                 )}
               </div>
             )}
