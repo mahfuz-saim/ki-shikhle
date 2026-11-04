@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: 'Track what your child actually learned — Bangladesh NCTB curriculum aware with AI quizzes and progress explanations.',
 };
 
+export const runtime = 'edge';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
