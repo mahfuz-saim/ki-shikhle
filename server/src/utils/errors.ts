@@ -2,6 +2,7 @@ export class AppError extends Error {
   constructor(public statusCode: number, message: string, public code?: string, public details?: unknown) {
     super(message);
     this.name = 'AppError';
+    Object.setPrototypeOf(this, AppError.prototype);
   }
 }
 export const notFound = (msg = 'Not found') => new AppError(404, msg, 'NOT_FOUND');

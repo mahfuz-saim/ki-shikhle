@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { canCreateChild, getPlanLimits } from '../../services/entitlements';
+import jwt from 'jsonwebtoken';
+import { env } from '../../config/env';
 
 describe('Entitlements', () => {
   it('trial max 2', () => expect(getPlanLimits('trial').maxChildren).toBe(2));
@@ -13,6 +15,10 @@ describe('Entitlements', () => {
     // Premium allows 2 children
     expect(canCreateChild(1, 'premium')).toBe(true);
     expect(canCreateChild(2, 'premium')).toBe(false);
+
+    // Pro allows 5 children
+    expect(canCreateChild(4, 'pro')).toBe(true);
+    expect(canCreateChild(5, 'pro')).toBe(false);
   });
 });
 
@@ -51,7 +57,7 @@ describe('Unlogged Study Alert Configuration', () => {
     expect(res.notification.userId).toBe('parent-demo');
   });
 
-  it('creates child profile with long grade name like Class 11 (HSC 1st Year)', async () => {
+  it('creates child profile with long grade name and relative avatar path', async () => {
     const { app } = await import('../../app');
     const res = await app.request('/api/v1/children', {
       method: 'POST',
@@ -65,6 +71,7 @@ describe('Unlogged Study Alert Configuration', () => {
         grade: 'Class 11 (HSC 1st Year)',
         curriculum: 'NCTB',
         medium: 'Bangla',
+        avatar: '/avatars/boy-1.png',
         email: 'hsc_student@example.com',
         password: 'password123',
       }),
@@ -74,15 +81,21 @@ describe('Unlogged Study Alert Configuration', () => {
     expect(data.success).toBe(true);
     expect(data.data.name).toBe('HSC Student');
     expect(data.data.grade).toBe('Class 11 (HSC 1st Year)');
+    expect(data.data.avatar).toBe('/avatars/boy-1.png');
   });
 
-  it('creates child profile with demo-access-token auth header', async () => {
+  it('creates child profile with demo parent JWT having UUID userId and parent@demo.com email', async () => {
     const { app } = await import('../../app');
+    const dbDemoToken = jwt.sign(
+      { userId: '11111111-2222-3333-4444-555555555555', email: 'parent@demo.com', role: 'parent' },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '1d' }
+    );
     const res = await app.request('/api/v1/children', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer demo-access-token-12345',
+        'Authorization': `Bearer ${dbDemoToken}`,
       },
       body: JSON.stringify({
         name: 'Admission Candidate',
@@ -90,6 +103,7 @@ describe('Unlogged Study Alert Configuration', () => {
         grade: 'Admission Prep',
         curriculum: 'NCTB',
         medium: 'English',
+        avatar: '/avatars/girl-1.png',
         email: 'admission_candidate@example.com',
         password: 'password123',
       }),
@@ -97,6 +111,7 @@ describe('Unlogged Study Alert Configuration', () => {
     const data: any = await res.json();
     expect(res.status).toBe(201);
     expect(data.success).toBe(true);
+    expect(data.data.name).toBe('Admission Candidate');
   });
 
   it('rejects duplicate student email with 409 Conflict', async () => {
@@ -117,5 +132,29 @@ describe('Unlogged Study Alert Configuration', () => {
     expect(res.status).toBe(409);
     const data: any = await res.json();
     expect(data.error.code).toBe('CONFLICT');
+  });
+
+  it('enforces plan limits with 403 Forbidden instead of Internal Server Error when slots full', async () => {
+    const { app } = await import('../../app');
+    // Now demo parent already has 5 children (Rahim, Tasnim, Fahim + HSC Student + Admission Candidate)
+    const res = await app.request('/api/v1/children', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer demo-parent-token',
+      },
+      body: JSON.stringify({
+        name: 'Sixth Child',
+        grade: 'Class 9',
+        email: 'sixth_child@example.com',
+        password: 'password123',
+      }),
+    });
+    const data: any = await res.json();
+    expect(res.status).toBe(403);
+    expect(data.success).toBe(false);
+    expect(data.data).toBeNull();
+    expect(data.error.code).toBe('FORBIDDEN');
+    expect(data.error.message).toContain('Plan pro allows max 5 children');
   });
 });

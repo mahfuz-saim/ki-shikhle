@@ -50,52 +50,143 @@ export const memChildren: any[] = [
   },
 ];
 
-export async function listChildren(parentId: string) {
+async function resolveParentContext(parentId: string, parentEmail?: string) {
+  const isDemo =
+    parentId === 'parent-demo' ||
+    parentId === 'parent@demo.com' ||
+    parentEmail?.toLowerCase() === 'parent@demo.com';
+
+  let resolvedParentId = parentId;
+  let foundDbParent = false;
+
   try {
-    const list = await prisma.child.findMany({ where: { parentId, deletedAt: null }, orderBy: { createdAt: 'desc' } });
+    const dbParent = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { id: parentId },
+          { email: 'parent@demo.com' },
+          ...(isDemo ? [{ id: 'parent-demo' }] : []),
+        ],
+        deletedAt: null,
+      },
+    });
+    if (dbParent) {
+      resolvedParentId = dbParent.id;
+      foundDbParent = true;
+    }
+  } catch {}
+
+  const allPossibleParentIds = Array.from(
+    new Set([resolvedParentId, parentId, ...(isDemo ? ['parent-demo', 'parent@demo.com'] : [])].filter(Boolean))
+  );
+
+  return {
+    isDemo,
+    resolvedParentId,
+    foundDbParent,
+    allPossibleParentIds,
+  };
+}
+
+export async function listChildren(parentId: string, parentEmail?: string) {
+  const { isDemo, resolvedParentId, allPossibleParentIds } = await resolveParentContext(parentId, parentEmail);
+
+  try {
+    const list = await prisma.child.findMany({
+      where: { parentId: { in: allPossibleParentIds }, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
     if (list && list.length > 0) return list;
   } catch {}
 
-  if (parentId === 'parent-demo' || parentId === 'parent@demo.com') {
-    return memChildren.filter((c: any) => c.parentId === 'parent-demo' && !c.deletedAt);
+  if (isDemo) {
+    return memChildren.filter(
+      (c: any) =>
+        (allPossibleParentIds.includes(c.parentId) || c.parentId === 'parent-demo' || c.parentId === 'parent@demo.com') &&
+        !c.deletedAt
+    );
   }
-  return memChildren.filter((c: any) => c.parentId === parentId && !c.deletedAt);
+  return memChildren.filter(
+    (c: any) =>
+      (allPossibleParentIds.includes(c.parentId) || c.parentId === resolvedParentId || c.parentId === parentId) &&
+      !c.deletedAt
+  );
 }
 
-export async function createChild(parentId: string, data: any) {
+export async function createChild(parentId: string, data: any, parentEmail?: string) {
   const normEmail =
     data.email && typeof data.email === 'string' && data.email.trim() ? data.email.trim().toLowerCase() : null;
 
-  // Check if student email is already in use in memory
+  // Check if student email is already in use in memory or database
   if (normEmail) {
-    const existingMemChild = memChildren.find(
+    const existingMemChild = (memChildren || []).find(
       (c: any) => c.email && c.email.toLowerCase() === normEmail && !c.deletedAt
     );
     if (existingMemChild) {
       throw conflict('An account with this student email already exists');
     }
-    const existingMemUser = memUsers.find(
+    const existingMemUser = (memUsers || []).find(
       (u: any) => u.email && u.email.toLowerCase() === normEmail && !u.deletedAt
     );
     if (existingMemUser) {
       throw conflict('An account with this student email already exists');
     }
+    try {
+      const existingDbChild = await prisma.child.findFirst({
+        where: { email: normEmail, deletedAt: null },
+      });
+      if (existingDbChild) {
+        throw conflict('An account with this student email already exists');
+      }
+      const existingDbUser = await prisma.user.findFirst({
+        where: { email: normEmail, deletedAt: null },
+      });
+      if (existingDbUser) {
+        throw conflict('An account with this student email already exists');
+      }
+    } catch (e: any) {
+      if (e.statusCode === 409 || e.code === 'P2002') throw e;
+    }
   }
 
+  const { isDemo, resolvedParentId, allPossibleParentIds } = await resolveParentContext(parentId, parentEmail);
+
   // Entitlement check
+  let count = 0;
+  let planCode = isDemo ? 'pro' : 'free';
+
   try {
-    const count = await prisma.child.count({ where: { parentId, deletedAt: null } });
+    count = await prisma.child.count({
+      where: {
+        parentId: { in: allPossibleParentIds },
+        deletedAt: null,
+      },
+    });
+
     const sub = await prisma.subscription.findFirst({
-      where: { userId: parentId },
+      where: {
+        userId: { in: allPossibleParentIds },
+      },
       include: { plan: true },
       orderBy: { createdAt: 'desc' },
     });
-    const planCode = sub?.plan?.code || (parentId === 'parent-demo' ? 'pro' : 'free');
-    if (!canCreateChild(count, planCode)) {
-      throw forbidden(`Plan ${planCode} allows max ${getPlanLimits(planCode).maxChildren} children`);
+
+    if (sub?.plan?.code) {
+      planCode = sub.plan.code;
+    } else if (isDemo) {
+      planCode = 'pro';
     }
-  } catch (e: any) {
-    if (e.statusCode === 403) throw e;
+  } catch {}
+
+  // Ensure in-memory count is factored in for mock/dev fallback
+  const memCount = (memChildren || []).filter(
+    (c: any) => allPossibleParentIds.includes(c.parentId) && !c.deletedAt
+  ).length;
+
+  const effectiveCount = Math.max(count, memCount);
+
+  if (!canCreateChild(effectiveCount, planCode)) {
+    throw forbidden(`Plan ${planCode} allows max ${getPlanLimits(planCode).maxChildren} children`);
   }
 
   let passwordHash = null;
@@ -120,12 +211,14 @@ export async function createChild(parentId: string, data: any) {
         },
       });
     } catch (e: any) {
-      if (e.statusCode === 409) throw e;
+      if (e.statusCode === 409 || e.code === 'P2002') {
+        throw conflict('An account with this student email already exists');
+      }
     }
 
     // Keep in-memory user updated so student can login immediately in offline/mock mode
-    const existingInMem = memUsers.find((u: any) => u.email?.toLowerCase() === normEmail);
-    if (!existingInMem) {
+    const existingInMem = (memUsers || []).find((u: any) => u.email?.toLowerCase() === normEmail);
+    if (!existingInMem && Array.isArray(memUsers)) {
       memUsers.push({
         id: 'user-child-' + Date.now(),
         name: data.name,
@@ -140,7 +233,7 @@ export async function createChild(parentId: string, data: any) {
 
   const pinHash = data.pin ? await hashPin(data.pin) : null;
   const payload: any = {
-    parentId: parentId || 'parent-demo',
+    parentId: resolvedParentId || 'parent-demo',
     name: data.name,
     nickname: data.nickname || '',
     grade: data.grade,
@@ -152,41 +245,79 @@ export async function createChild(parentId: string, data: any) {
     pinHash,
   };
 
+  let child: any = null;
+
   try {
-    const child = await prisma.child.create({ data: payload });
-    return child;
-  } catch {
-    const child = {
+    child = await prisma.child.create({ data: payload });
+  } catch (err: any) {
+    if (err?.code === 'P2002' || err?.statusCode === 409) {
+      throw conflict('An account with this student email already exists');
+    }
+    // If DB parent ID differs from parentId or FK constraint fails, attempt fallback
+    try {
+      if (resolvedParentId !== parentId && parentId) {
+        child = await prisma.child.create({ data: { ...payload, parentId } });
+      }
+    } catch (fallbackErr: any) {
+      if (fallbackErr?.code === 'P2002' || fallbackErr?.statusCode === 409) {
+        throw conflict('An account with this student email already exists');
+      }
+    }
+  }
+
+  if (!child) {
+    child = {
       id: 'child-' + Date.now(),
       ...payload,
       password: data.password, // for in-memory dev mock login
       createdAt: new Date().toISOString(),
     };
-    memChildren.push(child);
-    return child;
   }
+
+  // Always keep in-memory children synced so student login & list work seamlessly
+  const existingInMemChild = (memChildren || []).find(
+    (c: any) => c.id === child.id || (normEmail && c.email === normEmail)
+  );
+  if (!existingInMemChild && Array.isArray(memChildren)) {
+    memChildren.push({
+      ...child,
+      parentId: isDemo ? 'parent-demo' : (child.parentId || resolvedParentId),
+      password: data.password,
+    });
+  }
+
+  return child;
 }
 
-export async function getChild(parentId: string, id: string) {
+export async function getChild(parentId: string, id: string, parentEmail?: string) {
+  const { isDemo, resolvedParentId, allPossibleParentIds } = await resolveParentContext(parentId, parentEmail);
+
   try {
-    const c = await prisma.child.findFirst({ where: { id, parentId, deletedAt: null } });
-    if (!c) throw notFound('Child not found');
-    return c;
-  } catch (e: any) {
-    if (e.statusCode === 404) throw e;
-    const c = memChildren.find(
-      (x: any) =>
-        x.id === id &&
-        (x.parentId === parentId || parentId === 'parent-demo' || parentId === 'parent@demo.com') &&
-        !x.deletedAt
-    );
-    if (!c) throw notFound('Child not found');
-    return c;
-  }
+    const c = await prisma.child.findFirst({
+      where: {
+        id,
+        parentId: { in: allPossibleParentIds },
+        deletedAt: null,
+      },
+    });
+    if (c) return c;
+  } catch {}
+
+  const c = memChildren.find(
+    (x: any) =>
+      x.id === id &&
+      (allPossibleParentIds.includes(x.parentId) ||
+        x.parentId === parentId ||
+        x.parentId === resolvedParentId ||
+        (isDemo && (x.parentId === 'parent-demo' || x.parentId === 'parent@demo.com'))) &&
+      !x.deletedAt
+  );
+  if (!c) throw notFound('Child not found');
+  return c;
 }
 
-export async function updateChild(parentId: string, id: string, data: any) {
-  await getChild(parentId, id);
+export async function updateChild(parentId: string, id: string, data: any, parentEmail?: string) {
+  await getChild(parentId, id, parentEmail);
   const updateData: any = { ...data };
   if (data.pin) updateData.pinHash = await hashPin(data.pin);
   if (data.password) {
@@ -208,8 +339,8 @@ export async function updateChild(parentId: string, id: string, data: any) {
   }
 }
 
-export async function deleteChild(parentId: string, id: string) {
-  await getChild(parentId, id);
+export async function deleteChild(parentId: string, id: string, parentEmail?: string) {
+  await getChild(parentId, id, parentEmail);
   try {
     await prisma.child.update({ where: { id }, data: { deletedAt: new Date() } });
   } catch {
@@ -219,20 +350,24 @@ export async function deleteChild(parentId: string, id: string) {
   return { message: 'Child deleted (soft)' };
 }
 
-export async function setPin(parentId: string, id: string, pin: string) {
+export async function setPin(parentId: string, id: string, pin: string, parentEmail?: string) {
   const hash = await hashPin(pin);
-  return updateChild(parentId, id, { pinHash: hash } as any);
+  return updateChild(parentId, id, { pinHash: hash } as any, parentEmail);
 }
 
-export async function enterChildMode(parentId: string, childId: string, pin: string) {
-  const child: any = await getChild(parentId, childId);
+export async function enterChildMode(parentId: string, childId: string, pin: string, parentEmail?: string) {
+  const child: any = await getChild(parentId, childId, parentEmail);
   if (child.pinHash) {
     const ok = await verifyPin(child.pinHash, pin);
     if (!ok) throw badRequest('Invalid PIN');
   }
 
   // child scoped token (limited routes, 8h)
-  const token = jwt.sign({ userId: parentId, childId, role: 'child', type: 'child' }, env.JWT_ACCESS_SECRET, { expiresIn: '8h' });
+  const token = jwt.sign(
+    { userId: parentId || 'parent-demo', childId, role: 'child', type: 'child' },
+    env.JWT_ACCESS_SECRET,
+    { expiresIn: '8h' }
+  );
   return { token, child: { id: child.id, name: child.name, grade: child.grade } };
 }
 
@@ -269,8 +404,8 @@ export const memUnloggedAlertConfigs: Record<string, UnloggedStudyAlertConfig> =
   },
 };
 
-export async function getUnloggedAlertConfig(parentId: string, childId: string): Promise<UnloggedStudyAlertConfig> {
-  await getChild(parentId, childId);
+export async function getUnloggedAlertConfig(parentId: string, childId: string, parentEmail?: string): Promise<UnloggedStudyAlertConfig> {
+  await getChild(parentId, childId, parentEmail);
   const existing = memUnloggedAlertConfigs[childId];
   if (existing) return existing;
 
@@ -288,10 +423,11 @@ export async function getUnloggedAlertConfig(parentId: string, childId: string):
 export async function saveUnloggedAlertConfig(
   parentId: string,
   childId: string,
-  config: Partial<UnloggedStudyAlertConfig>
+  config: Partial<UnloggedStudyAlertConfig>,
+  parentEmail?: string
 ): Promise<UnloggedStudyAlertConfig> {
-  await getChild(parentId, childId);
-  const current = await getUnloggedAlertConfig(parentId, childId);
+  await getChild(parentId, childId, parentEmail);
+  const current = await getUnloggedAlertConfig(parentId, childId, parentEmail);
   const updated: UnloggedStudyAlertConfig = {
     ...current,
     ...config,
@@ -302,9 +438,9 @@ export async function saveUnloggedAlertConfig(
   return updated;
 }
 
-export async function triggerTestUnloggedAlert(parentId: string, childId: string) {
-  const child: any = await getChild(parentId, childId);
-  const cfg = await getUnloggedAlertConfig(parentId, childId);
+export async function triggerTestUnloggedAlert(parentId: string, childId: string, parentEmail?: string) {
+  const child: any = await getChild(parentId, childId, parentEmail);
+  const cfg = await getUnloggedAlertConfig(parentId, childId, parentEmail);
 
   const notif = await createNotification(parentId, 'missed_sessions', {
     childId,

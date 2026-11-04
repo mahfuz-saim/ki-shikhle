@@ -5,11 +5,17 @@ import type { Request, Response } from '../platform/express-compat';
 
 /** Express-style handler kept for compatibility with `router.use(errorHandler)`. */
 export function errorHandler(err: Error, _req: Request, res: Response, _next?: (e?: any) => void) {
-  if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
+  const isAppErr =
+    err instanceof AppError ||
+    (err as any)?.name === 'AppError' ||
+    Boolean((err as any)?.statusCode && (err as any)?.code) ||
+    Boolean((err as any)?.statusCode && (err as any)?.statusCode < 500);
+  if (isAppErr) {
+    const appErr = err as any;
+    return res.status(appErr.statusCode || 400).json({
       success: false,
       data: null,
-      error: { code: err.code, message: err.message, details: err.details },
+      error: { code: appErr.code || 'BAD_REQUEST', message: appErr.message, details: appErr.details },
     });
   }
   logger.error({ err: err.message }, 'unhandled error');
@@ -29,10 +35,20 @@ export function notFoundHandler(_req: Request, res: Response) {
 
 /** Hono error hook — the single place every thrown error ends up. */
 export function onError(err: Error, c: Context) {
-  if (err instanceof AppError) {
+  const isAppErr =
+    err instanceof AppError ||
+    (err as any)?.name === 'AppError' ||
+    Boolean((err as any)?.statusCode && (err as any)?.code) ||
+    Boolean((err as any)?.statusCode && (err as any)?.statusCode < 500);
+  if (isAppErr) {
+    const appErr = err as any;
     return c.json(
-      { success: false, data: null, error: { code: err.code, message: err.message, details: err.details } },
-      err.statusCode as any
+      {
+        success: false,
+        data: null,
+        error: { code: appErr.code || 'BAD_REQUEST', message: appErr.message, details: appErr.details },
+      },
+      (appErr.statusCode || 400) as any
     );
   }
   // CORS rejections and thrown strings still need a JSON envelope
@@ -43,7 +59,7 @@ export function onError(err: Error, c: Context) {
       success: false,
       data: null,
       error: {
-        code: 'INTERNAL_ERROR',
+        code: (err as any)?.code || 'INTERNAL_ERROR',
         message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
       },
     },
