@@ -140,6 +140,7 @@ export default function KidSchedulePage() {
   const today = new Date();
   const [selectedWeekday, setSelectedWeekday] = useState<number>(today.getDay());
   const [selectedDate, setSelectedDate] = useState<string>(today.toISOString().slice(0, 10));
+  const [autoAdvancedToTomorrow, setAutoAdvancedToTomorrow] = useState<boolean>(false);
 
   // Category filter: 'all' | 'school' | 'tuition'
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'school' | 'tuition'>('school');
@@ -270,6 +271,35 @@ export default function KidSchedulePage() {
 
       const entryList = unpackList(entriesRes?.data);
       setEntries(entryList);
+
+      // If today's classes are all logged, auto-show tomorrow's routine
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const todayDay = new Date().getDay();
+      const activeList = routineList.length > 0 ? routineList : [];
+      const todayClasses = activeList.filter((r: any) => parseWeekdays(r?.weekdays).includes(todayDay));
+      if (todayClasses.length > 0 && Array.isArray(entryList) && entryList.length > 0) {
+        const allTodayDone = todayClasses.every((r: any) => {
+          const rSub = safeString(r.subject || r.name).toLowerCase();
+          return entryList.some((e: any) => {
+            const ed = typeof e.date === 'string' ? e.date.slice(0, 10) : '';
+            if (ed !== todayKey) return false;
+            if (e.routineId && e.routineId === r.id) return true;
+            const es = safeString(e.subject || e.subjectName).toLowerCase();
+            return (
+              (es && rSub && (es.includes(rSub) || rSub.includes(es))) ||
+              (r.periodName && e.periodName === r.periodName)
+            );
+          });
+        });
+
+        if (allTodayDone) {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          setSelectedWeekday(tomorrow.getDay());
+          setSelectedDate(tomorrow.toISOString().slice(0, 10));
+          setAutoAdvancedToTomorrow(true);
+        }
+      }
     } catch {
       setDefaultRoutines();
       setEntries([]);
@@ -931,6 +961,41 @@ export default function KidSchedulePage() {
           </div>
         )}
 
+        {/* Auto-Tomorrow Notification Banner */}
+        {autoAdvancedToTomorrow && (
+          <div className="p-4 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 dark:text-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-bold">
+                  {isBn
+                    ? 'আজকের সব ক্লাসের পড়া লগ সম্পন্ন হয়েছে! আগামীকালের রুটিন প্রদর্শিত হচ্ছে।'
+                    : "All of today's classes have been logged! Showing tomorrow's schedule."}
+                </p>
+                <p className="text-[11px] opacity-80 mt-0.5">
+                  {isBn
+                    ? 'আগামীকালের ক্লাস রুটিন অনুযায়ী পড়ার প্রস্তুতি নাও।'
+                    : 'Review upcoming classes and prepare your study materials for tomorrow.'}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedWeekday(today.getDay());
+                setSelectedDate(today.toISOString().slice(0, 10));
+                setAutoAdvancedToTomorrow(false);
+              }}
+              className="h-8 text-xs font-bold border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-900 dark:text-emerald-100 shrink-0 rounded-xl"
+            >
+              {isBn ? 'আজকের রুটিন দেখুন' : "View Today's Routine"}
+            </Button>
+          </div>
+        )}
+
         {/* ======================================================== */}
         {/* 2. Weekday Bar (Sun to Sat) with Quick Today Indicator */}
         {/* ======================================================== */}
@@ -989,6 +1054,9 @@ export default function KidSchedulePage() {
                 const isSelected = selectedWeekday === w.index;
                 const isTodayWeekday = today.getDay() === w.index;
                 const countOnDay = routineList.filter((r) => r && parseWeekdays(r?.weekdays).includes(w.index)).length;
+                const diff = w.index - today.getDay();
+                const targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + diff);
 
                 return (
                   <button
@@ -996,10 +1064,6 @@ export default function KidSchedulePage() {
                     type="button"
                     onClick={() => {
                       setSelectedWeekday(w.index);
-                      // Calculate corresponding date within the current week
-                      const diff = w.index - today.getDay();
-                      const targetDate = new Date(today);
-                      targetDate.setDate(today.getDate() + diff);
                       setSelectedDate(targetDate.toISOString().slice(0, 10));
                     }}
                     className={`py-2 sm:py-3 px-0.5 sm:px-1 rounded-xl sm:rounded-2xl border text-center transition-all flex flex-col items-center justify-between relative group ${
@@ -1018,17 +1082,21 @@ export default function KidSchedulePage() {
                       </span>
                     )}
 
-                    <span className="text-xs sm:text-sm font-extrabold">
+                    <span className="text-[11px] sm:text-xs font-semibold opacity-85">
                       {isBn ? w.bn : w.en}
                     </span>
 
+                    <span className="text-sm sm:text-base font-extrabold my-0.5">
+                      {isBn ? toBnNum(targetDate.getDate()) : targetDate.getDate()}
+                    </span>
+
                     <span
-                      className={`text-[10px] mt-1 font-semibold px-1.5 py-0.5 rounded-full ${
+                      className={`text-[9px] sm:text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded-full ${
                         isSelected
                           ? 'bg-white/20 text-white'
                           : countOnDay > 0
                           ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground'
+                          : 'text-muted-foreground/60'
                       }`}
                     >
                       {countOnDay > 0
