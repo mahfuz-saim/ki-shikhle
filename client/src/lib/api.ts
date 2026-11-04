@@ -7,7 +7,8 @@ export const api = axios.create({ baseURL, withCredentials: true });
 // Attach Authorization and Refresh tokens to outgoing requests
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const isChildRoute = window.location.pathname.startsWith('/child') || window.location.pathname.startsWith('/kid');
+    const path = window.location.pathname;
+    const isChildRoute = path === '/child' || path.startsWith('/child/') || path.startsWith('/kid');
     const childToken = localStorage.getItem('childToken');
     const accessToken = localStorage.getItem('accessToken');
     const refreshToken = localStorage.getItem('refreshToken');

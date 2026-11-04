@@ -62,4 +62,59 @@ describe('Smart Dynamic Timing & Auto Quiz Scheduling', () => {
     expect(runResult.quiz.questions.length).toBeGreaterThan(0);
     expect(runResult.timingInfo.minutes).toBeGreaterThan(0);
   });
+
+  it('generates grade-appropriate questions for Class 5 student Tasnim', async () => {
+    const childId = 'demo-child-2';
+    const parentId = 'demo-parent';
+
+    const runResult = await runAutoQuizSchedule(childId, parentId);
+    expect(runResult.quiz).toBeDefined();
+    expect(runResult.quiz.questions.length).toBe(5);
+
+    // Should include Class 5 topics (HCF/LCM, Safe water, Prime numbers, fractions)
+    const questionsText = runResult.quiz.questions.map((q: any) => `${q.prompt} ${q.topic}`).join(' ');
+    const hasClass5Topic = /লসাগু|গসাগু|পানি|মৌলিক|ভগ্নাংশ|HCF|LCM|Water/i.test(questionsText);
+    expect(hasClass5Topic).toBe(true);
+    // Should NOT include Class 11 college projectile/matrix questions
+    expect(/প্রক্ষেপক|ম্যাট্রিক্স|কোয়ান্টাম|Projectile/i.test(questionsText)).toBe(false);
+  });
+
+  it('generates college-level questions for Class 11 student Fahim', async () => {
+    const childId = 'demo-child-3';
+    const parentId = 'demo-parent';
+
+    const runResult = await runAutoQuizSchedule(childId, parentId);
+    expect(runResult.quiz).toBeDefined();
+    expect(runResult.quiz.questions.length).toBe(5);
+
+    // Should include Class 11 topics (Projectile motion, Matrix, Quantum numbers, etc.)
+    const questionsText = runResult.quiz.questions.map((q: any) => `${q.prompt} ${q.topic}`).join(' ');
+    const hasCollegeTopic = /প্রক্ষেপক|ম্যাট্রিক্স|কোয়ান্টাম|Projectile|Matrix|Quantum|পাল্লা/i.test(questionsText);
+    expect(hasCollegeTopic).toBe(true);
+  });
+
+  it('respects question count configuration (e.g. 3 questions and 8 questions)', async () => {
+    const childId = 'demo-child-1';
+    const parentId = 'demo-parent';
+
+    // Set 3 questions
+    await saveAutoQuizSchedule(childId, parentId, { questionCount: 3 });
+    const res3 = await runAutoQuizSchedule(childId, parentId);
+    expect(res3.quiz.questions.length).toBe(3);
+
+    // Set 8 questions
+    await saveAutoQuizSchedule(childId, parentId, { questionCount: 8 });
+    const res8 = await runAutoQuizSchedule(childId, parentId);
+    expect(res8.quiz.questions.length).toBe(8);
+
+    // Reset to 5
+    await saveAutoQuizSchedule(childId, parentId, { questionCount: 5 });
+  }, 15000);
+
+  it('runs auto quiz scheduler background job for all active children', async () => {
+    const { runAutoQuizSchedulerJob } = await import('../../jobs/jobs');
+    const jobResult = await runAutoQuizSchedulerJob();
+    expect(jobResult).toBeDefined();
+    expect(typeof jobResult.generatedCount).toBe('number');
+  });
 });

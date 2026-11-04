@@ -5,6 +5,7 @@ import { getPlanLimits, canCreateChild } from '../../services/entitlements';
 import { badRequest, conflict, forbidden, notFound } from '../../utils/errors';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env';
+import { memUsers } from '../auth/auth.service';
 
 // In-memory fallback for dev without DB
 export const memChildren: any[] = [
@@ -62,12 +63,37 @@ export async function listChildren(parentId: string) {
 }
 
 export async function createChild(parentId: string, data: any) {
-  // entitlement check
+  const normEmail =
+    data.email && typeof data.email === 'string' && data.email.trim() ? data.email.trim().toLowerCase() : null;
+
+  // Check if student email is already in use in memory
+  if (normEmail) {
+    const existingMemChild = memChildren.find(
+      (c: any) => c.email && c.email.toLowerCase() === normEmail && !c.deletedAt
+    );
+    if (existingMemChild) {
+      throw conflict('An account with this student email already exists');
+    }
+    const existingMemUser = memUsers.find(
+      (u: any) => u.email && u.email.toLowerCase() === normEmail && !u.deletedAt
+    );
+    if (existingMemUser) {
+      throw conflict('An account with this student email already exists');
+    }
+  }
+
+  // Entitlement check
   try {
     const count = await prisma.child.count({ where: { parentId, deletedAt: null } });
-    const sub = await prisma.subscription.findFirst({ where: { userId: parentId }, include: { plan: true }, orderBy: { createdAt: 'desc' } });
-    const planCode = sub?.plan?.code || 'free';
-    if (!canCreateChild(count, planCode)) throw forbidden(`Plan ${planCode} allows max ${getPlanLimits(planCode).maxChildren} children`);
+    const sub = await prisma.subscription.findFirst({
+      where: { userId: parentId },
+      include: { plan: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const planCode = sub?.plan?.code || (parentId === 'parent-demo' ? 'pro' : 'free');
+    if (!canCreateChild(count, planCode)) {
+      throw forbidden(`Plan ${planCode} allows max ${getPlanLimits(planCode).maxChildren} children`);
+    }
   } catch (e: any) {
     if (e.statusCode === 403) throw e;
   }
@@ -78,16 +104,16 @@ export async function createChild(parentId: string, data: any) {
   }
 
   // Create child user account if email and password are provided
-  if (data.email && data.password) {
+  if (normEmail && data.password) {
     try {
-      const existing = await prisma.user.findUnique({ where: { email: data.email } });
+      const existing = await prisma.user.findUnique({ where: { email: normEmail } });
       if (existing && !existing.deletedAt) {
         throw conflict('An account with this student email already exists');
       }
       await prisma.user.create({
         data: {
           name: data.name,
-          email: data.email,
+          email: normEmail,
           passwordHash: passwordHash!,
           role: 'child',
           language: data.medium === 'English' ? 'en' : 'bn',
@@ -96,18 +122,32 @@ export async function createChild(parentId: string, data: any) {
     } catch (e: any) {
       if (e.statusCode === 409) throw e;
     }
+
+    // Keep in-memory user updated so student can login immediately in offline/mock mode
+    const existingInMem = memUsers.find((u: any) => u.email?.toLowerCase() === normEmail);
+    if (!existingInMem) {
+      memUsers.push({
+        id: 'user-child-' + Date.now(),
+        name: data.name,
+        email: normEmail,
+        password: data.password,
+        role: 'child',
+        language: data.medium === 'English' ? 'en' : 'bn',
+        createdAt: new Date().toISOString(),
+      });
+    }
   }
 
   const pinHash = data.pin ? await hashPin(data.pin) : null;
   const payload: any = {
-    parentId,
+    parentId: parentId || 'parent-demo',
     name: data.name,
-    nickname: data.nickname,
+    nickname: data.nickname || '',
     grade: data.grade,
     curriculum: data.curriculum || 'NCTB',
     medium: data.medium || 'Bangla',
-    avatar: data.avatar,
-    email: data.email || null,
+    avatar: data.avatar || null,
+    email: normEmail,
     passwordHash,
     pinHash,
   };

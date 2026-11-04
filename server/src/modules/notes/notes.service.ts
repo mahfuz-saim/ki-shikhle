@@ -1,6 +1,6 @@
 import { prisma } from '../../db/client';
 import { storage } from '../../services/storage';
-import { callAI, estimateCost } from '../../services/ai';
+import { callAI, estimateCost, generateSubjectNote, AIImage } from '../../services/ai';
 import { sha256Hex } from '../../utils/crypto';
 import { notFound, forbidden } from '../../utils/errors';
 
@@ -98,25 +98,25 @@ export const memNotes: any[] = [
     id: 'note-tasnim-1',
     childId: 'demo-child-2',
     subject: 'Elementary Math',
-    title: 'গুণনীয়ক, গুণিতক এবং লসাগু ও গসাগু (Factors & Multiples)',
+    title: 'গুণনীয়ক ও গুণিতক (Factors & Multiples)',
     date: new Date(Date.now() - 1 * 86400000).toISOString().slice(0, 10),
     fileUrl: '/notes/tasnim-math-sample.png',
-    textClean: 'Math Class 5 Ch 5: Factors & Multiples. LCM = Least Common Multiple, HCF = Highest Common Factor. Common factor trees.',
-    aiSummary: `### 📌 মৌলিক সংজ্ঞা ও ধারণা
-- **গুণনীয়ক (উৎপাদক)**: যে সংখ্যাগুলো দিয়ে কোনো সংখ্যাকে কোনো ভাগশেষ না রেখে নিঃশেষে ভাগ করা যায়।
-  - যেমন ১২ এর গুণনীয়ক: ১, ২, ৩, ৪, ৬, ১২।
-- **গুণিতক**: কোনো সংখ্যাকে পূর্ণসংখ্যা (১, ২, ৩...) দিয়ে গুণ করলে প্রাপ্ত ফলাফল।
-  - যেমন ৪ এর গুণিতক: ৪, ৮, ১২, ১৬, ২০...
+    textClean: 'Class 5 Math: Factors and Multiples. Prime factors of 24 = 2 x 2 x 2 x 3. LCM of 12 and 18 is 36. HCF of 12 and 18 is 6. LCM x HCF = Product of numbers.',
+    aiSummary: `### 📌 মৌলিক সংজ্ঞা ও নিয়মাবলী
+- **গুণনীয়ক (Factor)**: কোনো সংখ্যা যেসব সংখ্যা দ্বারা নিঃশেষে বিভাজ্য হয়, সেগুলোই ঐ সংখ্যার গুণনীয়ক। যেমন: ১২ এর গুণনীয়ক হলো ১, ২, ৩, ৪, ৬, ১২।
+- **গুণিতক (Multiple)**: কোনো সংখ্যাকে পূর্ণসংখ্যা দিয়ে গুণ করলে যে সংখ্যাগুলো পাওয়া যায়। যেমন: ৫ এর গুণিতক ৫, ১০, ১৫, ২০...
+- **মৌলিক সংখ্যা (Prime Number)**: ১ এর চেয়ে বড় যেসব সংখ্যার ১ এবং ঐ সংখ্যা ছাড়া অন্য কোনো গুণনীয়ক নেই (যেমন: ২, ৩, ৫, ৭, ১১)।
 
-### 📐 লসাগু ও গসাগু নির্ণয়ের নিয়ম
-- **গরিষ্ঠ সাধারণ গুণনীয়ক (গসাগু / HCF)**: সাধারণ গুণনীয়কগুলোর মধ্যে যেটি সবচেয়ে বড়।
-- **লঘিষ্ঠ সাধারণ গুণিতক (লসাগু / LCM)**: সাধারণ গুণিতকগুলোর মধ্যে যেটি সবচেয়ে ছোট।
+### 📐 গ.সা.গু ও ল.সা.গু নির্ণয়
+1. **গ.সা.গু (HCF/GCD)**: গরিষ্ঠ সাধারণ গুণনীয়ক — সাধারণ গুণনীয়কগুলোর মধ্যে সবচেয়ে বড়টি।
+2. **ল.সা.গু (LCM)**: লঘিষ্ঠ সাধারণ গুণিতক — সাধারণ গুণিতকগুলোর মধ্যে সবচেয়ে ছোটটি।
+3. **গুরুত্বপূর্ণ সূত্র**: দুইটি সংখ্যার গুণফল = সংখ্যা দুইটির গ.সা.গু × ল.সা.গু
 
-### 💡 পরীক্ষার জন্য জরুরি টিপস
-- দুটি সংখ্যার গুণফল = সংখ্যা দুটির লসাগু × গসাগু।
-- মৌলিক উৎপাদকে বিশ্লেষণ পদ্ধতি ব্যবহার করলে বড় সংখ্যার লসাগু-গসাগু ভুল হয় না।`,
+### 💡 সহজে মনে রাখার নিয়ম
+- ২ হলো একমাত্র জোড় মৌলিক সংখ্যা।
+- কোনো সংখ্যার গুণনীয়কের সংখ্যা নির্দিষ্ট, কিন্তু গুণিতকের সংখ্যা অনির্দিষ্ট (অসীম)।`,
     textHash: 'hash-tasnim-1',
-    ocrConfidence: 0.95,
+    ocrConfidence: 0.98,
     status: 'active',
     createdAt: new Date(Date.now() - 1 * 86400000).toISOString(),
   },
@@ -124,18 +124,25 @@ export const memNotes: any[] = [
     id: 'note-tasnim-2',
     childId: 'demo-child-2',
     subject: 'Primary Science',
-    title: 'নিরাপদ পানি ও বিশুদ্ধকরণ পদ্ধতি (Safe Water & Purification)',
+    title: 'জীবনের জন্য পানি ও বিশুদ্ধকরণ (Water for Life)',
     date: new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10),
     fileUrl: '/notes/tasnim-science-sample.png',
-    textClean: 'Science Ch 3: Safe Water. Boiling for at least 20 minutes kills germs. Filtration, Chlorination, Sedimentation methods.',
-    aiSummary: `### 📌 পানি বিশুদ্ধকরণের ৪টি প্রধান উপায়
-1. **ফুটানো (Boiling)**: পানিকে জীবাণুমুক্ত করতে অন্তত **২০ মিনিট** টগবগিয়ে ফোটাতে হবে।
-2. **ছাঁকন (Filtration)**: পরিষ্কার ও পাতলা কাপড় অথবা ফিল্টার দিয়ে পানিতে ভাসমান ময়লা দূর করা।
-3. **থিতানো (Sedimentation)**: কলসিতে দীর্ঘক্ষণ পানি রেখে দিলে তলানি নিচে জমে যায়, এরপর ওপরের পরিষ্কার পানি সাবধানে ঢেলে নেওয়া।
-4. **রাসায়নিক উপাদান (Chemical Purification)**: ফিটকিরি, ব্লিচিং পাউডার বা হ্যালোজেন ট্যাবলেট ব্যবহার।
+    textClean: 'Primary Science Ch 3: Water cycle and water purification. Evaporation, Condensation, Precipitation. Boiling water for 20 minutes kills germs.',
+    aiSummary: `### 📌 পানি চক্রের ৪টি প্রধান ধাপ
+1. **বাষ্পীভবন (Evaporation)**: সূর্যের তাপে নদী, নালা ও সমুদ্রের পানি বাষ্পে পরিণত হয়ে উপরে ওঠে।
+2. **ঘনীভবন (Condensation)**: জলীয় বাষ্প ঠান্ডা হয়ে মেঘের আকার ধারণ করে।
+3. **অধঃক্ষেপণ / বৃষ্টি (Precipitation)**: মেঘ থেকে বৃষ্টির ফোঁটা আকারে পানি আবার মাটিতে ফিরে আসে।
+4. **সংগ্রহ (Collection)**: বৃষ্টির পানি পুনরায় নদী ও সমুদ্রে গিয়ে মেশে।
 
-### ⚠️ গুরুত্বপূর্ণ সতর্কতা
-- আর্সেনিকযুক্ত পানি ফুটালে আর্সেনিক নষ্ট হয় না। তাই লাল চিহ্নিত নলকূপের পানি কখনো পান করা যাবে না; সবুজ চিহ্নিত নলকূপের নিরাপদ পানি পান করতে হবে।`,
+### 📐 পানি বিশুদ্ধকরণের নিরাপদ উপায়সমূহ
+- **ফোটানো (Boiling)**: নিরাপদ পানির জন্য পানিকে টগবগিয়ে কমপক্ষে ২০ মিনিট ফোটাতে হবে।
+- **ছাঁকন (Filtration)**: বালু বা পাতলা কাপড়ের সাহায্যে ভাসমান ময়লা দূর করা।
+- **থিতানো (Sedimentation)**: কলসিতে পানি রেখে তলানি নিচে জমার পর পরিষ্কার পানি আলাদা করা।
+- **রাসায়নিক উপাদান**: ফিটকিরি বা হ্যালোজেন ট্যাবলেট ব্যবহার।
+
+### 💡 পরীক্ষার প্রস্তুতি চেকলিস্ট
+- দূষিত পানি পান করলে ডায়রিয়া, কলেরা, আমাশয় ও টাইফয়েড হতে পারে।
+- আর্সেনিকযুক্ত টিউবওয়েলের পানি পান করা নিষেধ (লাল রঙ চিহ্নিত নলকূপ)।`,
     textHash: 'hash-tasnim-2',
     ocrConfidence: 0.94,
     status: 'active',
@@ -145,7 +152,7 @@ export const memNotes: any[] = [
     id: 'note-tasnim-3',
     childId: 'demo-child-2',
     subject: 'English',
-    title: 'Unit 6: Eat Healthy – Food Pyramid & Balanced Diet',
+    title: 'Eat Healthy - The Food Pyramid (Unit 6)',
     date: new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10),
     fileUrl: '/notes/tasnim-english-sample.png',
     textClean: 'English Unit 6: Food Pyramid. Grains, Fruits & Veggies, Dairy & Protein, Fat & Oil at top. Healthy eating habits.',
@@ -168,6 +175,9 @@ export const memNotes: any[] = [
 function hashText(t: string) { return sha256Hex(t.trim()); }
 
 export function generateStructuredFallback(rawText: string, subject: string): string {
+  if (!rawText || rawText.trim().length < 10) {
+    return generateSubjectNote(subject);
+  }
   const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
   const title = lines[0] ? lines[0].replace(/^[#\-*\s]+/, '') : `${subject} Study Note`;
   const bullets = lines.slice(1, 8);
@@ -189,34 +199,96 @@ ${bullets.length > 0 ? bullets.map((b) => `- ${b}`).join('\n') : `- ${rawText.sl
 2. এই পাঠে আলোচিত গুরুত্বপূর্ণ নিয়ম বা সমীকরণটি ব্যাখ্যা করো।`;
 }
 
-export async function makeAINote(childId: string, userId: string, body: { text: string; subject?: string; date?: string }) {
+export type MakeAINoteInput = {
+  text?: string;
+  subject?: string;
+  date?: string;
+  title?: string;
+  imageBase64?: string;
+  imageMimeType?: string;
+  file?: any;
+};
+
+export async function makeAINote(childId: string, userId: string, body: MakeAINoteInput) {
   await assertOwnership(userId, childId);
   const rawText = body.text || '';
-  const subject = body.subject || 'General';
+  let subject = body.subject || 'General';
 
-  const system = `You are an expert NCTB curriculum teacher and study-notes specialist for Bangladeshi school students. 
-Transform raw handwritten class notes / OCR text into a beautifully structured, comprehensive, and clear study note.
-Structure the note using clean markdown with:
-1. Main Title with an appropriate emoji and subject
-2. 📌 মূল বিষয় ও সংজ্ঞা (Core Concepts & Definitions)
-3. 📐 সূত্র, বৈশিষ্ট্য ও গুরুত্বপূর্ণ তথ্য (Formulas, Laws & Key Facts)
-4. 💡 রিভিশন টিপস ও সারসংক্ষেপ (Summary & Quick Revision Bullet Points)
-5. ✍️ অনুশীলন প্রশ্ন (2-3 Practice/Self-Test Questions)
-Keep language clear and bilingual if raw text contains both Bangla and English.`;
+  let aiImage: AIImage | undefined;
+  if (body.file?.buffer) {
+    const mt = (body.file.mimetype || 'image/jpeg').toLowerCase();
+    const mediaType = mt.includes('png')
+      ? 'image/png'
+      : mt.includes('webp')
+      ? 'image/webp'
+      : mt.includes('gif')
+      ? 'image/gif'
+      : 'image/jpeg';
+    aiImage = {
+      data: body.file.buffer.toString('base64'),
+      mediaType,
+    };
+  } else if (body.imageBase64) {
+    const clean = body.imageBase64.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+    const mt = (body.imageMimeType || 'image/jpeg').toLowerCase();
+    const mediaType = mt.includes('png')
+      ? 'image/png'
+      : mt.includes('webp')
+      ? 'image/webp'
+      : mt.includes('gif')
+      ? 'image/gif'
+      : 'image/jpeg';
+    aiImage = {
+      data: clean,
+      mediaType,
+    };
+  }
 
-  const user = `Subject: ${subject}\nClass Note Date: ${body.date || new Date().toISOString().slice(0, 10)}\nRaw Extracted Notes / OCR Text:\n${rawText}`;
+  const hasImage = Boolean(aiImage);
+
+  const system = `You are an expert pedagogy teacher and study-note specialist for Bangladeshi school students following the NCTB curriculum.
+Your mission is to examine uploaded class notes, handwritten pages, chalkboard photos, diagrams, or text and synthesize a beautifully structured, comprehensive, high-quality study note.
+
+Note Structure (Clean Markdown):
+# 📌 [Appropriate Emoji & Clear Topic Title]
+### 📌 মূল ধারণা ও সংজ্ঞা (Core Concepts & Definitions)
+- Clear, student-friendly explanation of all fundamental terms, laws, and definitions visible in the lesson.
+
+### 📐 সূত্র, সমীকরণ ও প্রয়োগ (Formulas, Equations & Rules)
+- Exact mathematical/scientific formulas, SI units, variables explained, and step-by-step example where applicable.
+
+### 💡 সারসংক্ষেপ ও রিভিশন চেকলিস্ট (Key Points & Exam Checklist)
+- 3-5 concise bullet points highlighting the most essential points to remember for school and board exams.
+
+### ✍️ স্ব-মূল্যায়ন ও অনুশীলন প্রশ্ন (Self-Test Practice Questions)
+- 2-3 practice questions (with brief hints or answers in parentheses) to test understanding.
+
+Tone: Encouraging, clear, academically accurate.
+Language: Bilingual (clear Bangla with English scientific/technical terms in brackets, or English if note is primarily English).`;
+
+  const user = `Subject: ${subject}
+Date: ${body.date || new Date().toISOString().slice(0, 10)}
+${rawText ? `Student Context / Notes:\n${rawText}` : 'Please examine the uploaded note image carefully and synthesize a complete, clear study note.'}`;
 
   try {
     const aiResult = await callAI({
       system,
       user,
-      model: 'fast',
-      maxTokens: 1500,
+      model: hasImage ? 'smart' : 'fast',
+      image: aiImage,
+      maxTokens: 2500,
     });
     if (aiResult.content && aiResult.content.length > 50) {
+      let title: string | undefined;
+      const titleMatch = aiResult.content.match(/^#+\s*(.+)$/m);
+      if (titleMatch) {
+        title = titleMatch[1].trim().replace(/^[📌🔬📐⚡💡\s]+/, '');
+      }
       return {
         aiSummary: aiResult.content,
+        title: title || body.title || `${subject} Study Note`,
         subject,
+        textClean: rawText || (hasImage ? `[AI Vision Note from image: ${title || subject}]` : ''),
         model: aiResult.model,
       };
     }
@@ -224,11 +296,12 @@ Keep language clear and bilingual if raw text contains both Bangla and English.`
     console.error('AI notemaking call failed, using fallback formatter', err);
   }
 
-  // Fallback high-quality structured notemaking if AI call fails or is mocked
-  const fallbackFormatted = generateStructuredFallback(rawText, subject);
+  const fallbackFormatted = generateSubjectNote(subject);
   return {
     aiSummary: fallbackFormatted,
+    title: body.title || `${subject} Study Note`,
     subject,
+    textClean: rawText || `[AI Study Note: ${subject}]`,
     model: 'fast-formatter',
   };
 }
@@ -237,25 +310,48 @@ export async function createNote(childId: string, parentId: string, file: any, b
   await assertOwnership(parentId, childId);
   let fileUrl: string | undefined;
   let textClean = body.textClean || body.text || '';
-  const ocrConfidence: number | undefined = body.ocrConfidence ? parseFloat(body.ocrConfidence) : 0.92;
-  const subject = body.subject || body.subjectId || 'Physics';
-  const title = body.title || `${subject}: ${textClean.slice(0, 35).replace(/[\r\n]+/g, ' ')}...`;
+  const ocrConfidence: number | undefined = body.ocrConfidence ? parseFloat(body.ocrConfidence) : 0.95;
+  let subject = body.subject || body.subjectId || 'Physics';
+  let title = body.title;
   let aiSummary = body.aiSummary || null;
 
   if (file) {
     const saved = await storage.save(file.buffer, file.originalname, file.mimetype);
     fileUrl = saved.url;
-    if (!textClean) textClean = `[OCR from ${file.originalname}]`;
   }
 
-  // Generate AI structured note if not already provided
-  if (!aiSummary && textClean && textClean.trim().length > 10) {
+  // If aiSummary is missing and an image or text is provided, generate the AI note!
+  if (!aiSummary && (file || body.imageBase64)) {
+    try {
+      const aiNote = await makeAINote(childId, parentId, {
+        file,
+        imageBase64: body.imageBase64,
+        imageMimeType: body.imageMimeType,
+        text: textClean,
+        subject,
+        date: body.date,
+      });
+      aiSummary = aiNote.aiSummary;
+      if (!title && aiNote.title) title = aiNote.title;
+      if (aiNote.subject && (!subject || subject === 'General')) subject = aiNote.subject;
+      if (!textClean || textClean.startsWith('[OCR from')) {
+        textClean = aiNote.textClean || aiSummary.slice(0, 300);
+      }
+    } catch {
+      aiSummary = generateStructuredFallback(textClean || subject, subject);
+    }
+  } else if (!aiSummary && textClean && textClean.trim().length > 10) {
     try {
       const aiNote = await makeAINote(childId, parentId, { text: textClean, subject, date: body.date });
       aiSummary = aiNote.aiSummary;
+      if (!title && aiNote.title) title = aiNote.title;
     } catch {
       aiSummary = generateStructuredFallback(textClean, subject);
     }
+  }
+
+  if (!title) {
+    title = `${subject}: ${(textClean || 'Study Note').slice(0, 35).replace(/[\r\n]+/g, ' ')}...`;
   }
 
   const textHash = textClean ? hashText(textClean) : undefined;
@@ -332,8 +428,8 @@ export async function deleteNote(noteId: string, parentId: string) {
 export async function aiOcrFallback(noteId: string, parentId: string, userId: string) {
   const note: any = await findNote(noteId, parentId);
   const prompt = {
-    system: 'You are OCR helper. Improve and format class notes text.',
-    user: `Improve and structure OCR for: ${note.textClean?.slice(0, 4000) ?? ''}`,
+    system: 'You are an educational study note helper. Improve and format class notes text.',
+    user: `Subject: ${note.subject || 'General'}\nImprove and structure study note for: ${note.textClean?.slice(0, 4000) ?? ''}`,
     model: 'fast' as const,
     maxTokens: 2000,
   };
@@ -357,7 +453,7 @@ export async function aiOcrFallback(noteId: string, parentId: string, userId: st
       },
     });
   } catch {}
-  await updateNote(noteId, parentId, { textClean: improved, ocrConfidence: 0.95 });
+  await updateNote(noteId, parentId, { textClean: improved, aiSummary: improved, ocrConfidence: 0.98 });
   return {
     improvedText: improved,
     usage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens, costEst: cost, model: result.model },

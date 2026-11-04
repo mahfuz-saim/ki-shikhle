@@ -46,7 +46,7 @@ export default function RegisterPage() {
         return;
       }
       // Local fallback in dev mode if backend unreachable
-      login('demo-access-token-' + Date.now(), {
+      login('demo-parent-token', {
         id: 'parent-' + Date.now(),
         name: form.name || 'New Parent',
         email: form.email,

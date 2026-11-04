@@ -200,24 +200,24 @@ export function Header() {
             </Button>
           </Link>
 
-          {/* Language Switcher */}
+          {/* Language Switcher (Desktop) */}
           <Button
             variant="ghost"
             size="sm"
             onClick={toggleLocale}
-            className="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1 text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+            className="hidden sm:flex h-8 px-2.5 rounded-lg text-xs font-semibold items-center gap-1 text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
             title="Toggle Language"
           >
             <Globe className="h-3.5 w-3.5 text-muted-foreground" />
             <span>{locale === 'en' ? 'বাংলা' : 'EN'}</span>
           </Button>
 
-          {/* Theme Toggle */}
+          {/* Theme Toggle (Desktop) */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="hidden sm:flex h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             aria-label="Toggle theme"
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
@@ -235,7 +235,7 @@ export function Header() {
 
             {userMenuOpen && (
               <div
-                className="absolute right-0 mt-1.5 w-48 rounded-xl border bg-card p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95"
+                className="absolute right-0 mt-1.5 w-52 rounded-xl border bg-card p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95"
                 onMouseLeave={() => setUserMenuOpen(false)}
               >
                 <div className="px-3 py-2 border-b mb-1">
@@ -268,6 +268,47 @@ export function Header() {
                   <LogOut className="w-3.5 h-3.5" />
                   {t('nav.logout', 'Logout')}
                 </button>
+
+                {/* Last two options: Language and Theme */}
+                <div className="border-t my-1 pt-1 space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleLocale();
+                      setUserMenuOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>{isBn ? 'ভাষা (Language)' : 'Language (ভাষা)'}</span>
+                    </span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                      {locale === 'en' ? 'বাংলা' : 'EN'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTheme(theme === 'dark' ? 'light' : 'dark');
+                      setUserMenuOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      {theme === 'dark' ? (
+                        <Sun className="w-3.5 h-3.5 text-amber-500" />
+                      ) : (
+                        <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                      )}
+                      <span>{isBn ? 'থিম (Theme)' : 'Theme'}</span>
+                    </span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize">
+                      {theme === 'dark' ? (isBn ? 'ডার্ক' : 'Dark') : (isBn ? 'লাইট' : 'Light')}
+                    </span>
+                  </button>
+                </div>
               </div>
             )}
           </div>

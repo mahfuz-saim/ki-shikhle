@@ -7,7 +7,7 @@
  */
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
-import { runAllJobs, runCleanup, runTrialReminders } from './jobs';
+import { runAllJobs, runCleanup, runTrialReminders, runAutoQuizSchedulerJob } from './jobs';
 
 export function startCrons() {
   if (!env.ENABLE_CRON) {
@@ -30,7 +30,14 @@ export function startCrons() {
       /* no DB in dev */
     }
   });
-  logger.info('⏰ Crons scheduled: trial reminders (3am), purge (4am)');
+  cron.schedule('0 19 * * *', async () => {
+    try {
+      logger.info(await runAutoQuizSchedulerJob(), 'auto quiz scheduler cron');
+    } catch (e) {
+      logger.warn({ err: (e as Error).message }, 'auto quiz cron failed');
+    }
+  });
+  logger.info('⏰ Crons scheduled: trial reminders (3am), purge (4am), auto quiz scheduler (7pm)');
 }
 
 export { runAllJobs };

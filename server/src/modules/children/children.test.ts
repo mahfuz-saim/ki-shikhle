@@ -50,4 +50,72 @@ describe('Unlogged Study Alert Configuration', () => {
     expect(res.success).toBe(true);
     expect(res.notification.userId).toBe('parent-demo');
   });
+
+  it('creates child profile with long grade name like Class 11 (HSC 1st Year)', async () => {
+    const { app } = await import('../../app');
+    const res = await app.request('/api/v1/children', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer demo-parent-token',
+      },
+      body: JSON.stringify({
+        name: 'HSC Student',
+        nickname: 'HSC',
+        grade: 'Class 11 (HSC 1st Year)',
+        curriculum: 'NCTB',
+        medium: 'Bangla',
+        email: 'hsc_student@example.com',
+        password: 'password123',
+      }),
+    });
+    const data: any = await res.json();
+    expect(res.status).toBe(201);
+    expect(data.success).toBe(true);
+    expect(data.data.name).toBe('HSC Student');
+    expect(data.data.grade).toBe('Class 11 (HSC 1st Year)');
+  });
+
+  it('creates child profile with demo-access-token auth header', async () => {
+    const { app } = await import('../../app');
+    const res = await app.request('/api/v1/children', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer demo-access-token-12345',
+      },
+      body: JSON.stringify({
+        name: 'Admission Candidate',
+        nickname: 'Candidate',
+        grade: 'Admission Prep',
+        curriculum: 'NCTB',
+        medium: 'English',
+        email: 'admission_candidate@example.com',
+        password: 'password123',
+      }),
+    });
+    const data: any = await res.json();
+    expect(res.status).toBe(201);
+    expect(data.success).toBe(true);
+  });
+
+  it('rejects duplicate student email with 409 Conflict', async () => {
+    const { app } = await import('../../app');
+    const res = await app.request('/api/v1/children', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer demo-parent-token',
+      },
+      body: JSON.stringify({
+        name: 'Duplicate Student',
+        grade: 'Class 8',
+        email: 'rahim@demo.com',
+        password: 'password123',
+      }),
+    });
+    expect(res.status).toBe(409);
+    const data: any = await res.json();
+    expect(data.error.code).toBe('CONFLICT');
+  });
 });

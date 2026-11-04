@@ -20,7 +20,6 @@ import {
   Sun,
   Moon,
   Globe,
-  ChevronDown,
   CheckCheck,
   Play,
   Sparkles,
@@ -38,11 +37,9 @@ export function KidShell({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
 
   const [notifOpen, setNotifOpen] = useState(false);
-  const [childDropdownOpen, setChildDropdownOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const notifRef = useRef<HTMLDivElement>(null);
-  const childDropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isParent = user?.role === 'parent';
@@ -57,7 +54,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
       message: isBn
         ? (isTasnim ? 'অভিভাবক কর্তৃক নতুন কুইজ: "প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি"' : 'অভিভাবক কর্তৃক নতুন কুইজ: "পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ"')
         : (isTasnim ? 'Parent assigned a new quiz: "Primary Science: Safe Water"' : 'Parent assigned a new quiz: "Physics: Equations of Motion"'),
-      link: isTasnim ? '/child/quiz/q-t2' : '/child/quiz/q-r2',
+      link: '/child/quiz',
       actionText: isBn ? 'কুইজ দাও' : 'Take Quiz',
       icon: 'quiz',
       read: false,
@@ -110,9 +107,6 @@ export function KidShell({ children }: { children: React.ReactNode }) {
       if (notifRef.current && !notifRef.current.contains(target)) {
         setNotifOpen(false);
       }
-      if (childDropdownRef.current && !childDropdownRef.current.contains(target)) {
-        setChildDropdownOpen(false);
-      }
       if (userMenuRef.current && !userMenuRef.current.contains(target)) {
         setUserMenuOpen(false);
       }
@@ -121,7 +115,6 @@ export function KidShell({ children }: { children: React.ReactNode }) {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setNotifOpen(false);
-        setChildDropdownOpen(false);
         setUserMenuOpen(false);
       }
     }
@@ -183,7 +176,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
       icon: FileText,
     },
     {
-      href: '/child#quizzes',
+      href: '/child/quiz',
       label: isBn ? 'কুইজ অনুশীলন' : 'Take Quizzes',
       mobileLabel: t('bottomNav.quiz', isBn ? 'কুইজ' : 'Quiz'),
       icon: Brain,
@@ -315,7 +308,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         {/* Top Header Navbar (Matching Parent Portal Header) */}
         <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-md px-4 md:px-6 py-2.5 flex items-center justify-between gap-3">
-          {/* Left Section: Mobile Brand & Student Switcher / Badge */}
+          {/* Left Section: Mobile Brand & Student Streak Badge */}
           <div className="flex items-center gap-3">
             {/* Mobile Brand Logo (hidden on desktop where left sidebar is shown) */}
             <Link href="/child" className="md:hidden flex items-center">
@@ -335,77 +328,8 @@ export function KidShell({ children }: { children: React.ReactNode }) {
               />
             </Link>
 
-            {/* Active Student Selector / Status Indicator */}
-            {isParent && childrenList.length > 0 ? (
-              <div className="relative" ref={childDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setChildDropdownOpen(!childDropdownOpen)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-background/80 hover:bg-muted text-xs font-semibold transition-all shadow-xs"
-                >
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-600 to-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
-                    {studentName.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="max-w-[75px] sm:max-w-[120px] truncate text-foreground font-bold">
-                    {studentName}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                    ({gradeLabel})
-                  </span>
-                  <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5" />
-                </button>
-
-                {childDropdownOpen && (
-                  <div className="absolute left-0 mt-1 w-56 rounded-xl border bg-card p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95">
-                    <p className="px-2.5 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      {isBn ? 'শিক্ষার্থী পরিবর্তন করুন' : 'Switch Student'}
-                    </p>
-                    <div className="space-y-0.5">
-                      {childrenList.map((c) => (
-                        <button
-                          type="button"
-                          key={c.id}
-                          onClick={() => {
-                            setActiveChild(c);
-                            setChildDropdownOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${
-                            activeChild?.id === c.id
-                              ? 'bg-primary text-primary-foreground font-semibold'
-                              : 'hover:bg-muted text-foreground'
-                          }`}
-                        >
-                          <span className="truncate">{c.name}</span>
-                          <span className="text-[10px] opacity-75 shrink-0 ml-1.5">{c.grade}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="border-t my-1 pt-1">
-                      <Link
-                        href="/dashboard"
-                        onClick={() => setChildDropdownOpen(false)}
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-primary hover:bg-primary/10 transition-colors font-medium"
-                      >
-                        <ArrowLeft className="w-3 h-3" />
-                        <span>{isBn ? 'অভিভাবক ড্যাশবোর্ড' : 'Parent Dashboard'}</span>
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-background/80 text-xs font-semibold shadow-xs">
-                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-600 to-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
-                  {studentName.charAt(0).toUpperCase()}
-                </div>
-                <span className="font-bold text-foreground">{studentName}</span>
-                <span className="text-[10px] text-muted-foreground hidden sm:inline">({gradeLabel})</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
-              </div>
-            )}
-
             {/* Student Streak Badge */}
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
               <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
               <span>
                 {isBn
@@ -537,24 +461,24 @@ export function KidShell({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-            {/* Language Switcher */}
+            {/* Language Switcher (Desktop) */}
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleLocale}
-              className="h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1 text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+              className="hidden sm:flex h-8 px-2.5 rounded-lg text-xs font-semibold items-center gap-1 text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
               title="Toggle Language"
             >
               <Globe className="h-3.5 w-3.5 text-muted-foreground" />
               <span>{locale === 'en' ? 'বাংলা' : 'EN'}</span>
             </Button>
 
-            {/* Theme Toggle */}
+            {/* Theme Toggle (Desktop) */}
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className="hidden sm:flex h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               aria-label="Toggle theme"
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
@@ -569,17 +493,43 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                 className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-xs hover:ring-2 hover:ring-primary/20 transition-all"
                 aria-label="Student Account Menu"
               >
-                {studentName.charAt(0).toUpperCase()}
+                <UserIcon className="w-4 h-4" />
               </button>
 
               {userMenuOpen && (
                 <div
-                  className="absolute right-0 mt-1.5 w-48 rounded-xl border bg-card p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95"
+                  className="absolute right-0 mt-1.5 w-52 rounded-xl border bg-card p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95"
                 >
                   <div className="px-3 py-2 border-b mb-1">
                     <p className="text-xs font-semibold truncate text-foreground">{studentName}</p>
                     <p className="text-[11px] text-muted-foreground truncate">{gradeLabel}</p>
                   </div>
+
+                  {isParent && childrenList.length > 1 && (
+                    <div className="py-1 border-b mb-1 space-y-0.5">
+                      <p className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        {isBn ? 'শিক্ষার্থী পরিবর্তন করুন' : 'Switch Student'}
+                      </p>
+                      {childrenList.map((c) => (
+                        <button
+                          type="button"
+                          key={c.id}
+                          onClick={() => {
+                            setActiveChild(c);
+                            setUserMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${
+                            activeChild?.id === c.id
+                              ? 'bg-primary text-primary-foreground font-semibold'
+                              : 'hover:bg-muted text-foreground'
+                          }`}
+                        >
+                          <span className="truncate">{c.name}</span>
+                          <span className="text-[10px] opacity-75 shrink-0 ml-1.5">{c.grade}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   <Link
                     href="/child"
@@ -618,7 +568,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                   </Link>
 
                   <Link
-                    href="/child#quizzes"
+                    href="/child/quiz"
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
                   >
@@ -648,6 +598,47 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                       <span>{isBn ? 'লগআউট' : 'Logout'}</span>
                     </button>
                   )}
+
+                  {/* Last two options: Language and Theme */}
+                  <div className="border-t my-1 pt-1 space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toggleLocale();
+                        setUserMenuOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span>{isBn ? 'ভাষা (Language)' : 'Language (ভাষা)'}</span>
+                      </span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                        {locale === 'en' ? 'বাংলা' : 'EN'}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTheme(theme === 'dark' ? 'light' : 'dark');
+                        setUserMenuOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        {theme === 'dark' ? (
+                          <Sun className="w-3.5 h-3.5 text-amber-500" />
+                        ) : (
+                          <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                        )}
+                        <span>{isBn ? 'থিম (Theme)' : 'Theme'}</span>
+                      </span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize">
+                        {theme === 'dark' ? (isBn ? 'ডার্ক' : 'Dark') : (isBn ? 'লাইট' : 'Light')}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -663,9 +654,8 @@ export function KidShell({ children }: { children: React.ReactNode }) {
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t bg-card/95 backdrop-blur-lg flex justify-around items-center py-2 px-2 shadow-lg">
           {kidNavItems.map((item) => {
             const isExact = pathname === item.href;
-            const isSubPath = item.href !== '/child' && !item.href.includes('#') && pathname.startsWith(item.href);
-            const isQuizActive = item.href.includes('#quizzes') && pathname.startsWith('/child/quiz');
-            const isActive = isExact || isSubPath || isQuizActive;
+            const isSubPath = item.href !== '/child' && pathname.startsWith(item.href);
+            const isActive = isExact || isSubPath;
             const Icon = item.icon;
 
             return (

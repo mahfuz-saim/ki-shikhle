@@ -91,7 +91,22 @@ export default function ChildrenPage() {
     setFormError('');
     setLoading(true);
     try {
-      await api.post('/children', form);
+      const payload: any = {
+        name: form.name.trim(),
+        grade: form.grade,
+        curriculum: form.curriculum || 'NCTB',
+        medium: form.medium || 'Bangla',
+      };
+      if (form.nickname?.trim()) {
+        payload.nickname = form.nickname.trim();
+      }
+      if (form.email?.trim()) {
+        payload.email = form.email.trim();
+      }
+      if (form.password) {
+        payload.password = form.password;
+      }
+      await api.post('/children', payload);
       await refreshChildren();
       setAddModalOpen(false);
       setForm({
@@ -104,7 +119,14 @@ export default function ChildrenPage() {
         password: '',
       });
     } catch (err: any) {
-      setFormError(err.response?.data?.error?.message || 'Failed to add student profile.');
+      const message =
+        err.response?.data?.error?.message ||
+        (Array.isArray(err.response?.data?.error?.details)
+          ? err.response.data.error.details.map((d: any) => d.message).join(', ')
+          : null) ||
+        err.message ||
+        'Failed to add student profile.';
+      setFormError(message);
     } finally {
       setLoading(false);
     }
@@ -118,12 +140,12 @@ export default function ChildrenPage() {
     setLoading(true);
     try {
       const payload: any = {
-        name: form.name,
-        nickname: form.nickname,
+        name: form.name.trim(),
+        nickname: form.nickname.trim(),
         grade: form.grade,
         curriculum: form.curriculum,
         medium: form.medium,
-        email: form.email,
+        email: form.email.trim() || null,
       };
       if (form.password) {
         payload.password = form.password;
@@ -132,7 +154,14 @@ export default function ChildrenPage() {
       await refreshChildren();
       setEditModalOpen(false);
     } catch (err: any) {
-      setFormError(err.response?.data?.error?.message || 'Failed to update profile.');
+      const message =
+        err.response?.data?.error?.message ||
+        (Array.isArray(err.response?.data?.error?.details)
+          ? err.response.data.error.details.map((d: any) => d.message).join(', ')
+          : null) ||
+        err.message ||
+        'Failed to update profile.';
+      setFormError(message);
     } finally {
       setLoading(false);
     }
@@ -721,23 +750,28 @@ function SubjectsManager() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
-        {list.map((s: any, i: number) => (
-          <div
-            key={i}
-            className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/20 text-xs hover:bg-muted/40 transition-colors"
-          >
-            <div className="min-w-0">
-              <p className="font-semibold truncate text-foreground">{s.nameEn}</p>
-              {s.nameBn && <p className="text-[11px] text-muted-foreground truncate">{s.nameBn}</p>}
+      {/* Scrollable Subject Box: 6 subjects visible on mobile (3 rows x 2 cols), rest scrollable within box */}
+      <div className="max-h-[178px] sm:max-h-[235px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 overscroll-contain">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1 pb-1">
+          {list.map((s: any, i: number) => (
+            <div
+              key={i}
+              className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/20 text-xs hover:bg-muted/40 transition-colors h-[52px]"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold truncate text-foreground text-xs leading-tight">{s.nameEn}</p>
+                {s.nameBn && (
+                  <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">{s.nameBn}</p>
+                )}
+              </div>
+              {s.isCustom && (
+                <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1 shrink-0">
+                  Custom
+                </Badge>
+              )}
             </div>
-            {s.isCustom && (
-              <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1 shrink-0">
-                Custom
-              </Badge>
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

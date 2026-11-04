@@ -13,6 +13,7 @@ import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
+import { StudyTimeChart } from '@/components/charts/study-time-chart';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -60,6 +61,42 @@ function toBnNum(num: number | string): string {
   return String(num).replace(/[0-9]/g, (d) => bnDigits[parseInt(d, 10)]);
 }
 
+function safeString(val: any): string {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number') return String(val);
+  if (typeof val === 'object') {
+    return val.name || val.title || val.subject || JSON.stringify(val);
+  }
+  return String(val);
+}
+
+function parseWeekdays(val: any): number[] {
+  if (Array.isArray(val)) {
+    return val.map((x) => Number(x)).filter((x) => !isNaN(x));
+  }
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) {
+        return parsed.map((x) => Number(x)).filter((x) => !isNaN(x));
+      }
+    } catch {
+      return val.split(',').map((x) => Number(x.trim())).filter((x) => !isNaN(x));
+    }
+  }
+  return [];
+}
+
+function unpackList(resData: any): any[] {
+  if (!resData) return [];
+  if (Array.isArray(resData)) return resData;
+  if (Array.isArray(resData.data)) return resData.data;
+  if (Array.isArray(resData.data?.data)) return resData.data.data;
+  if (Array.isArray(resData.items)) return resData.items;
+  return [];
+}
+
 // Subject color helpers for vibrant school routine tags
 const SUBJECT_COLORS: Record<string, { bg: string; text: string; border: string; badge: string }> = {
   bangla: { bg: 'bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-300', border: 'border-emerald-500/30', badge: 'bg-emerald-500' },
@@ -74,8 +111,8 @@ const SUBJECT_COLORS: Record<string, { bg: string; text: string; border: string;
   bgs: { bg: 'bg-orange-500/10', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-500/30', badge: 'bg-orange-500' },
 };
 
-function getSubjectColor(subjectName: string = '') {
-  const lower = subjectName.toLowerCase();
+function getSubjectColor(subjectName: any = '') {
+  const lower = safeString(subjectName).toLowerCase();
   for (const [key, val] of Object.entries(SUBJECT_COLORS)) {
     if (lower.includes(key)) return val;
   }
@@ -96,6 +133,7 @@ export default function KidSchedulePage() {
 
   const [routines, setRoutines] = useState<any[]>([]);
   const [entries, setEntries] = useState<any[]>([]);
+  const [studyTime, setStudyTime] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Selected Weekday (0=Sun .. 6=Sat) & Selected Date
@@ -144,27 +182,111 @@ export default function KidSchedulePage() {
     startsOn: new Date().toISOString().slice(0, 10),
   });
 
-  // Load routines and learning entries from backend
+  // Quick routine presets for easy 1-click routine addition
+  const routinePresets = isFahim
+    ? [
+        { name: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র' : 'Physics 1st Paper', periodName: '১ম পিরিয়ড', subject: 'Physics 1st Paper', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '08:30', durationMin: 50 },
+        { name: isBn ? 'রসায়ন ১ম পত্র' : 'Chemistry 1st Paper', periodName: '২য় পিরিয়ড', subject: 'Chemistry 1st Paper', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '09:20', durationMin: 50 },
+        { name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching', periodName: 'কোচিং', subject: 'Physics 1st Paper', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:30', durationMin: 75 },
+        { name: isBn ? 'রসায়ন প্রাইভেট' : 'Chemistry Tuition', periodName: 'প্রাইভেট', subject: 'Chemistry 1st Paper', source: 'tuition', weekdays: [1, 3], startTime: '17:00', durationMin: 60 },
+        { name: isBn ? 'উচ্চতর গণিত সেলফ স্টাডি' : 'Higher Math Self-Study', periodName: 'সেলফ স্টাডি', subject: 'Higher Mathematics', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:30', durationMin: 60 },
+      ]
+    : isTasnim
+    ? [
+        { name: isBn ? 'প্রাথমিক বাংলা' : 'Primary Bangla', periodName: '১ম পিরিয়ড', subject: 'Bangla', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:30', durationMin: 45 },
+        { name: isBn ? 'প্রাথমিক ইংরেজি' : 'Primary English', periodName: '২য় পিরিয়ড', subject: 'English', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:15', durationMin: 45 },
+        { name: isBn ? 'প্রাথমিক গণিত প্রাইভেট' : 'Elementary Math Tuition', periodName: 'প্রাইভেট', subject: 'Mathematics', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:00', durationMin: 60 },
+        { name: isBn ? 'ইংরেজি টিউটর' : 'English Tutor', periodName: 'প্রাইভেট', subject: 'English', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 45 },
+        { name: isBn ? 'সন্ধ্যায় সেলফ স্টাডি' : 'Evening Self-Study', periodName: 'সেলফ স্টাডি', subject: 'General Science', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '18:30', durationMin: 75 },
+      ]
+    : [
+        { name: isBn ? '১ম পিরিয়ড: বাংলা ১ম পত্র' : '1st Period: Bangla 1st', periodName: '১ম পিরিয়ড', subject: 'Bangla 1st Paper', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:00', durationMin: 45 },
+        { name: isBn ? '২য় পিরিয়ড: ইংরেজি ১ম পত্র' : '2nd Period: English 1st', periodName: '২য় পিরিয়ড', subject: 'English 1st Paper', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:45', durationMin: 45 },
+        { name: isBn ? 'গণিত প্রাইভেট (রহিম স্যার)' : 'Math Tuition (Rahim Sir)', periodName: 'প্রাইভেট', subject: 'Mathematics', source: 'tuition', weekdays: [0, 2, 5], startTime: '16:00', durationMin: 90 },
+        { name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching', periodName: 'কোচিং', subject: 'General Science', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 60 },
+        { name: isBn ? 'আইসিটি ও কম্পিউটার ক্লাস' : 'ICT & Computer Class', periodName: '৬ষ্ঠ পিরিয়ড', subject: 'ICT', source: 'school', weekdays: [1, 4], startTime: '15:00', durationMin: 60 },
+        { name: isBn ? 'রাতে সেলফ স্টাডি' : 'Night Self-Study', periodName: 'সেলফ স্টাডি', subject: 'Mathematics', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:00', durationMin: 90 },
+      ];
+
+  const defaultStudyTimeList = isFahim
+    ? [
+        { date: 'Mon', college: 100, tuition: 75, self_study: 60 },
+        { date: 'Tue', college: 100, tuition: 60, self_study: 60 },
+        { date: 'Wed', college: 100, tuition: 75, self_study: 45 },
+        { date: 'Thu', college: 100, tuition: 60, self_study: 60 },
+        { date: 'Fri', college: 0, tuition: 90, self_study: 75 },
+        { date: 'Sat', college: 0, tuition: 0, self_study: 90 },
+        { date: 'Sun', college: 100, tuition: 75, self_study: 60 },
+      ]
+    : isTasnim
+    ? [
+        { date: 'Mon', school: 45, tuition: 60, self_study: 45 },
+        { date: 'Tue', school: 45, tuition: 50, self_study: 45 },
+        { date: 'Wed', school: 40, tuition: 60, self_study: 45 },
+        { date: 'Thu', school: 45, tuition: 50, self_study: 40 },
+        { date: 'Fri', school: 0, tuition: 60, self_study: 45 },
+        { date: 'Sat', school: 0, tuition: 0, self_study: 50 },
+        { date: 'Sun', school: 45, tuition: 60, self_study: 45 },
+      ]
+    : [
+        { date: 'Mon', school: 95, tuition: 75, self_study: 45 },
+        { date: 'Tue', school: 90, tuition: 60, self_study: 50 },
+        { date: 'Wed', school: 50, tuition: 75, self_study: 45 },
+        { date: 'Thu', school: 50, tuition: 60, self_study: 40 },
+        { date: 'Fri', school: 0, tuition: 75, self_study: 45 },
+        { date: 'Sat', school: 0, tuition: 60, self_study: 60 },
+        { date: 'Sun', school: 95, tuition: 75, self_study: 45 },
+      ];
+
+  const currentStudyTime = (Array.isArray(studyTime) && studyTime.length > 0) ? studyTime : defaultStudyTimeList;
+  const collegeMin = currentStudyTime.reduce((sum, d) => sum + (d?.college || 0), 0) || (isFahim ? 500 : 0);
+  const schoolMin = currentStudyTime.reduce((sum, d) => sum + (d?.school || 0), 0) || (institutionType === 'school' ? (isTasnim ? 220 : 380) : 0);
+  const tuitionMin = currentStudyTime.reduce((sum, d) => sum + (d?.tuition || 0), 0) || (isFahim ? 435 : isTasnim ? 280 : 405);
+  const selfStudyMin = currentStudyTime.reduce((sum, d) => sum + (d?.self_study || 0), 0) || (isFahim ? 450 : isTasnim ? 250 : 340);
+
+  const collegeHours = Math.floor(collegeMin / 60);
+  const collegeRemMin = collegeMin % 60;
+  const schoolHours = Math.floor(schoolMin / 60);
+  const schoolRemMin = schoolMin % 60;
+  const tuitionHours = Math.floor(tuitionMin / 60);
+  const tuitionRemMin = tuitionMin % 60;
+  const selfStudyHours = Math.floor(selfStudyMin / 60);
+  const selfStudyRemMin = selfStudyMin % 60;
+
+  // Load routines, entries, and study-time from backend
   const loadData = async () => {
     try {
       const [routinesRes, entriesRes] = await Promise.all([
-        api.get(`/children/${childId}/routines`),
-        api.get(`/children/${childId}/entries`),
+        api.get(`/children/${childId}/routines`).catch(() => ({ data: null })),
+        api.get(`/children/${childId}/entries`).catch(() => ({ data: null })),
       ]);
 
-      if (routinesRes.data?.data && routinesRes.data.data.length > 0) {
-        setRoutines(routinesRes.data.data);
+      const routineList = unpackList(routinesRes?.data);
+      if (routineList.length > 0) {
+        setRoutines(routineList);
       } else {
-        // Fallback default routine setup
         setDefaultRoutines();
       }
 
-      if (entriesRes.data?.data) {
-        setEntries(entriesRes.data.data);
-      }
+      const entryList = unpackList(entriesRes?.data);
+      setEntries(entryList);
     } catch {
       setDefaultRoutines();
+      setEntries([]);
     }
+
+    // Load weekly study time
+    api
+      .get(`/children/${childId}/dashboard/study-time`)
+      .then((r) => {
+        const list = unpackList(r.data);
+        if (list.length > 0) {
+          setStudyTime(list);
+        } else {
+          setStudyTime(defaultStudyTimeList);
+        }
+      })
+      .catch(() => setStudyTime(defaultStudyTimeList));
   };
 
   const setDefaultRoutines = () => {
@@ -452,37 +574,41 @@ export default function KidSchedulePage() {
   // Speech Recognition initialization
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = speechLang;
+      try {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          const recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = speechLang;
 
-        recognition.onresult = (event: any) => {
-          let currentTranscript = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            currentTranscript += event.results[i][0].transcript;
-          }
-          if (currentTranscript) {
-            setLogForm((prev) => ({
-              ...prev,
-              topicsText: prev.topicsText ? `${prev.topicsText} ${currentTranscript}` : currentTranscript,
-            }));
-          }
-        };
+          recognition.onresult = (event: any) => {
+            let currentTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              currentTranscript += event.results[i][0].transcript;
+            }
+            if (currentTranscript) {
+              setLogForm((prev) => ({
+                ...prev,
+                topicsText: prev.topicsText ? `${prev.topicsText} ${currentTranscript}` : currentTranscript,
+              }));
+            }
+          };
 
-        recognition.onerror = () => {
-          setIsListening(false);
-        };
+          recognition.onerror = () => {
+            setIsListening(false);
+          };
 
-        recognition.onend = () => {
-          setIsListening(false);
-        };
+          recognition.onend = () => {
+            setIsListening(false);
+          };
 
-        recognitionRef.current = recognition;
-        setSpeechSupported(true);
-      } else {
+          recognitionRef.current = recognition;
+          setSpeechSupported(true);
+        } else {
+          setSpeechSupported(false);
+        }
+      } catch {
         setSpeechSupported(false);
       }
     }
@@ -491,7 +617,11 @@ export default function KidSchedulePage() {
   const toggleListening = () => {
     if (!recognitionRef.current) return;
     if (isListening) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // Ignore stop error
+      }
       setIsListening(false);
     } else {
       try {
@@ -505,33 +635,45 @@ export default function KidSchedulePage() {
   };
 
   // Filter routines by selected weekday & category
-  const filteredRoutines = routines
-    .filter((r) => r.weekdays?.includes(selectedWeekday))
+  const routineList = Array.isArray(routines) ? routines : [];
+  const filteredRoutines = routineList
+    .filter((r) => r && parseWeekdays(r?.weekdays).includes(selectedWeekday))
     .filter((r) => {
+      if (!r) return false;
       if (categoryFilter === 'school') {
-        if (institutionType === 'college') return r.source === 'college';
-        if (institutionType === 'admission') return r.source === 'tuition';
-        return r.source === 'school';
+        if (institutionType === 'college') return r?.source === 'college';
+        if (institutionType === 'admission') return r?.source === 'tuition';
+        return r?.source === 'school';
       }
       if (categoryFilter === 'tuition') {
-        if (institutionType === 'admission') return r.source === 'self_study';
-        return r.source === 'tuition' || r.source === 'self_study';
+        if (institutionType === 'admission') return r?.source === 'self_study';
+        return r?.source === 'tuition' || r?.source === 'self_study';
       }
       return true;
     })
-    .sort((a, b) => (a.startTime || '00:00').localeCompare(b.startTime || '00:00'));
+    .sort((a, b) => safeString(a?.startTime || '00:00').localeCompare(safeString(b?.startTime || '00:00')));
 
   // Find if an entry exists for a routine on selectedDate
   const findEntryForRoutine = (routine: any) => {
-    const routineSubjectLower = (routine.subject || routine.name || '').toLowerCase();
+    if (!routine || !Array.isArray(entries)) return null;
+    const routineSubjectLower = safeString(routine.subject || routine.name).toLowerCase();
     return entries.find((e) => {
-      const entryDateKey = e.date ? e.date.slice(0, 10) : '';
+      if (!e) return false;
+      let entryDateKey = '';
+      try {
+        if (typeof e.date === 'string') {
+          entryDateKey = e.date.slice(0, 10);
+        } else if (e.date) {
+          entryDateKey = new Date(e.date).toISOString().slice(0, 10);
+        }
+      } catch {
+        entryDateKey = '';
+      }
       if (entryDateKey !== selectedDate) return false;
       if (e.routineId && e.routineId === routine.id) return true;
-      const entrySubLower = (e.subject || e.subjectName || '').toLowerCase();
+      const entrySubLower = safeString(e.subject || e.subjectName).toLowerCase();
       return (
-        entrySubLower.includes(routineSubjectLower) ||
-        routineSubjectLower.includes(entrySubLower) ||
+        (entrySubLower && routineSubjectLower && (entrySubLower.includes(routineSubjectLower) || routineSubjectLower.includes(entrySubLower))) ||
         (routine.periodName && e.periodName === routine.periodName)
       );
     });
@@ -574,15 +716,17 @@ export default function KidSchedulePage() {
     if (!activeRoutineForLog || !logForm.topicsText.trim()) return;
 
     if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch {}
       setIsListening(false);
     }
 
     setLoading(true);
 
     const payload = {
-      subject: activeRoutineForLog.subject || activeRoutineForLog.name,
-      subjectName: activeRoutineForLog.name,
+      subject: activeRoutineForLog.subject || activeRoutineForLog.name || 'Class',
+      subjectName: activeRoutineForLog.name || activeRoutineForLog.subject || 'Class',
       periodName: activeRoutineForLog.periodName || 'ক্লাস',
       providerName: activeRoutineForLog.teacher || (activeRoutineForLog.source === 'school' ? 'স্কুল ক্লাস' : 'টিউটর'),
       source: activeRoutineForLog.source || 'school',
@@ -599,7 +743,7 @@ export default function KidSchedulePage() {
       if (existingEntryForLog?.id) {
         const res = await api.patch(`/entries/${existingEntryForLog.id}`, payload);
         const updated = res.data?.data || { ...existingEntryForLog, ...payload };
-        setEntries((prev) => prev.map((item) => (item.id === existingEntryForLog.id ? updated : item)));
+        setEntries((prev) => (Array.isArray(prev) ? prev.map((item) => (item.id === existingEntryForLog.id ? updated : item)) : [updated]));
         setSuccessMsg(isBn ? 'ক্লাসের বিবরণী সফলভাবে আপডেট করা হয়েছে! ✨' : 'Class log updated successfully!');
       } else {
         const res = await api.post(`/children/${childId}/entries`, payload);
@@ -609,7 +753,7 @@ export default function KidSchedulePage() {
           ...payload,
           createdAt: new Date().toISOString(),
         };
-        setEntries((prev) => [created, ...prev]);
+        setEntries((prev) => (Array.isArray(prev) ? [created, ...prev] : [created]));
         setSuccessMsg(isBn ? 'অভিনন্দন! ক্লাসের পড়া সফলভাবে লগ করা হয়েছে 🎉' : 'Awesome! Class log submitted successfully!');
       }
 
@@ -623,7 +767,7 @@ export default function KidSchedulePage() {
         ...payload,
         createdAt: new Date().toISOString(),
       };
-      setEntries((prev) => [fake, ...prev.filter((x) => x.id !== fake.id)]);
+      setEntries((prev) => (Array.isArray(prev) ? [fake, ...prev.filter((x) => x.id !== fake.id)] : [fake]));
       setLogModalOpen(false);
       setSuccessMsg(isBn ? 'ক্লাসের পড়া সংরক্ষিত হয়েছে! 🎉' : 'Class log saved successfully!');
       setTimeout(() => setSuccessMsg(''), 4500);
@@ -641,7 +785,7 @@ export default function KidSchedulePage() {
     try {
       const res = await api.post(`/children/${childId}/routines`, routineForm);
       const created = res.data?.data || { id: 'r-' + Date.now(), ...routineForm };
-      setRoutines((prev) => [created, ...prev]);
+      setRoutines((prev) => (Array.isArray(prev) ? [created, ...prev] : [created]));
       setCreateModalOpen(false);
       setSuccessMsg(isBn ? 'নতুন ক্লাস সফলভাবে রুটিনে যুক্ত হয়েছে!' : 'New class added to schedule!');
       setTimeout(() => setSuccessMsg(''), 4000);
@@ -659,7 +803,7 @@ export default function KidSchedulePage() {
       });
     } catch {
       const fallback = { id: 'r-' + Date.now(), ...routineForm };
-      setRoutines((prev) => [fallback, ...prev]);
+      setRoutines((prev) => (Array.isArray(prev) ? [fallback, ...prev] : [fallback]));
       setCreateModalOpen(false);
       setSuccessMsg(isBn ? 'নতুন ক্লাস রুটিনে যুক্ত হয়েছে!' : 'New class added!');
       setTimeout(() => setSuccessMsg(''), 4000);
@@ -671,14 +815,14 @@ export default function KidSchedulePage() {
   // Delete routine
   const handleDeleteRoutine = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(isBn ? 'এই ক্লাসটি রুটিন থেকে মুছে ফেলতে চাও?' : 'Delete this class from routine?')) return;
+    if (typeof window !== 'undefined' && !window.confirm(isBn ? 'এই ক্লাসটি রুটিন থেকে মুছে ফেলতে চাও?' : 'Delete this class from routine?')) return;
     try {
       await api.delete(`/routines/${id}`);
-      setRoutines((prev) => prev.filter((r) => r.id !== id));
+      setRoutines((prev) => (Array.isArray(prev) ? prev.filter((r) => r.id !== id) : []));
       setSuccessMsg(isBn ? 'ক্লাস মুছে ফেলা হয়েছে' : 'Class removed from routine');
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch {
-      setRoutines((prev) => prev.filter((r) => r.id !== id));
+      setRoutines((prev) => (Array.isArray(prev) ? prev.filter((r) => r.id !== id) : []));
     }
   };
 
@@ -725,7 +869,7 @@ export default function KidSchedulePage() {
       startsOn: new Date().toISOString().slice(0, 10),
     }));
 
-    setRoutines((prev) => [...built, ...prev.filter((r) => r.source !== built[0].source)]);
+    setRoutines((prev) => (Array.isArray(prev) ? [...built, ...prev.filter((r) => r.source !== built[0].source)] : built));
     setTemplateModalOpen(false);
     setSuccessMsg(isBn ? 'রুটিন টেমপ্লেট সফলভাবে লোড হয়েছে! 🌟' : 'Routine template loaded successfully!');
     setTimeout(() => setSuccessMsg(''), 4000);
@@ -844,7 +988,7 @@ export default function KidSchedulePage() {
               {WEEKDAYS.map((w) => {
                 const isSelected = selectedWeekday === w.index;
                 const isTodayWeekday = today.getDay() === w.index;
-                const countOnDay = routines.filter((r) => r.weekdays?.includes(w.index)).length;
+                const countOnDay = routineList.filter((r) => r && parseWeekdays(r?.weekdays).includes(w.index)).length;
 
                 return (
                   <button
@@ -961,7 +1105,7 @@ export default function KidSchedulePage() {
         </Card>
 
         {/* ======================================================== */}
-        {/* 4. Class-by-Class Schedule List (The Core Feature) */}
+        {/* 4. Class-by-Class Schedule List */}
         {/* ======================================================== */}
         <div className="space-y-3.5">
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1024,7 +1168,7 @@ export default function KidSchedulePage() {
 
                 return (
                   <Card
-                    key={routine.id}
+                    key={routine.id || idx}
                     className={`rounded-3xl border transition-all overflow-hidden ${
                       isLogged
                         ? 'bg-card border-emerald-500/30 shadow-xs ring-1 ring-emerald-500/20'
@@ -1102,9 +1246,7 @@ export default function KidSchedulePage() {
                             )}
                           </div>
 
-                          {/* ======================================================== */}
                           {/* Logged Content Display (If Logged) */}
-                          {/* ======================================================== */}
                           {isLogged && (
                             <div className="mt-3 p-3.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-2">
                               <div>
@@ -1151,9 +1293,7 @@ export default function KidSchedulePage() {
                             </div>
                           )}
 
-                          {/* ======================================================== */}
                           {/* Pending Prompt (If Not Logged Yet) */}
-                          {/* ======================================================== */}
                           {!isLogged && (
                             <div className="p-3 rounded-2xl bg-amber-500/5 border border-dashed border-amber-500/30 flex items-center justify-between gap-3 text-xs">
                               <p className="text-muted-foreground">
@@ -1180,7 +1320,7 @@ export default function KidSchedulePage() {
                               </Button>
 
                               <Link
-                                href={isTasnim ? '/child/quiz/q-t1' : '/child/quiz/q-r1'}
+                                href="/child/quiz"
                                 className="flex-1 md:flex-none w-auto"
                               >
                                 <Button
@@ -1223,7 +1363,106 @@ export default function KidSchedulePage() {
         </div>
 
         {/* ======================================================== */}
-        {/* 5. Quick Schedule Presets at bottom */}
+        {/* 5. Weekly Study Time & Source Hours Breakdown */}
+        {/* ======================================================== */}
+        <div className="grid lg:grid-cols-3 gap-6 min-w-0">
+          <Card className="rounded-3xl border shadow-sm lg:col-span-2 min-w-0 overflow-hidden">
+            <CardHeader className="p-4 sm:p-6 pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-primary" />
+                    <span>{isBn ? 'সাপ্তাহিক পড়ার সময়কাল (বার চার্ট)' : 'Weekly Study Time Chart'}</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    {institutionType === 'college'
+                      ? (isBn ? 'কলেজ ক্লাস, প্রাইভেট কোচিং ও সেলফ স্টাডির দৈনিক সময়কাল' : 'Daily hours spent across college lectures, tuition, and self-study')
+                      : (isBn ? 'স্কুল ক্লাস, প্রাইভেট টিউশন ও সেলফ স্টাডির দৈনিক সময়কাল' : 'Daily hours spent across school classes, tuition, and self-study')}
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-1">
+              <StudyTimeChart data={currentStudyTime} institutionType={institutionType} isBn={isBn} />
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl border shadow-sm flex flex-col justify-between min-w-0 overflow-hidden">
+            <CardHeader className="p-4 sm:p-6 pb-2">
+              <CardTitle className="text-base font-bold">
+                {isBn ? 'পড়ার সময়ের বিবরণী' : 'Study Hours Breakdown'}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                {isBn ? 'সপ্তাহের মোট সময় কোন মাধ্যমে কতক্ষণ লেগেছে' : 'Time distribution across educational sources'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-2.5">
+              {institutionType === 'college' && (
+                <div className="p-3 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 dark:bg-cyan-500/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-bold text-sm">
+                      🏛️
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">{isBn ? 'কলেজ ক্লাসের সময়' : 'College Lecture Time'}</p>
+                      <p className="text-[10px] text-muted-foreground">{isBn ? 'পিরিয়ডভিত্তিক একাডেমিক ক্লাস' : 'Academic periods'}</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-black text-cyan-600 dark:text-cyan-400">
+                    {isBn ? `${toBnNum(collegeHours)}ঘ ${toBnNum(collegeRemMin)}মি` : `${collegeHours}h ${collegeRemMin}m`}
+                  </span>
+                </div>
+              )}
+              {institutionType === 'school' && (
+                <div className="p-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 dark:bg-indigo-500/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                      🏫
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">{isBn ? 'স্কুল ক্লাসের সময়' : 'School Class Time'}</p>
+                      <p className="text-[10px] text-muted-foreground">{isBn ? 'স্কুল পিরিয়ডভিত্তিক ক্লাস' : 'Academic periods'}</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                    {isBn ? `${toBnNum(schoolHours)}ঘ ${toBnNum(schoolRemMin)}মি` : `${schoolHours}h ${schoolRemMin}m`}
+                  </span>
+                </div>
+              )}
+              <div className="p-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm">
+                    📚
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-foreground">{institutionType === 'admission' ? (isBn ? 'এডমিশন কোচিং ও টেস্ট' : 'Admission Coaching') : (isBn ? 'প্রাইভেট ও কোচিং' : 'Tuition & Coaching')}</p>
+                    <p className="text-[10px] text-muted-foreground">{isBn ? 'গৃহশিক্ষক ও প্রাইভেট ক্লাস' : 'Private lessons'}</p>
+                  </div>
+                </div>
+                <span className="text-sm font-black text-amber-600 dark:text-amber-400">
+                  {isBn ? `${toBnNum(tuitionHours)}ঘ ${toBnNum(tuitionRemMin)}মি` : `${tuitionHours}h ${tuitionRemMin}m`}
+                </span>
+              </div>
+              <div className="p-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
+                    📖
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-foreground">{isBn ? 'সেলফ-স্টাডি ও রিভিশন' : 'Self-Study & Revision'}</p>
+                    <p className="text-[10px] text-muted-foreground">{isBn ? 'পড়ার টেবিলে স্ব-শিক্ষা' : 'Independent study'}</p>
+                  </div>
+                </div>
+                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                  {isBn ? `${toBnNum(selfStudyHours)}ঘ ${toBnNum(selfStudyRemMin)}মি` : `${selfStudyHours}h ${selfStudyRemMin}m`}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ======================================================== */}
+        {/* 6. Helpful Schedule Tips at bottom */}
         {/* ======================================================== */}
         <Card className="rounded-3xl border shadow-xs bg-muted/15">
           <CardHeader className="p-4 sm:p-6 pb-2">
@@ -1241,13 +1480,15 @@ export default function KidSchedulePage() {
       </div>
 
       {/* ======================================================== */}
-      {/* 6. Class-by-Class Logging Modal Dialog */}
+      {/* 7. Class-by-Class Logging Modal Dialog */}
       {/* ======================================================== */}
       <Modal
         isOpen={logModalOpen}
         onClose={() => {
           if (isListening && recognitionRef.current) {
-            recognitionRef.current.stop();
+            try {
+              recognitionRef.current.stop();
+            } catch {}
             setIsListening(false);
           }
           setLogModalOpen(false);
@@ -1480,7 +1721,9 @@ export default function KidSchedulePage() {
               size="sm"
               onClick={() => {
                 if (isListening && recognitionRef.current) {
-                  recognitionRef.current.stop();
+                  try {
+                    recognitionRef.current.stop();
+                  } catch {}
                   setIsListening(false);
                 }
                 setLogModalOpen(false);
@@ -1506,7 +1749,7 @@ export default function KidSchedulePage() {
       </Modal>
 
       {/* ======================================================== */}
-      {/* 7. Create Routine Modal (Add Class Period to Schedule) */}
+      {/* 8. Create Routine Modal (Add Class Period to Schedule) */}
       {/* ======================================================== */}
       <Modal
         isOpen={createModalOpen}
@@ -1520,6 +1763,38 @@ export default function KidSchedulePage() {
         maxWidth="md"
       >
         <form onSubmit={handleCreateRoutine} className="space-y-4 pt-1">
+          {/* Quick Presets inside modal */}
+          <div>
+            <Label className="text-xs font-semibold text-muted-foreground mb-1 block">
+              {isBn ? 'পরামর্শ / দ্রুত প্রিসেট নির্বাচন করুন:' : 'Quick Presets:'}
+            </Label>
+            <div className="flex flex-wrap gap-1.5">
+              {routinePresets.map((p, i) => (
+                <button
+                  type="button"
+                  key={i}
+                  onClick={() =>
+                    setRoutineForm({
+                      name: p.name,
+                      periodName: p.periodName || 'ক্লাস',
+                      subject: p.subject || 'General',
+                      teacher: '',
+                      room: '',
+                      source: p.source,
+                      weekdays: p.weekdays,
+                      startTime: p.startTime,
+                      durationMin: p.durationMin,
+                      startsOn: new Date().toISOString().slice(0, 10),
+                    })
+                  }
+                  className="text-[10px] font-medium px-2.5 py-1 rounded-lg border bg-muted/40 hover:bg-primary/10 hover:border-primary/30 text-foreground transition-colors"
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-semibold">{isBn ? 'পিরিয়ড নাম' : 'Period Name'}</Label>
@@ -1537,6 +1812,7 @@ export default function KidSchedulePage() {
                 <option value="ল্যাব সেশন">ল্যাব সেশন (Lab Session)</option>
                 <option value="প্রাইভেট">প্রাইভেট টিউটর (Tuition)</option>
                 <option value="কোচিং ক্লাস">কোচিং ক্লাস (Coaching)</option>
+                <option value="সেলফ স্টাডি">সেলফ স্টাডি (Self-Study)</option>
               </select>
             </div>
             <div>
@@ -1547,13 +1823,13 @@ export default function KidSchedulePage() {
                 className="w-full mt-1 px-3 py-2 text-xs rounded-xl border bg-background text-foreground"
               >
                 {institutionType === 'school' && (
-                <option value="school">{isBn ? 'স্কুল (School)' : 'School'}</option>
-              )}
-              {institutionType === 'college' && (
-                <option value="college">{isBn ? 'কলেজ (College)' : 'College'}</option>
-              )}
-              <option value="tuition">{institutionType === 'admission' ? (isBn ? 'এডমিশন কোচিং / টেস্ট' : 'Admission Coaching') : (isBn ? 'প্রাইভেট / কোচিং' : 'Tuition / Coaching')}</option>
-              <option value="self_study">{institutionType === 'admission' ? (isBn ? 'সেলফ স্টাডি ও প্রশ্নব্যাংক' : 'Self-Study & Question Bank') : (isBn ? 'সেলফ স্টাডি' : 'Self Study')}</option>
+                  <option value="school">{isBn ? 'স্কুল (School)' : 'School'}</option>
+                )}
+                {institutionType === 'college' && (
+                  <option value="college">{isBn ? 'কলেজ (College)' : 'College'}</option>
+                )}
+                <option value="tuition">{institutionType === 'admission' ? (isBn ? 'এডমিশন কোচিং / টেস্ট' : 'Admission Coaching') : (isBn ? 'প্রাইভেট / কোচিং' : 'Tuition / Coaching')}</option>
+                <option value="self_study">{institutionType === 'admission' ? (isBn ? 'সেলফ স্টাডি ও প্রশ্নব্যাংক' : 'Self-Study & Question Bank') : (isBn ? 'সেলফ স্টাডি' : 'Self Study')}</option>
               </select>
             </div>
           </div>
@@ -1597,16 +1873,17 @@ export default function KidSchedulePage() {
             </Label>
             <div className="grid grid-cols-7 gap-1">
               {WEEKDAYS.map((w) => {
-                const isSelected = routineForm.weekdays.includes(w.index);
+                const isSelected = parseWeekdays(routineForm?.weekdays).includes(w.index);
                 return (
                   <button
                     type="button"
                     key={w.index}
                     onClick={() => {
-                      if (routineForm.weekdays.includes(w.index)) {
-                        setRoutineForm({ ...routineForm, weekdays: routineForm.weekdays.filter((i) => i !== w.index) });
+                      const current = parseWeekdays(routineForm?.weekdays);
+                      if (current.includes(w.index)) {
+                        setRoutineForm({ ...routineForm, weekdays: current.filter((i) => i !== w.index) });
                       } else {
-                        setRoutineForm({ ...routineForm, weekdays: [...routineForm.weekdays, w.index].sort() });
+                        setRoutineForm({ ...routineForm, weekdays: [...current, w.index].sort() });
                       }
                     }}
                     className={`py-2 rounded-xl text-xs font-bold border transition-all ${
@@ -1658,7 +1935,7 @@ export default function KidSchedulePage() {
       </Modal>
 
       {/* ======================================================== */}
-      {/* 8. Routine Template Picker Modal */}
+      {/* 9. Routine Template Picker Modal */}
       {/* ======================================================== */}
       <Modal
         isOpen={templateModalOpen}
@@ -1675,46 +1952,46 @@ export default function KidSchedulePage() {
           {institutionType === 'school' && (
             <>
               <button
-            type="button"
-            onClick={() => handleApplyTemplate('school_8')}
-            className="w-full p-4 rounded-2xl border bg-card hover:bg-primary/5 hover:border-primary/40 text-left transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
-                <School className="w-4 h-4 text-primary" />
-                {isBn ? 'অষ্টম শ্রেণি — পূর্ণাঙ্গ স্কুল রুটিন (Class 8)' : 'Class 8 High School Routine'}
-              </span>
-              <Badge variant="outline" className="text-[10px]">
-                {isBn ? '৬টি পিরিয়ড/দিন' : '6 Periods/Day'}
-              </Badge>
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {isBn
-                ? 'রবি-বৃহস্পতি: বাংলা, ইংরেজি, সাধারণ গণিত, সাধারণ বিজ্ঞান, বিজিএস ও আইসিটি।'
-                : 'Sun-Thu: Bangla, English, Math, Science, BGS, ICT.'}
-            </p>
-          </button>
+                type="button"
+                onClick={() => handleApplyTemplate('school_8')}
+                className="w-full p-4 rounded-2xl border bg-card hover:bg-primary/5 hover:border-primary/40 text-left transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                    <School className="w-4 h-4 text-primary" />
+                    {isBn ? 'অষ্টম শ্রেণি — পূর্ণাঙ্গ স্কুল রুটিন (Class 8)' : 'Class 8 High School Routine'}
+                  </span>
+                  <Badge variant="outline" className="text-[10px]">
+                    {isBn ? '৬টি পিরিয়ড/দিন' : '6 Periods/Day'}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {isBn
+                    ? 'রবি-বৃহস্পতি: বাংলা, ইংরেজি, সাধারণ গণিত, সাধারণ বিজ্ঞান, বিজিএস ও আইসিটি।'
+                    : 'Sun-Thu: Bangla, English, Math, Science, BGS, ICT.'}
+                </p>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => handleApplyTemplate('school_5')}
-            className="w-full p-4 rounded-2xl border bg-card hover:bg-primary/5 hover:border-primary/40 text-left transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
-                <School className="w-4 h-4 text-emerald-500" />
-                {isBn ? 'পঞ্চম শ্রেণি — প্রাথমিক বিদ্যালয় রুটিন (Class 5)' : 'Class 5 Primary School Routine'}
-              </span>
-              <Badge variant="outline" className="text-[10px]">
-                {isBn ? '৫টি পিরিয়ড/দিন' : '5 Periods/Day'}
-              </Badge>
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {isBn
-                ? 'রবি-বৃহস্পতি: বাংলা, ইংরেজি, গণিত, প্রাথমিক বিজ্ঞান ও বাংলাদেশ ও বিশ্বপরিচয়।'
-                : 'Sun-Thu: Bangla, English, Math, Science, BGS.'}
-            </p>
-          </button>
+              <button
+                type="button"
+                onClick={() => handleApplyTemplate('school_5')}
+                className="w-full p-4 rounded-2xl border bg-card hover:bg-primary/5 hover:border-primary/40 text-left transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                    <School className="w-4 h-4 text-emerald-500" />
+                    {isBn ? 'পঞ্চম শ্রেণি — প্রাথমিক বিদ্যালয় রুটিন (Class 5)' : 'Class 5 Primary School Routine'}
+                  </span>
+                  <Badge variant="outline" className="text-[10px]">
+                    {isBn ? '৫টি পিরিয়ড/দিন' : '5 Periods/Day'}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {isBn
+                    ? 'রবি-বৃহস্পতি: বাংলা, ইংরেজি, গণিত, প্রাথমিক বিজ্ঞান ও বাংলাদেশ ও বিশ্বপরিচয়।'
+                    : 'Sun-Thu: Bangla, English, Math, Science, BGS.'}
+                </p>
+              </button>
             </>
           )}
 
@@ -1724,44 +2001,44 @@ export default function KidSchedulePage() {
               <button
                 type="button"
                 onClick={() => handleApplyTemplate('college_science')}
-            className="w-full p-4 rounded-2xl border bg-card hover:bg-primary/5 hover:border-primary/40 text-left transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-purple-500" />
-                {isBn ? 'এইচএসসি / কলেজ — বিজ্ঞান বিভাগ (HSC Science)' : 'HSC College Science Routine'}
-              </span>
-              <Badge variant="outline" className="text-[10px]">
-                {isBn ? '৫টি পিরিয়ড/দিন' : '5 Periods/Day'}
-              </Badge>
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {isBn
-                ? 'রবি-বৃহস্পতি: পদার্থবিজ্ঞান, রসায়ন, উচ্চতর গণিত, জীববিজ্ঞান ও আইসিটি ল্যাব।'
-                : 'Sun-Thu: Physics, Chemistry, Higher Math, Biology, ICT.'}
-            </p>
-          </button>
+                className="w-full p-4 rounded-2xl border bg-card hover:bg-primary/5 hover:border-primary/40 text-left transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-purple-500" />
+                    {isBn ? 'এইচএসসি / কলেজ — বিজ্ঞান বিভাগ (HSC Science)' : 'HSC College Science Routine'}
+                  </span>
+                  <Badge variant="outline" className="text-[10px]">
+                    {isBn ? '৫টি পিরিয়ড/দিন' : '5 Periods/Day'}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {isBn
+                    ? 'রবি-বৃহস্পতি: পদার্থবিজ্ঞান, রসায়ন, উচ্চতর গণিত, জীববিজ্ঞান ও আইসিটি ল্যাব।'
+                    : 'Sun-Thu: Physics, Chemistry, Higher Math, Biology, ICT.'}
+                </p>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => handleApplyTemplate('college_commerce')}
-            className="w-full p-4 rounded-2xl border bg-card hover:bg-primary/5 hover:border-primary/40 text-left transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-blue-500" />
-                {isBn ? 'এইচএসসি / কলেজ — ব্যবসায় শিক্ষা (HSC Commerce)' : 'HSC Commerce Routine'}
-              </span>
-              <Badge variant="outline" className="text-[10px]">
-                {isBn ? '৪টি পিরিয়ড/দিন' : '4 Periods/Day'}
-              </Badge>
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {isBn
-                ? 'রবি-বৃহস্পতি: হিসাববিজ্ঞান, ব্যবসায় সংগঠন, ফিন্যান্স ও অর্থনীতি।'
-                : 'Sun-Thu: Accounting, Business, Finance, Economics.'}
-            </p>
-          </button>
+              <button
+                type="button"
+                onClick={() => handleApplyTemplate('college_commerce')}
+                className="w-full p-4 rounded-2xl border bg-card hover:bg-primary/5 hover:border-primary/40 text-left transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-blue-500" />
+                    {isBn ? 'এইচএসসি / কলেজ — ব্যবসায় শিক্ষা (HSC Commerce)' : 'HSC Commerce Routine'}
+                  </span>
+                  <Badge variant="outline" className="text-[10px]">
+                    {isBn ? '৪টি পিরিয়ড/দিন' : '4 Periods/Day'}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {isBn
+                    ? 'রবি-বৃহস্পতি: হিসাববিজ্ঞান, ব্যবসায় সংগঠন, ফিন্যান্স ও অর্থনীতি।'
+                    : 'Sun-Thu: Accounting, Business, Finance, Economics.'}
+                </p>
+              </button>
             </>
           )}
 

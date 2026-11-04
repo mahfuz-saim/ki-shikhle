@@ -178,6 +178,7 @@ export default function DashboardPage() {
                 { subject: isBn ? 'রসায়ন ১ম পত্র' : 'Chemistry 1st Paper', value: 10 },
                 { subject: isBn ? 'তথ্য ও প্রযুক্তি' : 'ICT', value: 8 },
                 { subject: isBn ? 'উদ্ভিদবিজ্ঞান' : 'Biology 1st Paper', value: 6 },
+                { subject: isBn ? 'ইংরেজি ১ম পত্র' : 'English 1st Paper', value: 5 },
               ]
             : isTasnim
             ? [
@@ -186,6 +187,7 @@ export default function DashboardPage() {
                 { subject: isBn ? 'ইংরেজি' : 'English for Today', value: 5 },
                 { subject: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS', value: 4 },
                 { subject: isBn ? 'বাংলা' : 'Bangla', value: 3 },
+                { subject: isBn ? 'ধর্ম ও নৈতিক শিক্ষা' : 'Moral Education', value: 3 },
               ]
             : [
                 { subject: isBn ? 'গণিত' : 'Mathematics', value: 12 },
@@ -193,6 +195,7 @@ export default function DashboardPage() {
                 { subject: isBn ? 'ইংরেজি ১ম পত্র' : 'English 1st Paper', value: 6 },
                 { subject: isBn ? 'তথ্য ও প্রযুক্তি' : 'ICT', value: 5 },
                 { subject: isBn ? 'বাংলা ১ম পত্র' : 'Bangla 1st Paper', value: 4 },
+                { subject: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS', value: 4 },
               ]
         );
       }
@@ -537,7 +540,7 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <SubjectDonut data={subjects} />
+              <SubjectDonut data={subjects} isBn={isBn} />
             </CardContent>
           </Card>
         </div>

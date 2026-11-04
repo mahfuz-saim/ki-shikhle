@@ -210,7 +210,7 @@ export async function subjectDistribution(childId: string, parentId: string) {
     }
   } catch {}
 
-  // Differentiate by childId:
+  // Differentiate by childId (6 subjects per child):
   if (childId === 'demo-child-3') {
     return [
       { subject: 'Physics 1st Paper', value: 14 },
@@ -218,6 +218,7 @@ export async function subjectDistribution(childId: string, parentId: string) {
       { subject: 'Chemistry 1st Paper', value: 10 },
       { subject: 'ICT', value: 8 },
       { subject: 'Biology 1st Paper', value: 6 },
+      { subject: 'English 1st Paper', value: 5 },
     ];
   }
 
@@ -228,6 +229,7 @@ export async function subjectDistribution(childId: string, parentId: string) {
       { subject: 'English', value: 5 },
       { subject: 'BGS (বাংলাদেশ ও বিশ্বপরিচয়)', value: 4 },
       { subject: 'Bangla (বাংলা)', value: 3 },
+      { subject: 'Moral Education (ধর্ম ও নৈতিক শিক্ষা)', value: 3 },
     ];
   }
 
@@ -237,6 +239,7 @@ export async function subjectDistribution(childId: string, parentId: string) {
     { subject: 'English 1st Paper', value: 6 },
     { subject: 'ICT (তথ্য ও প্রযুক্তি)', value: 5 },
     { subject: 'Bangla 1st Paper', value: 4 },
+    { subject: 'BGS (বাংলাদেশ ও বিশ্বপরিচয়)', value: 4 },
   ];
 }
 

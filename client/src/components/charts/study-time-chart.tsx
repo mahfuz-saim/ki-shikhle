@@ -23,7 +23,22 @@ import {
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-const COLORS = ['#4F46E5', '#F59E0B', '#10B981', '#06B6D4', '#8B5CF6', '#EF4444'];
+const COLORS = [
+  '#4F46E5', // Indigo
+  '#06B6D4', // Cyan
+  '#10B981', // Emerald
+  '#F59E0B', // Amber
+  '#8B5CF6', // Purple
+  '#EC4899', // Pink
+  '#3B82F6', // Blue
+  '#EF4444', // Red
+];
+
+function toBnNum(num: number | string): string {
+  const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return String(num).replace(/[0-9]/g, (d) => bnDigits[parseInt(d, 10)]);
+}
+
 
 export function StudyTimeChart({
   data,
@@ -93,29 +108,112 @@ export function ScoreTrendChart({ data }: { data: any[] }) {
   );
 }
 
-export function SubjectDonut({ data }: { data: any[] }) {
+export function SubjectDonut({
+  data = [],
+  isBn = false,
+}: {
+  data: any[];
+  isBn?: boolean;
+}) {
+  const validData = Array.isArray(data)
+    ? data.filter((d) => Number(d?.value || d?.count || 0) > 0)
+    : [];
+
+  const totalLessons = validData.reduce((sum, d) => sum + (Number(d.value || d.count) || 0), 0);
+
+  if (validData.length === 0) {
+    return (
+      <div className="w-full min-h-[200px] flex flex-col items-center justify-center text-xs text-muted-foreground gap-1.5">
+        <span className="text-2xl">📚</span>
+        <span>{isBn ? 'কোনো বিষয়ের পাঠ এখনও লগ করা হয়নি' : 'No subject lesson data yet'}</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full min-w-0 h-[200px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            dataKey="value"
-            nameKey="subject"
-            cx="50%"
-            cy="50%"
-            innerRadius={50}
-            outerRadius={80}
-            paddingAngle={2}
-          >
-            {data.map((_, i) => (
-              <Cell key={i} fill={COLORS[i % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip />
-          <Legend />
-        </PieChart>
-      </ResponsiveContainer>
+    <div className="w-full min-w-0 flex flex-col sm:flex-row items-center justify-between gap-4 py-1">
+      {/* Donut Chart with Centered KPI */}
+      <div className="relative w-[140px] h-[140px] shrink-0 mx-auto sm:mx-0 flex items-center justify-center">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+            <Pie
+              data={validData}
+              dataKey="value"
+              nameKey="subject"
+              cx="50%"
+              cy="50%"
+              innerRadius={42}
+              outerRadius={64}
+              paddingAngle={3}
+              stroke="none"
+            >
+              {validData.map((_, i) => (
+                <Cell key={i} fill={COLORS[i % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={(value: any, name: any) => {
+                const val = Number(value) || 0;
+                const pct = totalLessons > 0 ? Math.round((val / totalLessons) * 100) : 0;
+                return [
+                  `${isBn ? toBnNum(val) : val} ${isBn ? 'টি পাঠ' : 'lessons'} (${isBn ? toBnNum(pct) : pct}%)`,
+                  name,
+                ];
+              }}
+              contentStyle={{
+                borderRadius: '12px',
+                fontSize: '12px',
+                border: '1px solid rgba(0,0,0,0.1)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        {/* Center Total Count */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+          <span className="text-xl font-black text-foreground tracking-tight leading-none">
+            {isBn ? toBnNum(totalLessons) : totalLessons}
+          </span>
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-0.5">
+            {isBn ? 'পাঠ' : 'Lessons'}
+          </span>
+        </div>
+      </div>
+
+      {/* Structured Subject Breakdown List (Shows 6 subjects, rest scrollable within box) */}
+      <div className="flex-1 w-full min-w-0 space-y-1.5 max-h-[224px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 overscroll-contain">
+        {validData.map((item, idx) => {
+          const val = Number(item.value || item.count || 0);
+          const pct = totalLessons > 0 ? Math.round((val / totalLessons) * 100) : 0;
+          return (
+            <div
+              key={idx}
+              className="flex items-center justify-between text-xs gap-2 min-w-0 p-1.5 px-2 rounded-xl hover:bg-muted/40 transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs"
+                  style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                />
+                <span
+                  className="font-medium text-foreground truncate"
+                  title={item.subject}
+                >
+                  {item.subject}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground font-semibold">
+                <span className="text-foreground font-bold">
+                  {isBn ? `${toBnNum(val)}টি` : `${val}`}
+                </span>
+                <span className="text-[11px] text-muted-foreground/70 min-w-[38px] text-right">
+                  {isBn ? `${toBnNum(pct)}%` : `${pct}%`}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -169,10 +267,6 @@ const ENGLISH_MONTHS = [
 const BENGALI_DAYS = ['রবি', 'সোম', 'মঙ্গল', 'বুধ', 'বৃহস্পতি', 'শুক্র', 'শনি'];
 const ENGLISH_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function toBnNum(num: number | string): string {
-  const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
-  return String(num).replace(/[0-9]/g, (d) => bnDigits[parseInt(d, 10)]);
-}
 
 export function MonthlyActivityCalendar({
   data = {},

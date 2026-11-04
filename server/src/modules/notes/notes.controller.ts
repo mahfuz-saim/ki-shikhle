@@ -3,8 +3,8 @@ import * as svc from './notes.service';
 
 export const create = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const childId = (req.params as any).id || req.body.childId;
-    const data = await svc.createNote(childId, (req.user as any).userId, (req as any).file, req.body);
+    const childId = (req.params as any).id || req.body?.childId;
+    const data = await svc.createNote(childId, (req.user as any).userId, (req as any).file, req.body || {});
     res.status(201).json({ success: true, data, error: null });
   } catch (e) {
     next(e);
@@ -13,7 +13,7 @@ export const create = async (req: Request, res: Response, next: NextFunction) =>
 
 export const list = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const childId = (req.params as any).id || (req.params as any).childId || (req.query.childId as string);
+    const childId = (req.params as any).id || (req.params as any).childId || (req.query?.childId as string);
     const data = await svc.listNotes(childId, (req.user as any).userId);
     res.json({ success: true, data, error: null });
   } catch (e) {
@@ -23,7 +23,7 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
 
 export const update = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await svc.updateNote(req.params.id, (req.user as any).userId, req.body);
+    const data = await svc.updateNote(req.params.id, (req.user as any).userId, req.body || {});
     res.json({ success: true, data, error: null });
   } catch (e) {
     next(e);
@@ -50,8 +50,11 @@ export const aiOcr = async (req: Request, res: Response, next: NextFunction) => 
 
 export const aiMake = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const childId = (req.params as any).id || req.body.childId;
-    const data = await svc.makeAINote(childId, (req.user as any).userId, req.body);
+    const childId = (req.params as any).id || req.body?.childId;
+    const data = await svc.makeAINote(childId, (req.user as any).userId, {
+      ...(req.body || {}),
+      file: (req as any).file,
+    });
     res.json({ success: true, data, error: null });
   } catch (e) {
     next(e);

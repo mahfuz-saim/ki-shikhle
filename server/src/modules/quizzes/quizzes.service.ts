@@ -5,6 +5,9 @@ import { z } from 'zod';
 import { sha256Hex } from '../../utils/crypto';
 import { badRequest, forbidden, notFound } from '../../utils/errors';
 import { env } from '../../config/env';
+import { memEntries } from '../entries/entries.service';
+import { memNotes } from '../notes/notes.service';
+import { memChildren } from '../children/children.service';
 
 export const memQuizzes: any[] = [
   // Rahim (Class 8)
@@ -485,8 +488,43 @@ export async function generateQuiz(childId: string, parentId: string, input: any
       const rawParsed = JSON.parse(jsonMatch ? jsonMatch[0] : result.content);
       parsed = quizOutputSchema.parse(normalizeQuizJson(rawParsed));
     } catch (e2) {
-      throw badRequest('AI returned malformed quiz — try again. Bad question reported.');
+      const studyContext = await collectChildStudyContext(childId, 'all_subjects', input.subjectIds);
+      const fallbackQuestions = generateProperCurriculumQuestions(studyContext, {
+        questionCount: settings.numQuestions,
+        difficulty: settings.difficulty as any,
+        strategy: 'all_subjects',
+      });
+      parsed = {
+        questions: fallbackQuestions.map((q) => ({
+          type: q.type,
+          prompt: q.prompt,
+          options: q.optionsJson || q.options || [],
+          correct_answer: q.correctAnswer,
+          explanation: q.explanation,
+          topic: q.topic,
+        })),
+      };
     }
+  }
+
+  // If mock fallback was returned from AI mock, replace with proper curriculum questions
+  if (parsed.questions.some((q: any) => q.prompt?.includes('quadratic formula') || q.prompt?.includes('mitochondria'))) {
+    const studyContext = await collectChildStudyContext(childId, 'all_subjects', input.subjectIds);
+    const properQuestions = generateProperCurriculumQuestions(studyContext, {
+      questionCount: settings.numQuestions,
+      difficulty: settings.difficulty as any,
+      strategy: 'all_subjects',
+    });
+    parsed = {
+      questions: properQuestions.map((q) => ({
+        type: q.type,
+        prompt: q.prompt,
+        options: q.optionsJson || q.options || [],
+        correct_answer: q.correctAnswer,
+        explanation: q.explanation,
+        topic: q.topic,
+      })),
+    };
   }
 
   // Validate each question has correct answer
@@ -666,21 +704,60 @@ export async function reportQuestion(questionId: string, parentId: string) {
 }
 function findQuestion(id:string){ for(const q of memQuizzes){ const f=(q.questions||[]).find((x:any)=> x.id===id); if(f) return f; } return null; }
 
-async function collectDigests(childId:string, input:any){
-  // Real: fetch topic_digests by scope/date
-  // For MVP, synthesize from learningEntries/notes or use mock digests
+async function collectDigests(childId: string, input: any) {
   try {
-    // try to get from DB topic_digests
-    const where:any={ childId };
-    if(input.from) where.date={ gte: new Date(input.from) };
-    if(input.to) where.date={ ...where.date, lte: new Date(input.to) };
-    const digests = await prisma.topicDigest.findMany({ where, take:20 });
-    if(digests.length>0) return digests;
+    const where: any = { childId };
+    if (input.from) where.date = { gte: new Date(input.from) };
+    if (input.to) where.date = { ...where.date, lte: new Date(input.to) };
+    const digests = await prisma.topicDigest.findMany({ where, take: 20 });
+    if (digests.length > 0) return digests;
   } catch {}
-  // mock digests
+
+  // Synthesize from LearningEntry
+  let entries: any[] = [];
+  try {
+    const where: any = { childId };
+    if (input.from) where.date = { gte: new Date(input.from) };
+    if (input.to) where.date = { ...where.date, lte: new Date(input.to) };
+    entries = await prisma.learningEntry.findMany({ where, orderBy: { date: 'desc' }, take: 10 });
+  } catch {}
+  if (!entries || entries.length === 0) {
+    entries = memEntries.filter((e: any) => e.childId === childId);
+  }
+
+  // Synthesize from Notes
+  let notes: any[] = [];
+  try {
+    notes = await prisma.note.findMany({ where: { childId }, orderBy: { date: 'desc' }, take: 5 });
+  } catch {}
+  if (!notes || notes.length === 0) {
+    notes = memNotes.filter((n: any) => n.childId === childId);
+  }
+
+  if (entries.length > 0 || notes.length > 0) {
+    const digests: any[] = [];
+    for (const e of entries) {
+      digests.push({
+        id: `d-entry-${e.id}`,
+        subjectId: e.subject || e.subjectName || 'General',
+        digestJson: { topics: [e.topicsText], key_facts: [e.topicsText] },
+        textHash: sha256Hex(e.topicsText || e.id),
+      });
+    }
+    for (const n of notes) {
+      digests.push({
+        id: `d-note-${n.id}`,
+        subjectId: n.subject || 'General',
+        digestJson: { topics: [n.title || n.subject], key_facts: [n.textClean?.slice(0, 300) || n.title || ''] },
+        textHash: sha256Hex(n.textClean || n.id),
+      });
+    }
+    return digests;
+  }
+
   return [
-    { id:'d1', subjectId: input.subjectIds?.[0]||'math', digestJson:{ topics:['Quadratic Equations'], key_facts:['Formula x=(-b±√(b²-4ac))/2a']}, textHash:'abc'},
-    { id:'d2', subjectId: input.subjectIds?.[1]||'science', digestJson:{ topics:['Photosynthesis'], key_facts:['6CO2+6H2O→C6H12O6+6O2']}, textHash:'def'},
+    { id: 'd1', subjectId: input.subjectIds?.[0] || 'math', digestJson: { topics: ['বীজগণিতীয় সূত্রাবলী ও প্রয়োগ'], key_facts: ['(a+b)^2 = a^2 + 2ab + b^2'] }, textHash: 'abc' },
+    { id: 'd2', subjectId: input.subjectIds?.[1] || 'science', digestJson: { topics: ['গতি ও ত্বরণ'], key_facts: ['v = u + at, F = ma'] }, textHash: 'def' },
   ];
 }
 
@@ -727,7 +804,618 @@ export const memAutoSchedules: Record<string, AutoQuizScheduleConfig> = {
     subjects: ['Elementary Math', 'Primary Science'],
     difficulty: 'easy',
   },
+  'demo-child-3': {
+    childId: 'demo-child-3',
+    enabled: true,
+    topicStrategy: 'one_day_old',
+    questionCount: 5,
+    timeStrategy: 'ai_dynamic',
+    triggerTime: '20:00',
+    daysOfWeek: [0, 1, 2, 3, 4],
+    subjects: ['Physics 1st Paper', 'Higher Mathematics', 'Chemistry 1st Paper'],
+    difficulty: 'hard',
+  },
 };
+
+export interface QuestionTemplate {
+  id: string;
+  grades: string[];
+  subjects: string[];
+  keywords: string[];
+  type: 'mcq' | 'true_false' | 'fill_blank';
+  prompt: string;
+  options: string[];
+  correctAnswer: string;
+  explanation: string;
+  topic: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
+export const CURRICULUM_QUESTION_BANK: QuestionTemplate[] = [
+  // =========================================================================
+  // CLASS 5 (Primary / PEC / PSC) - Elementary Math, Science, English, Bangla
+  // =========================================================================
+  {
+    id: 'qbank-c5-m1',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['math', 'mathematics', 'গণিত', 'elementary math'],
+    keywords: ['লসাগু', 'গসাগু', 'hcf', 'lcm', 'গুণনীয়ক', 'গুণিতক', 'অধ্যায় ৫'],
+    type: 'mcq',
+    prompt: '১২ এবং ১৮ এর গরিষ্ঠ সাধারণ গুণনীয়ক (গসাগু / HCF) কত?',
+    options: ['৬', '৩৬', '৩', '২'],
+    correctAnswer: '৬',
+    explanation: '১২ এর গুণনীয়ক ১, ২, ৩, ৪, ৬, ১২ এবং ১৮ এর গুণনীয়ক ১, ২, ৩, ৬, ৯, ১৮। এদের সাধারণ গরিষ্ঠ গুণনীয়ক হলো ৬।',
+    topic: 'Mathematics: HCF & LCM',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c5-m2',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['math', 'mathematics', 'গণিত', 'elementary math'],
+    keywords: ['লসাগু', 'lcm', 'গুণিতক', 'অধ্যায় ৫'],
+    type: 'mcq',
+    prompt: '৪ এবং ৬ এর লঘিষ্ঠ সাধারণ গুণিতক (লসাগু / LCM) কত?',
+    options: ['১২', '২৪', '২', '৮'],
+    correctAnswer: '১২',
+    explanation: '৪ ও ৬ উভয়ের ক্ষুদ্রতম সাধারণ গুণিতক হলো ১২।',
+    topic: 'Mathematics: HCF & LCM',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c5-m3',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['math', 'mathematics', 'গণিত', 'elementary math'],
+    keywords: ['লসাগু', 'গসাগু', 'গুণফল', 'hcf', 'lcm'],
+    type: 'mcq',
+    prompt: 'দুটি সংখ্যার গুণফল ৪৮ এবং তাদের গসাগু ৪ হলে, সংখ্যা দুটির লসাগু কত হবে?',
+    options: ['১২', '১৬', '২৪', '৮'],
+    correctAnswer: '১২',
+    explanation: 'লসাগু = (দুটি সংখ্যার গুণফল) ÷ গসাগু = ৪৮ ÷ ৪ = ১২।',
+    topic: 'Mathematics: HCF & LCM',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c5-m4',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['math', 'mathematics', 'গণিত', 'elementary math'],
+    keywords: ['মৌলিক উৎপাদক', 'উৎপাদক', 'prime factors'],
+    type: 'mcq',
+    prompt: '২৪ এর মৌলিক উৎপাদকগুলোতে বিশ্লেষণ রূপ কোনটি?',
+    options: ['২ × ২ × ২ × ৩', '৩ × ৮', '৪ × ৬', '২ × ১২'],
+    correctAnswer: '২ × ২ × ২ × ৩',
+    explanation: '২৪ = ২ × ২ × ২ × ৩ (২³ × ৩) যা একমাত্র মৌলিক উৎপাদকের গুণফল।',
+    topic: 'Mathematics: Prime Factors',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c5-m5',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['math', 'mathematics', 'গণিত', 'elementary math'],
+    keywords: ['মৌলিক সংখ্যা', 'prime number'],
+    type: 'mcq',
+    prompt: 'নিচের কোন সংখ্যাটি একটি মৌলিক সংখ্যা?',
+    options: ['৭', '৯', '১৫', '২১'],
+    correctAnswer: '৭',
+    explanation: '৭ কেবলমাত্র ১ এবং ৭ দ্বারা নিঃশেষে বিভাজ্য, তাই এটি মৌলিক সংখ্যা।',
+    topic: 'Mathematics: Prime Numbers',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c5-m6',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['math', 'mathematics', 'গণিত', 'elementary math'],
+    keywords: ['মৌলিক সংখ্যা', 'যৌগিক'],
+    type: 'true_false',
+    prompt: '১ সংখ্যাটি মৌলিক সংখ্যা নয় — উক্তিটি সত্য কি না?',
+    options: ['True', 'False'],
+    correctAnswer: 'True',
+    explanation: '১ মৌলিকও নয়, যৌগিকও নয় কারণ এর কেবল একটিই গুণনীয়ক রয়েছে।',
+    topic: 'Mathematics: Number Theory',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c5-m7',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['math', 'mathematics', 'গণিত', 'elementary math'],
+    keywords: ['ভগ্নাংশ', 'fraction'],
+    type: 'mcq',
+    prompt: '৩/৪ এবং ১/৪ এর যোগফল কত?',
+    options: ['১', '৪/৮', '২/৪', '৩/৮'],
+    correctAnswer: '১',
+    explanation: '৩/৪ + ১/৪ = (৩+১)/৪ = ৪/৪ = ১।',
+    topic: 'Mathematics: Fractions',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c5-m8',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['math', 'mathematics', 'গণিত', 'elementary math'],
+    keywords: ['ক্ষেত্রফল', 'আয়তক্ষেত্র', 'geometry'],
+    type: 'mcq',
+    prompt: 'একটি আয়তাকার বাগানের দৈর্ঘ্য ১০ মিটার এবং প্রস্থ ৬ মিটার হলে বাগানটির ক্ষেত্রফল কত বর্গমিটার?',
+    options: ['৬০ বর্গমিটার', '৩২ বর্গমিটার', '১৬ বর্গমিটার', '১০০ বর্গমিটার'],
+    correctAnswer: '৬০ বর্গমিটার',
+    explanation: 'আয়তক্ষেত্রের ক্ষেত্রফল = দৈর্ঘ্য × প্রস্থ = ১০ × ৬ = ৬০ বর্গমিটার।',
+    topic: 'Mathematics: Measurement & Geometry',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c5-s1',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['science', 'general science', 'বিজ্ঞান', 'primary science'],
+    keywords: ['পানি', 'নিরাপদ পানি', 'পানি বিশুদ্ধকরণ', 'ফোটানো', 'water', 'অধ্যায় ৩'],
+    type: 'mcq',
+    prompt: 'পানিকে পুরোপুরি জীবাণুমুক্ত ও নিরাপদ করতে চুলায় অন্তত কত মিনিট টগবগিয়ে ফোটাতে হবে?',
+    options: ['২০ মিনিট', '৫ মিনিট', '১০ মিনিট', '২ মিনিট'],
+    correctAnswer: '২০ মিনিট',
+    explanation: 'বিজ্ঞান পাঠ্যবই অনুসারে পানি কমপক্ষে ২০ মিনিট টগবগিয়ে ফোটালে সব ক্ষতিকর রোগজীবাণু ধ্বংস হয়।',
+    topic: 'Primary Science: Safe Water',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c5-s2',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['science', 'general science', 'বিজ্ঞান', 'primary science'],
+    keywords: ['আর্সেনিক', 'পানি', 'arsenic'],
+    type: 'true_false',
+    prompt: 'আর্সেনিকযুক্ত পানি ফুটালে আর্সেনিক ধ্বংস হয়ে পানি নিরাপদ হয় — উক্তিটি কি সত্য?',
+    options: ['True', 'False'],
+    correctAnswer: 'False',
+    explanation: 'উক্তিটি মিথ্যা। পানি ফুটালে আর্সেনিক দূর হয় না; আর্সেনিকমুক্ত নিরাপদ পানির উৎস ব্যবহার করতে হবে।',
+    topic: 'Primary Science: Safe Water',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c5-s3',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['science', 'general science', 'বিজ্ঞান', 'primary science'],
+    keywords: ['পানিবাহিত রোগ', 'রোগ', 'ডায়রিয়া', 'waterborne'],
+    type: 'mcq',
+    prompt: 'নিচের কোনটি দূষিত পানির মাধ্যমে সংক্রমিত পানিবাহিত রোগ?',
+    options: ['কলেরা ও ডায়রিয়া', 'ইনফ্লুয়েঞ্জা', 'ম্যালেরিয়া', 'ডেঙ্গু'],
+    correctAnswer: 'কলেরা ও ডায়রিয়া' ,
+    explanation: 'কলেরা, টাইফয়েড ও ডায়রিয়া হলো প্রধান পানিবাহিত রোগ।',
+    topic: 'Primary Science: Health & Hygiene',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c5-s4',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['science', 'general science', 'বিজ্ঞান', 'primary science'],
+    keywords: ['উদ্ভিদ', 'সালোকসংশ্লেষণ', 'কার্বন ডাই-অক্সাইড', 'খাদ্য তৈরি'],
+    type: 'mcq',
+    prompt: 'উদ্ভিদ খাদ্য তৈরির প্রক্রিয়ায় (সালোকসংশ্লেষণ) বায়ুমণ্ডল থেকে কোন গ্যাসটি গ্রহণ করে?',
+    options: ['কার্বন ডাই-অক্সাইড', 'অক্সিজেন', 'নাইট্রোজেন', 'হাইড্রোজেন'],
+    correctAnswer: 'কার্বন ডাই-অক্সাইড',
+    explanation: 'সবুজ উদ্ভিদ সূর্যালোক ও পানির সহায়তায় কার্বন ডাই-অক্সাইড ব্যবহার করে খাদ্য প্রস্তুত করে।',
+    topic: 'Primary Science: Plants & Food',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c5-e1',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['english', 'english for today', 'ইংরেজি'],
+    keywords: ['food pyramid', 'eat healthy', 'nutrition', 'unit 6'],
+    type: 'mcq',
+    prompt: 'Which food group is at the base of the Food Pyramid indicating we should eat more of it?',
+    options: ['Grains (Rice, Ruti, Bread)', 'Fats and Oils', 'Meat and Fish', 'Sweets and Sugar'],
+    correctAnswer: 'Grains (Rice, Ruti, Bread)',
+    explanation: 'Grains like rice and ruti are at the bottom of the Food Pyramid and supply vital carbohydrates for energy.',
+    topic: 'English: Eat Healthy',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c5-b1',
+    grades: ['5', 'class 5', 'primary', 'pec'],
+    subjects: ['bangla', 'বাংলা', 'bgs', 'বাংলাদেশ ও বিশ্বপরিচয়'],
+    keywords: ['মুক্তিযুদ্ধ', '১৯৭১', 'স্বাধীনতা', 'liberation war', 'অধ্যায় ১'],
+    type: 'mcq',
+    prompt: '১৯৭১ সালে বাংলাদেশে কত মাসব্যাপী মুক্তিযুদ্ধের পর চূড়ান্ত বিজয় অর্জিত হয়?',
+    options: ['৯ মাস', '১১ মাস', '৬ মাস', '১২ মাস'],
+    correctAnswer: '৯ মাস',
+    explanation: '১৯৭১ সালের ২৬শে মার্চ থেকে দীর্ঘ ৯ মাস রক্তক্ষয়ী যুদ্ধের পর ১৬ই ডিসেম্বর চূড়ান্ত বিজয় অর্জিত হয়।',
+    topic: 'Social Studies: Liberation War',
+    difficulty: 'easy',
+  },
+
+  // =========================================================================
+  // CLASS 8 (Junior Secondary / JSC) - Math, Science/Physics, English, ICT, Bangla
+  // =========================================================================
+  {
+    id: 'qbank-c8-m1',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['math', 'mathematics', 'গণিত', 'algebra', 'বীজগণিত'],
+    keywords: ['বর্গ', 'সূত্র', 'বীজগণিতীয় সূত্রাবলী', '(a+b)^2', 'অনুশীলনী ৪.১', 'অধ্যায় ৪'],
+    type: 'mcq',
+    prompt: '(a + b)² এর সঠিক বিস্তৃত সূত্র কোনটি?',
+    options: ['a² + 2ab + b²', 'a² - 2ab + b²', 'a² + b²', '(a-b)² + 2ab'],
+    correctAnswer: 'a² + 2ab + b²',
+    explanation: '(a + b)² = a² + 2ab + b² হলো বর্গের প্রথম মৌলিক সূত্র।',
+    topic: 'Class 8 Math: Algebraic Formulae',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c8-m2',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['math', 'mathematics', 'গণিত', 'algebra', 'বীজগণিত'],
+    keywords: ['অনুসিদ্ধান্ত', '4ab', '(a+b)^2', '(a-b)^2', 'বীজগণিত'],
+    type: 'mcq',
+    prompt: '(a + b)² - (a - b)² এর সমান অনুসিদ্ধান্ত কোনটি?',
+    options: ['4ab', '2ab', '2(a² + b²)', 'a² - b²'],
+    correctAnswer: '4ab',
+    explanation: '(a+b)² - (a-b)² = 4ab হলো বীজগণিতের মৌলিক অনুসিদ্ধান্ত।',
+    topic: 'Class 8 Math: Algebraic Formulae',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c8-m3',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['math', 'mathematics', 'গণিত', 'algebra', 'বীজগণিত'],
+    keywords: ['মান নির্ণয়', 'x+1/x', 'বীজগণিত', 'বর্গ'],
+    type: 'mcq',
+    prompt: 'যদি x + 1/x = 4 হয়, তবে x² + 1/x² এর মান কত হবে?',
+    options: ['14', '16', '18', '12'],
+    correctAnswer: '14',
+    explanation: 'x² + 1/x² = (x + 1/x)² - 2 = 4² - 2 = 16 - 2 = 14।',
+    topic: 'Class 8 Math: Algebraic Formulae',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c8-m4',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['math', 'mathematics', 'গণিত', 'algebra', 'বীজগণিত'],
+    keywords: ['উৎপাদক', 'a^2-b^2', 'factorization'],
+    type: 'mcq',
+    prompt: 'a² - b² এর সঠিক উৎপাদক বিশ্লেষণ রূপ কোনটি?',
+    options: ['(a + b)(a - b)', '(a - b)²', '(a + b)²', 'a(a - b)'],
+    correctAnswer: '(a + b)(a - b)',
+    explanation: 'দুই বর্গের অন্তর সূত্র: a² - b² = (a + b)(a - b)।',
+    topic: 'Class 8 Math: Factorization',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c8-m5',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['math', 'mathematics', 'গণিত', 'algebra', 'বীজগণিত'],
+    keywords: ['(a-b)^2', 'বর্গ', 'সূত্র'],
+    type: 'true_false',
+    prompt: '(a - b)² = a² - 2ab + b² উক্তিটি সত্য কি না?',
+    options: ['True', 'False'],
+    correctAnswer: 'True',
+    explanation: '(a - b)² = a² - 2ab + b² হলো বর্গের দ্বিতীয় মৌলিক সূত্র।',
+    topic: 'Class 8 Math: Algebraic Formulae',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c8-m6',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['math', 'mathematics', 'গণিত', 'algebra', 'বীজগণিত'],
+    keywords: ['মিডল টার্ম', 'উৎপাদক', 'factorization'],
+    type: 'mcq',
+    prompt: 'x² - 5x + 6 রাশিটির সঠিক উৎপাদকে বিশ্লেষিত রূপ কোনটি?',
+    options: ['(x - 2)(x - 3)', '(x - 1)(x - 6)', '(x + 2)(x + 3)', '(x - 5)(x + 1)'],
+    correctAnswer: '(x - 2)(x - 3)',
+    explanation: 'x² - 2x - 3x + 6 = x(x - 2) - 3(x - 2) = (x - 2)(x - 3)।',
+    topic: 'Class 8 Math: Factorization',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c8-m7',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['math', 'mathematics', 'গণিত', 'arithmetic', 'মুনাফা'],
+    keywords: ['মুনাফা', 'I=Prn', 'interest', 'পাটিগণিত'],
+    type: 'mcq',
+    prompt: 'সরল মুনাফার ক্ষেত্রে I = Prn সমীকরণে "r" দ্বারা কী বোঝায়?',
+    options: ['মুনাফার হার (Rate of interest)', 'সময় (Time)', 'আসল / মূলধন (Principal)', 'মোট মুনাফা'],
+    correctAnswer: 'মুনাফার হার (Rate of interest)',
+    explanation: 'I = Prn সমীকরণে P হলো আসল, r হলো মুনাফার হার, এবং n হলো সময়।',
+    topic: 'Class 8 Math: Simple Interest',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c8-m8',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['math', 'mathematics', 'গণিত', 'geometry', 'জ্যামিতি'],
+    keywords: ['ত্রিভুজ', 'কোণ', 'সমষ্টি', '১৮০'],
+    type: 'mcq',
+    prompt: 'যেকোনো ত্রিভুজের তিন কোণের সমষ্টি কত সমকোণ বা কত ডিগ্রি?',
+    options: ['২ সমকোণ বা ১৮০°', '৪ সমকোণ বা ৩৬০°', '১ সমকোণ বা ৯০°', '৩ সমকোণ বা ২৭০°'],
+    correctAnswer: '২ সমকোণ বা ১৮০°',
+    explanation: 'যেকোনো ত্রিভুজের তিন কোণের সমষ্টি সর্বদা ১৮০ ডিগ্রি বা ২ সমকোণ।',
+    topic: 'Class 8 Math: Geometry',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c8-p1',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['science', 'general science', 'physics', 'পদার্থবিজ্ঞান', 'বিজ্ঞান'],
+    keywords: ['গতি', 'ত্বরণ', 'সমীকরণ', 'বেগ', 'v=u+at', 'অধ্যায় ২', 'গতি ও ত্বরণ'],
+    type: 'mcq',
+    prompt: 'একটি বস্তুর আদিবেগ u = 5 m/s এবং ত্বরণ a = 2 m/s² হলে, 4 সেকেন্ড পর শেষ বেগ (v) কত হবে?',
+    options: ['13 m/s', '10 m/s', '15 m/s', '8 m/s'],
+    correctAnswer: '13 m/s',
+    explanation: 'গতির ১ম সমীকরণ: v = u + at = 5 + (2 × 4) = 5 + 8 = 13 m/s।',
+    topic: 'Class 8 Science: Motion & Acceleration',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c8-p2',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['science', 'general science', 'physics', 'পদার্থবিজ্ঞান', 'বিজ্ঞান'],
+    keywords: ['ত্বরণ', 'acceleration', 'v=u+at', 'গতি'],
+    type: 'mcq',
+    prompt: 'গতির সমীকরণ v = u + at এ "a" দ্বারা কী বোঝায়?',
+    options: ['ত্বরণ (Acceleration)', 'দূরত্ব (Distance)', 'বেগ (Velocity)', 'সময় (Time)'],
+    correctAnswer: 'ত্বরণ (Acceleration)',
+    explanation: 'v = u + at এ u আদিবেগ, a ত্বরণ, t সময়, এবং v শেষবেগ।',
+    topic: 'Class 8 Science: Motion & Acceleration',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c8-p3',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['science', 'general science', 'physics', 'পদার্থবিজ্ঞান', 'বিজ্ঞান'],
+    keywords: ['বল', 'force', 'F=ma', 'নিউটন', 'ত্বরণ'],
+    type: 'mcq',
+    prompt: '১০ কেজি ভরের একটি বস্তুর ওপর ৫০ নিউটন বল প্রয়োগ করলে উৎপন্ন ত্বরণ কত হবে?',
+    options: ['5 m/s²', '0.2 m/s²', '500 m/s²', '10 m/s²'],
+    correctAnswer: '5 m/s²',
+    explanation: 'নিউটনের ২য় সূত্র: F = ma ⇒ a = F / m = 50 / 10 = 5 m/s²।',
+    topic: 'Class 8 Science: Force & Newton Laws',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c8-p4',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['science', 'general science', 'physics', 'পদার্থবিজ্ঞান', 'বিজ্ঞান'],
+    keywords: ['সমবেগ', 'ত্বরণ', 'constant velocity'],
+    type: 'mcq',
+    prompt: 'সমবেগে চলমান কোনো বস্তুর ত্বরণ সর্বদা কত থাকে?',
+    options: ['0 m/s²', '9.8 m/s²', '1 m/s²', 'অসীম'],
+    correctAnswer: '0 m/s²',
+    explanation: 'সমবেগে বেগের কোনো পরিবর্তন হয় না। ত্বরণ বেগের পরিবর্তনের হার বিধায় ত্বরণ শূন্য।',
+    topic: 'Class 8 Science: Motion & Acceleration',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c8-p5',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['science', 'general science', 'physics', 'পদার্থবিজ্ঞান', 'বিজ্ঞান'],
+    keywords: ['বল', 'একক', 'নিউটন', 'SI unit', 'force'],
+    type: 'mcq',
+    prompt: 'আন্তর্জাতিক পদ্ধতিতে বল (Force) এর এসআই (SI) একক কোনটি?',
+    options: ['নিউটন (Newton)', 'প্যাসকেল (Pascal)', 'জুল (Joule)', 'ওয়াট (Watt)'],
+    correctAnswer: 'নিউটন (Newton)',
+    explanation: 'আন্তর্জাতিক পদ্ধতিতে বলের একক নিউটন (N = kg·m/s²)।',
+    topic: 'Class 8 Science: Force & Newton Laws',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c8-p6',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['science', 'general science', 'physics', 'পদার্থবিজ্ঞান', 'বিজ্ঞান'],
+    keywords: ['অভিকর্ষজ ত্বরণ', 'g', 'gravity'],
+    type: 'true_false',
+    prompt: 'ভূপৃষ্ঠে অভিকর্ষজ ত্বরণ g এর আদর্শ গড় মান ৯.৮ মি/সে² — উক্তিটি সত্য কি না?',
+    options: ['True', 'False'],
+    correctAnswer: 'True',
+    explanation: 'ভূপৃষ্ঠে অভিকর্ষজ ত্বরণের আদর্শ মান ৯.৮ m/s²।',
+    topic: 'Class 8 Science: Gravity',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c8-e1',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['english', 'english 1st paper', 'english 2nd paper', 'ইংরেজি'],
+    keywords: ['grammar', 'as if', 'verbs', 'right forms of verbs'],
+    type: 'mcq',
+    prompt: 'He speaks as if he _____ everything.',
+    options: ['knew', 'knows', 'has known', 'is knowing'],
+    correctAnswer: 'knew',
+    explanation: 'After "as if" expressing unreal present conditional, past simple ("knew") is used.',
+    topic: 'English: Right Forms of Verbs',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c8-e2',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['english', 'english 1st paper', 'english 2nd paper', 'ইংরেজি'],
+    keywords: ['neither nor', 'subject verb agreement', 'grammar'],
+    type: 'mcq',
+    prompt: 'Neither Rahim nor his brothers _____ present in the exam yesterday.',
+    options: ['were', 'was', 'are', 'is'],
+    correctAnswer: 'were',
+    explanation: 'When subjects are linked by "neither...nor", the verb agrees with the closer subject ("his brothers" -> were).',
+    topic: 'English: Subject-Verb Agreement',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c8-ict1',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['ict', 'তথ্য ও যোগাযোগ প্রযুক্তি'],
+    keywords: ['স্প্রেডশিট', 'এক্সেল', 'excel', 'formula', '=SUM', 'যোগ'],
+    type: 'mcq',
+    prompt: 'মাইক্রোসফট এক্সেলে স্বয়ংক্রিয়ভাবে সেলের সংখ্যা যোগ করার সঠিক ফাংশন কোনটি?',
+    options: ['=SUM(A1:A10)', '=ADD(A1:A10)', '=TOTAL(A1:A10)', '=PLUS(A1:A10)'],
+    correctAnswer: '=SUM(A1:A10)',
+    explanation: 'স্প্রেডশিটে একাধিক সেলের যোগফলের স্ট্যান্ডার্ড ফাংশন হলো =SUM()।',
+    topic: 'ICT: Spreadsheet Software',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c8-b1',
+    grades: ['8', 'class 8', 'junior', 'jsc', '9', 'class 9'],
+    subjects: ['bangla', 'বাংলা ১ম পত্র', 'বাংলা'],
+    keywords: ['বঙ্গভূমির প্রতি', 'মাইকেল মধুসূদন দত্ত', 'কবিতা', 'bangla'],
+    type: 'mcq',
+    prompt: '"বঙ্গভূমির প্রতি" কবিতাটির রচয়িতা কোন বিখ্যাত বাঙালি কবি?',
+    options: ['মাইকেল মধুসূদন দত্ত', 'কাজী নজরুল ইসলাম', 'রবীন্দ্রনাথ ঠাকুর', 'জসীম উদ্দীন'],
+    correctAnswer: 'মাইকেল মধুসূদন দত্ত',
+    explanation: 'কবি মাইকেল মধুসূদন দত্ত রচিত বিখ্যাত স্মৃতিচারণমূলক কবিতা "বঙ্গভূমির প্রতি"।',
+    topic: 'Bangla: Literature',
+    difficulty: 'easy',
+  },
+
+  // =========================================================================
+  // CLASS 11-12 (College / HSC Science) - Physics, Chemistry, Higher Math, ICT
+  // =========================================================================
+  {
+    id: 'qbank-c11-p1',
+    grades: ['11', '12', 'class 11', 'class 12', 'college', 'hsc'],
+    subjects: ['physics', 'physics 1st paper', 'পদার্থবিজ্ঞান', 'পদার্থবিজ্ঞান ১ম পত্র'],
+    keywords: ['প্রক্ষেপক', 'পাল্লা', 'সর্বাধিক পাল্লা', 'projectile', 'কোণ', '45', 'গতিবিদ্যা'],
+    type: 'mcq',
+    prompt: 'একটি বস্তুকে অনুভূমিকের সাথে কত কোণে নিক্ষেপ করলে সর্বাধিক অনুভূমিক পাল্লা (Maximum Range) পাওয়া যায়?',
+    options: ['45°', '30°', '60°', '90°'],
+    correctAnswer: '45°',
+    explanation: 'পাল্লা R = (v₀² sin 2θ) / g; sin 2θ এর সর্বোচ্চ মান 1 হয় যখন 2θ = 90° বা θ = 45°।',
+    topic: 'HSC Physics: Projectile Motion',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c11-p2',
+    grades: ['11', '12', 'class 11', 'class 12', 'college', 'hsc'],
+    subjects: ['physics', 'physics 1st paper', 'পদার্থবিজ্ঞান', 'পদার্থবিজ্ঞান ১ম পত্র'],
+    keywords: ['প্রক্ষেপক', 'গতিপথ', 'পরাবৃত্ত', 'প্যারাবোলা', 'trajectory'],
+    type: 'mcq',
+    prompt: 'প্রক্ষেপকের গতিপথ (Trajectory) এর জ্যামিতিক রূপ ও আকৃতি কীরূপ?',
+    options: ['প্যারাবোলা বা পরাবৃত্ত', 'উপবৃত্ত', 'সরলরেখা', 'বৃত্তাকার'],
+    correctAnswer: 'প্যারাবোলা বা পরাবৃত্ত',
+    explanation: 'প্রক্ষেপকের গতিপথের সমীকরণ y = (tan θ)x - (g / (2v₀² cos²θ)) x², যা একটি পরাবৃত্ত।',
+    topic: 'HSC Physics: Projectile Motion',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c11-p3',
+    grades: ['11', '12', 'class 11', 'class 12', 'college', 'hsc'],
+    subjects: ['physics', 'physics 1st paper', 'পদার্থবিজ্ঞান', 'পদার্থবিজ্ঞান ১ম পত্র'],
+    keywords: ['উলম্ব বেগ', 'সর্বোচ্চ বিন্দু', 'vertical velocity', 'প্রক্ষেপক'],
+    type: 'mcq',
+    prompt: 'সর্বোচ্চ বিন্দুতে পৌঁছালে প্রক্ষেপকের উলম্ব বেগ (Vertical Velocity) কত হয়?',
+    options: ['0 m/s', 'v₀ sin θ', 'v₀ cos θ', 'g m/s'],
+    correctAnswer: '0 m/s',
+    explanation: 'সর্বোচ্চ উচ্চতায় উলম্ব বেগ vy = 0 হয়ে যায় এবং শুধুমাত্র অনুভূমিক বেগ vx = v₀ cos θ বিদ্যমান থাকে।',
+    topic: 'HSC Physics: Projectile Motion',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c11-p4',
+    grades: ['11', '12', 'class 11', 'class 12', 'college', 'hsc'],
+    subjects: ['physics', 'physics 1st paper', 'পদার্থবিজ্ঞান', 'পদার্থবিজ্ঞান ১ম পত্র'],
+    keywords: ['অনুভূমিক ত্বরণ', 'বায়ুর বাধা', 'acceleration'],
+    type: 'true_false',
+    prompt: 'বায়ুর বাধা উপেক্ষা করলে প্রক্ষেপকের অনুভূমিক ত্বরণ সর্বদা শূন্য থাকে — উক্তিটি কি সত্য?',
+    options: ['True', 'False'],
+    correctAnswer: 'True',
+    explanation: 'অনুভূমিক দিকে কোনো বাহ্যিক বল ক্রিয়া না করায় অনুভূমিক ত্বরণ ax = 0 থাকে।',
+    topic: 'HSC Physics: Projectile Motion',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c11-p5',
+    grades: ['11', '12', 'class 11', 'class 12', 'college', 'hsc'],
+    subjects: ['physics', 'physics 1st paper', 'পদার্থবিজ্ঞান', 'পদার্থবিজ্ঞান ১ম পত্র'],
+    keywords: ['উড্ডয়নকাল', 'time of flight', 'T', 'সমীকরণ'],
+    type: 'mcq',
+    prompt: 'একটি প্রক্ষেপকের মোট উড্ডয়নকাল T এর সঠিক সমীকরণ কোনটি?',
+    options: ['(2 v₀ sin θ) / g', '(v₀ sin θ) / g', '(v₀² sin²θ) / 2g', '(v₀ cos θ) / g'],
+    correctAnswer: '(2 v₀ sin θ) / g',
+    explanation: 'উড্ডয়নকাল T = (2 v₀ sin θ) / g।',
+    topic: 'HSC Physics: Projectile Motion',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c11-c1',
+    grades: ['11', '12', 'class 11', 'class 12', 'college', 'hsc'],
+    subjects: ['chemistry', 'chemistry 1st paper', 'রসায়ন', 'রসায়ন ১ম পত্র'],
+    keywords: ['কোয়ান্টাম সংখ্যা', 'বোর', 'quantum', 'গুণগত রসায়ন', 'অধ্যায় ২'],
+    type: 'mcq',
+    prompt: 'প্রধান কোয়ান্টাম সংখ্যা n = 3 হলে সহকারী কোয়ান্টাম সংখ্যা l এর সম্ভাব্য মানসমূহ কী কী?',
+    options: ['0, 1, 2', '1, 2, 3', '0, 1', '-1, 0, +1'],
+    correctAnswer: '0, 1, 2',
+    explanation: 'সহকারী কোয়ান্টাম সংখ্যা l এর মান 0 থেকে n-1 পর্যন্ত হয়। সুতরাং n = 3 হলে l = 0 (s), 1 (p), 2 (d)।',
+    topic: 'HSC Chemistry: Quantum Numbers',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c11-c2',
+    grades: ['11', '12', 'class 11', 'class 12', 'college', 'hsc'],
+    subjects: ['chemistry', 'chemistry 1st paper', 'রসায়ন', 'রসায়ন ১ম পত্র'],
+    keywords: ['আউফবাউ নীতি', 'aufbau', 'ইলেকট্রন বিন্যাস', '4s', '3d'],
+    type: 'mcq',
+    prompt: 'আউফবাউ নীতি অনুসারে ইলেকট্রন কোন অরবিটালে আগে প্রবেশ করে?',
+    options: ['4s (কারণ n+l = 4+0 = 4)', '3d (কারণ n+l = 3+2 = 5)', '4p', '4d'],
+    correctAnswer: '4s (কারণ n+l = 4+0 = 4)',
+    explanation: 'ইলেকট্রন প্রথমে নিম্ন শক্তির অরবিটালে প্রবেশ করে। 4s অরবিটালের (n+l) মান 4 এবং 3d এর মান 5, তাই 4s আগে পূর্ণ হয়।',
+    topic: 'HSC Chemistry: Electron Configuration',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c11-c3',
+    grades: ['11', '12', 'class 11', 'class 12', 'college', 'hsc'],
+    subjects: ['chemistry', 'chemistry 1st paper', 'রসায়ন', 'রসায়ন ১ম পত্র'],
+    keywords: ['বোর মডেল', 'কৌণিক ভরবেগ', 'bohr', 'mvr'],
+    type: 'true_false',
+    prompt: 'বোর পরমাণু মডেল অনুসারে ইলেকট্রনের নির্দিষ্ট কক্ষপথের কৌণিক ভরবেগ mvr = nh / 2π।',
+    options: ['True', 'False'],
+    correctAnswer: 'True',
+    explanation: 'বোরের দ্বিতীয় স্বীকার্য অনুযায়ী ইলেকট্রন কেবল সেইসব কক্ষপথে আবর্তন করতে পারে যেখানে কৌণিক ভরবেগ h/2π এর পূর্ণসংখ্যার গুণিতক।',
+    topic: 'HSC Chemistry: Atomic Models',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c11-m1',
+    grades: ['11', '12', 'class 11', 'class 12', 'college', 'hsc'],
+    subjects: ['higher math', 'math', 'উচ্চতর গণিত', 'উচ্চতর গণিত ১ম পত্র'],
+    keywords: ['ম্যাট্রিক্স', 'matrix', 'ক্রম', 'order', 'গুণন বিধি'],
+    type: 'mcq',
+    prompt: 'যদি ম্যাট্রিক্স A এর ক্রম 3 × 2 এবং ম্যাট্রিক্স B এর ক্রম 2 × 4 হয়, তবে তাদের গুণফল AB ম্যাট্রিক্সের ক্রম (Order) কত হবে?',
+    options: ['3 × 4', '2 × 2', '3 × 2', '2 × 4'],
+    correctAnswer: '3 × 4',
+    explanation: 'ম্যাট্রিক্স গুণনের শর্ত: ১ম ম্যাট্রিক্সের কলাম (2) = ২য় ম্যাট্রিক্সের সারি (2)। ফলে গুণফল ম্যাট্রিক্সের ক্রম হবে 3 × 4।',
+    topic: 'HSC Higher Math: Matrices',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c11-m2',
+    grades: ['11', '12', 'class 11', 'class 12', 'college', 'hsc'],
+    subjects: ['higher math', 'math', 'উচ্চতর গণিত', 'উচ্চতর গণিত ১ম পত্র'],
+    keywords: ['বিপরীত ম্যাট্রিক্স', 'inverse matrix', 'det', 'নির্ণায়ক'],
+    type: 'mcq',
+    prompt: 'কোনো বর্গ ম্যাট্রিক্স A এর বিপরীত ম্যাট্রিক্স (A⁻¹) বিদ্যমান থাকার জন্য নির্ণায়ক det(A) এর মান কীরূপ হতে হবে?',
+    options: ['det(A) ≠ 0 (অব্যতিক্রমী ম্যাট্রিক্স)', 'det(A) = 0', 'det(A) = 1', 'det(A) < 0'],
+    correctAnswer: 'det(A) ≠ 0 (অব্যতিক্রমী ম্যাট্রিক্স)',
+    explanation: 'বিপরীত ম্যাট্রিক্সের সূত্র A⁻¹ = (1/det A) adj A। যদি det A = 0 হয় তবে বিপরীত ম্যাট্রিক্স সংজ্ঞায়িত হয় না।',
+    topic: 'HSC Higher Math: Matrices',
+    difficulty: 'medium',
+  },
+  {
+    id: 'qbank-c11-ict1',
+    grades: ['11', '12', 'class 11', 'class 12', 'college', 'hsc'],
+    subjects: ['ict', 'তথ্য ও যোগাযোগ প্রযুক্তি'],
+    keywords: ['বাইনারি', 'সংখ্যা পদ্ধতি', 'binary', 'decimal', '1010'],
+    type: 'mcq',
+    prompt: 'বাইনারি সংখ্যা (1010)₂ এর ডেসিমাল বা দশভিত্তিক সমতুল্য মান কত?',
+    options: ['10', '8', '12', '14'],
+    correctAnswer: '10',
+    explanation: '(1010)₂ = 1×2³ + 0×2² + 1×2¹ + 0×2⁰ = 8 + 0 + 2 + 0 = 10।',
+    topic: 'HSC ICT: Number Systems',
+    difficulty: 'easy',
+  },
+  {
+    id: 'qbank-c11-ict2',
+    grades: ['11', '12', 'class 11', 'class 12', 'college', 'hsc'],
+    subjects: ['ict', 'তথ্য ও যোগাযোগ প্রযুক্তি'],
+    keywords: ['হেক্সাডেসিমেল', 'hexadecimal', 'সংখ্যা পদ্ধতি', 'ভিত্তি'],
+    type: 'mcq',
+    prompt: 'হেক্সাডেসিমেল সংখ্যা পদ্ধতিতে মোট কয়টি মৌলিক প্রতীক বা অঙ্ক ব্যবহৃত হয়?',
+    options: ['16টি (0-9 এবং A-F)', '10টি', '8টি', '2টি'],
+    correctAnswer: '16টি (0-9 এবং A-F)',
+    explanation: 'হেক্সাডেসিমেল পদ্ধতির ভিত্তি ১৬ এবং এতে ০ থেকে ৯ পর্যন্ত ১০টি অঙ্ক এবং A থেকে F পর্যন্ত ৬টি বর্ণ প্রতীক হিসেবে ব্যবহৃত হয়।',
+    topic: 'HSC ICT: Number Systems',
+    difficulty: 'easy',
+  },
+];
 
 export function calculateSmartTime(questions: any[], subject?: string): { minutes: number; mathCount: number; nonMathCount: number } {
   let mathCount = 0;
@@ -736,7 +1424,7 @@ export function calculateSmartTime(questions: any[], subject?: string): { minute
   for (const q of questions) {
     const text = ((q.prompt || '') + ' ' + (q.explanation || '') + ' ' + (q.topic || '') + ' ' + (subject || '')).toLowerCase();
     const isMathOrAnalytical =
-      /(\bmath\b|গণিত|algebra|বীজগণিত|geometry|জ্যামিতি|physics|পদার্থবিজ্ঞান|equation|সমীকরণ|formula|সূত্র|ত্বরণ|acceleration|বলবিদ্যা|force|hcf|lcm|গসাগু|লসাগু|\b\d+[\+\-\*\/\^=]\d+\b)/i.test(text) ||
+      /(\bmath\b|গণিত|algebra|বীজগণিত|geometry|জ্যামিতি|physics|পদার্থবিজ্ঞান|equation|সমীকরণ|formula|সূত্র|ত্বরণ|acceleration|বলবিদ্যা|force|hcf|lcm|গসাগু|লসাগু|matrix|ম্যাট্রিক্স|প্রক্ষেপক|পাল্লা|projectile|\b\d+[\+\-\*\/\^=]\d+\b)/i.test(text) ||
       (q.options && q.options.some((opt: string) => /[\d\+\-\*\/\^=]/.test(opt)));
 
     if (isMathOrAnalytical) {
@@ -754,6 +1442,284 @@ export function calculateSmartTime(questions: any[], subject?: string): { minute
   const minutes = Math.max(3, Math.ceil(totalSec / 60));
 
   return { minutes, mathCount, nonMathCount };
+}
+
+export async function getChildInfo(childId: string) {
+  try {
+    const child = await prisma.child.findUnique({ where: { id: childId } });
+    if (child) return child;
+  } catch {}
+  const memChild = memChildren.find((c: any) => c.id === childId);
+  if (memChild) return memChild;
+
+  if (childId === 'demo-child-2') {
+    return { id: 'demo-child-2', name: 'Tasnim Islam', grade: 'Class 5', curriculum: 'NCTB', medium: 'Bangla', parentId: 'parent-demo' };
+  }
+  if (childId === 'demo-child-3') {
+    return { id: 'demo-child-3', name: 'Fahim Islam', grade: 'Class 11', curriculum: 'NCTB', medium: 'Bangla', parentId: 'parent-demo' };
+  }
+  return { id: childId, name: 'Rahim Ahmed', grade: 'Class 8', curriculum: 'NCTB', medium: 'Bangla', parentId: 'parent-demo' };
+}
+
+export async function collectChildStudyContext(childId: string, strategy: string, selectedSubjects?: string[]) {
+  const child = await getChildInfo(childId);
+
+  // 1. Fetch entries
+  let entries: any[] = [];
+  try {
+    entries = await prisma.learningEntry.findMany({
+      where: { childId },
+      orderBy: { date: 'desc' },
+      take: 20,
+    });
+  } catch {}
+  if (!entries || entries.length === 0) {
+    entries = memEntries.filter((e: any) => e.childId === childId);
+  }
+
+  // 2. Fetch notes
+  let notes: any[] = [];
+  try {
+    notes = await prisma.note.findMany({
+      where: { childId },
+      orderBy: { date: 'desc' },
+      take: 10,
+    });
+  } catch {}
+  if (!notes || notes.length === 0) {
+    notes = memNotes.filter((n: any) => n.childId === childId);
+  }
+
+  // 3. Past quiz performance for weak topics
+  const weakTopics: string[] = [];
+  try {
+    const pastAttempts = await prisma.quizAttempt.findMany({
+      where: { childId },
+      include: { answers: { include: { question: true } } },
+      orderBy: { startedAt: 'desc' },
+      take: 5,
+    });
+    for (const att of pastAttempts) {
+      for (const ans of att.answers) {
+        if (ans.isCorrect === false && ans.question?.topic) {
+          weakTopics.push(ans.question.topic);
+        }
+      }
+    }
+  } catch {}
+  if (weakTopics.length === 0) {
+    const pastMemAttempts = memAttempts.filter((a: any) => a.childId === childId);
+    for (const att of pastMemAttempts) {
+      for (const ans of att.answers || []) {
+        if (ans.isCorrect === false) {
+          const q = findQuestion(ans.questionId);
+          if (q?.topic) weakTopics.push(q.topic);
+        }
+      }
+    }
+  }
+
+  for (const e of entries) {
+    if (e.confidence && e.confidence <= 3 && e.topicsText) {
+      weakTopics.push(e.subject || e.topicsText.slice(0, 30));
+    }
+  }
+
+  // Filter by subject if specified and not 'All'
+  const filterSubjects = selectedSubjects && selectedSubjects.length > 0 && !selectedSubjects.includes('All')
+    ? selectedSubjects.map((s) => s.toLowerCase().trim())
+    : null;
+
+  if (filterSubjects) {
+    entries = entries.filter((e: any) => {
+      const s = ((e.subject || '') + ' ' + (e.subjectName || '') + ' ' + (e.topicsText || '')).toLowerCase();
+      return filterSubjects.some((fs) => s.includes(fs));
+    });
+    notes = notes.filter((n: any) => {
+      const s = ((n.subject || '') + ' ' + (n.title || '') + ' ' + (n.textClean || '')).toLowerCase();
+      return filterSubjects.some((fs) => s.includes(fs));
+    });
+  }
+
+  // Apply topic strategy
+  let targetEntries = [...entries];
+  let targetNotes = [...notes];
+  const now = Date.now();
+  const oneDayMs = 86400000;
+
+  if (strategy === 'one_day_old') {
+    // Spaced repetition: look for entries ~1 day old (between 12h and 60h ago)
+    const yesterdayEntries = entries.filter((e: any) => {
+      const d = new Date(e.date || e.createdAt).getTime();
+      const diffDays = (now - d) / oneDayMs;
+      return diffDays >= 0.5 && diffDays <= 2.5;
+    });
+    if (yesterdayEntries.length > 0) {
+      targetEntries = yesterdayEntries;
+    } else {
+      targetEntries = entries.slice(0, 3);
+    }
+  } else if (strategy === 'ai_adaptive') {
+    const weakEntries = entries.filter((e: any) => {
+      if (e.confidence && e.confidence <= 3) return true;
+      const text = (e.topicsText || '').toLowerCase();
+      return weakTopics.some((wt) => text.includes(wt.toLowerCase()));
+    });
+    if (weakEntries.length > 0) {
+      targetEntries = weakEntries;
+    } else {
+      targetEntries = entries.slice(0, 3);
+    }
+  } else if (strategy === 'recent_notes') {
+    targetNotes = notes.slice(0, 5);
+  }
+
+  // Collect topics list
+  const topicsList: Array<{ subject: string; topicText: string; source: string; date: Date; confidence?: number }> = [];
+
+  for (const e of targetEntries) {
+    topicsList.push({
+      subject: e.subjectName || e.subject || 'General',
+      topicText: e.topicsText || '',
+      source: e.source || 'study',
+      date: new Date(e.date || e.createdAt || now),
+      confidence: e.confidence,
+    });
+  }
+
+  for (const n of targetNotes) {
+    topicsList.push({
+      subject: n.subject || 'General',
+      topicText: `${n.title ? n.title + ': ' : ''}${n.textClean ? n.textClean.slice(0, 200) : ''}`,
+      source: 'note',
+      date: new Date(n.date || n.createdAt || now),
+    });
+  }
+
+  // Primary subject deduction
+  const subjectCounts: Record<string, number> = {};
+  for (const t of topicsList) {
+    const s = t.subject.split('(')[0].trim() || 'General';
+    subjectCounts[s] = (subjectCounts[s] || 0) + 1;
+  }
+  let primarySubject = 'General Curriculum';
+  let maxCount = 0;
+  for (const [s, count] of Object.entries(subjectCounts)) {
+    if (count > maxCount) {
+      maxCount = count;
+      primarySubject = s;
+    }
+  }
+
+  return {
+    child,
+    topics: topicsList,
+    weakTopics,
+    primarySubject,
+  };
+}
+
+export function generateProperCurriculumQuestions(
+  context: {
+    child: { grade?: string; curriculum?: string; medium?: string; name?: string };
+    topics: Array<{ subject: string; topicText: string; source?: string; confidence?: number }>;
+    weakTopics?: string[];
+  },
+  config: {
+    questionCount: number;
+    difficulty: 'easy' | 'medium' | 'hard' | 'mixed';
+    strategy: string;
+  }
+): any[] {
+  const childGrade = (context.child.grade || '').toLowerCase();
+  const topicsText = context.topics.map((t) => `${t.subject} ${t.topicText}`).join(' ').toLowerCase();
+  const weakText = (context.weakTopics || []).join(' ').toLowerCase();
+
+  const isClass5 = childGrade.includes('5') || childGrade.includes('five') || childGrade.includes('pec') || childGrade.includes('psc') || childGrade.includes('primary');
+  const isClass11 = childGrade.includes('11') || childGrade.includes('12') || childGrade.includes('hsc') || childGrade.includes('college');
+  const isClass8 = (!isClass5 && !isClass11) || childGrade.includes('8') || childGrade.includes('eight') || childGrade.includes('jsc');
+
+  let gradeMatches = CURRICULUM_QUESTION_BANK.filter((q) => {
+    if (q.grades.includes('all')) return true;
+    if (isClass5) return q.grades.includes('5') || q.grades.includes('class 5') || q.grades.includes('primary');
+    if (isClass11) return q.grades.includes('11') || q.grades.includes('class 11') || q.grades.includes('hsc') || q.grades.includes('college');
+    if (isClass8) return q.grades.includes('8') || q.grades.includes('class 8') || q.grades.includes('jsc') || q.grades.includes('9');
+    return true;
+  });
+
+  if (gradeMatches.length === 0) {
+    gradeMatches = CURRICULUM_QUESTION_BANK;
+  }
+
+  const scored = gradeMatches.map((q) => {
+    let score = 0;
+    for (const kw of q.keywords) {
+      if (topicsText.includes(kw.toLowerCase())) {
+        score += 3;
+      }
+      if (config.strategy === 'ai_adaptive' && weakText.includes(kw.toLowerCase())) {
+        score += 5;
+      }
+    }
+    for (const subj of q.subjects) {
+      if (topicsText.includes(subj.toLowerCase())) {
+        score += 2;
+      }
+    }
+    if (config.difficulty !== 'mixed' && q.difficulty === config.difficulty) {
+      score += 2;
+    }
+    return { q, score };
+  });
+
+  const dayOffset = new Date().getDate();
+  scored.sort((a, b) => b.score - a.score);
+
+  const targetCount = Math.max(1, config.questionCount || 5);
+  const selectedTemplates: QuestionTemplate[] = [];
+
+  const highScored = scored.filter((s) => s.score > 0).map((s) => s.q);
+  const remaining = scored.filter((s) => s.score <= 0).map((s) => s.q);
+
+  const rotatedHigh = highScored.length > 0
+    ? [...highScored.slice(dayOffset % highScored.length), ...highScored.slice(0, dayOffset % highScored.length)]
+    : [];
+  const rotatedRemaining = remaining.length > 0
+    ? [...remaining.slice(dayOffset % remaining.length), ...remaining.slice(0, dayOffset % remaining.length)]
+    : [];
+
+  const candidatePool = [...rotatedHigh, ...rotatedRemaining];
+
+  for (const t of candidatePool) {
+    if (selectedTemplates.length >= targetCount) break;
+    if (!selectedTemplates.some((st) => st.prompt === t.prompt)) {
+      selectedTemplates.push(t);
+    }
+  }
+
+  if (selectedTemplates.length < targetCount) {
+    for (const t of CURRICULUM_QUESTION_BANK) {
+      if (selectedTemplates.length >= targetCount) break;
+      if (!selectedTemplates.some((st) => st.prompt === t.prompt)) {
+        selectedTemplates.push(t);
+      }
+    }
+  }
+
+  return selectedTemplates.map((t, idx) => ({
+    id: `q-auto-${Date.now()}-${idx + 1}`,
+    quizId: '',
+    position: idx,
+    type: t.type,
+    prompt: t.prompt,
+    options: t.options || [],
+    optionsJson: t.options || [],
+    correctAnswer: t.correctAnswer,
+    correct_answer: t.correctAnswer,
+    explanation: t.explanation,
+    topic: t.topic,
+    difficulty: t.difficulty,
+  }));
 }
 
 export async function getAutoQuizSchedule(childId: string, parentId: string): Promise<AutoQuizScheduleConfig> {
@@ -801,133 +1767,89 @@ export async function saveAutoQuizSchedule(childId: string, parentId: string, co
 export async function runAutoQuizSchedule(childId: string, parentId: string) {
   await assertOwnership(parentId, childId);
   const config = await getAutoQuizSchedule(childId, parentId);
-  const isTasnim = childId === 'demo-child-2';
 
+  // 1. Collect real study context for the child
+  const studyContext = await collectChildStudyContext(childId, config.topicStrategy, config.subjects);
+
+  // 2. Build dynamic title based on strategy and subject
   let title = '';
-  let questions: any[] = [];
-  let subject = '';
-
-  if (isTasnim) {
-    subject = 'Elementary Math & Science';
-    title = 'স্বয়ংক্রিয় এআই কুইজ: গতকালকের শেখা পাঠ রিভিশন (Spaced Repetition)';
-    questions = [
-      {
-        id: 'q-auto-t1',
-        quizId: '',
-        type: 'mcq',
-        prompt: '১২ ও ১৮ এর গসাগু (HCF) কত?',
-        options: ['৬', '৩', '৯', '১২'],
-        correctAnswer: '৬',
-        explanation: '১২ এর গুণনীয়ক ১, ২, ৩, ৪, ৬, ১২ এবং ১৮ এর গুণনীয়ক ১, ২, ৩, ৬, ৯, ১৮। সাধারণ গরিষ্ঠ গুণনীয়ক হলো ৬।',
-        topic: 'Mathematics',
-      },
-      {
-        id: 'q-auto-t2',
-        quizId: '',
-        type: 'mcq',
-        prompt: 'দুটি সংখ্যার গুণফল ৪৮ এবং তাদের গসাগু ৪ হলে, লসাগু কত হবে?',
-        options: ['১২', '১৬', '২৪', '৮'],
-        correctAnswer: '১২',
-        explanation: 'লসাগু = (দুটি সংখ্যার গুণফল) ÷ গসাগু = ৪৮ ÷ ৪ = ১২।',
-        topic: 'Mathematics',
-      },
-      {
-        id: 'q-auto-t3',
-        quizId: '',
-        type: 'mcq',
-        prompt: 'পানিকে পুরোপুরি জীবাণুমুক্ত ও নিরাপদ করতে চুলায় অন্তত কত মিনিট টগবগিয়ে ফোটাতে হবে?',
-        options: ['২০ মিনিট', '৫ মিনিট', '১০ মিনিট', '২ মিনিট'],
-        correctAnswer: '২০ মিনিট',
-        explanation: 'বিজ্ঞান বই অনুযায়ী পানি কমপক্ষে ২০ মিনিট টগবগিয়ে ফোটালে ক্ষতিকর জীবাণু ধ্বংস হয়।',
-        topic: 'Science',
-      },
-      {
-        id: 'q-auto-t4',
-        quizId: '',
-        type: 'true_false',
-        prompt: 'আর্সেনিকযুক্ত পানি ফুটালে আর্সেনিক ধ্বংস হয়ে পানি নিরাপদ হয় — উক্তিটি কি সত্য?',
-        options: ['True', 'False'],
-        correctAnswer: 'False',
-        explanation: 'উক্তিটি মিথ্যা। পানি ফুটালে আর্সেনিক দূর হয় না; আর্সেনিকমুক্ত নিরাপদ পানির উৎস ব্যবহার করতে হবে।',
-        topic: 'Science',
-      },
-      {
-        id: 'q-auto-t5',
-        quizId: '',
-        type: 'mcq',
-        prompt: '২৪ এর মৌলিক উৎপাদকগুলোতে বিভাজন রূপ কোনটি?',
-        options: ['২ × ২ × ২ × ৩', '৩ × ৮', '৪ × ৬', '২ × ১২'],
-        correctAnswer: '২ × ২ × ২ × ৩',
-        explanation: '২৪ = ২ × ২ × ২ × ৩ (২^৩ × ৩) যা একমাত্র মৌলিক উৎপাদকের গুণফল।',
-        topic: 'Mathematics',
-      },
-    ];
+  if (config.topicStrategy === 'one_day_old') {
+    title = `স্বয়ংক্রিয় এআই কুইজ: গতকালকের শেখা পাঠ রিভিশন (Spaced Repetition) — ${studyContext.primarySubject}`;
+  } else if (config.topicStrategy === 'ai_adaptive') {
+    title = `ব্যক্তিগত এআই কুইজ: দুর্বল অধ্যায় ও ভুল প্রশ্ন সংশোধন (AI Adaptive Mastery) — ${studyContext.primarySubject}`;
+  } else if (config.topicStrategy === 'recent_notes') {
+    title = `ক্লাস নোট ভিত্তিক কুইজ: সাম্প্রতিক খাতার নোট থেকে মূল্যায়ন (Notebook OCR) — ${studyContext.primarySubject}`;
   } else {
-    subject = 'Physics & Mathematics';
-    title = 'স্বয়ংক্রিয় এআই কুইজ: গতকালকের শেখা পাঠ রিভিশন (Spaced Repetition)';
-    questions = [
-      {
-        id: 'q-auto-r1',
-        quizId: '',
-        type: 'mcq',
-        prompt: 'একটি বস্তুর আদিবেগ u = 5 m/s এবং ত্বরণ a = 2 m/s² হলে, 4 সেকেন্ড পর বেগ (v) কত হবে?',
-        options: ['13 m/s', '10 m/s', '15 m/s', '8 m/s'],
-        correctAnswer: '13 m/s',
-        explanation: 'গতির ১ম সমীকরণ: v = u + at = 5 + (2 × 4) = 5 + 8 = 13 m/s।',
-        topic: 'Physics',
-      },
-      {
-        id: 'q-auto-r2',
-        quizId: '',
-        type: 'mcq',
-        prompt: '(a + b)² - (a - b)² এর সমান অনুসিদ্ধান্ত কোনটি?',
-        options: ['4ab', '2ab', '2(a² + b²)', 'a² - b²'],
-        correctAnswer: '4ab',
-        explanation: 'বীজগণিতের মৌলিক অনুসিদ্ধান্ত: (a+b)² - (a-b)² = 4ab।',
-        topic: 'Mathematics',
-      },
-      {
-        id: 'q-auto-r3',
-        quizId: '',
-        type: 'mcq',
-        prompt: '১০ কেজি ভরের একটি বস্তুর ওপর ৫০ নিউটন বল প্রয়োগ করলে উৎপন্ন ত্বরণ কত?',
-        options: ['5 m/s²', '0.2 m/s²', '500 m/s²', '10 m/s²'],
-        correctAnswer: '5 m/s²',
-        explanation: 'নিউটনের ২য় সূত্র: F = ma ⇒ a = F / m = 50 / 10 = 5 m/s²।',
-        topic: 'Physics',
-      },
-      {
-        id: 'q-auto-r4',
-        quizId: '',
-        type: 'mcq',
-        prompt: 'বল (Force) এর এসআই (SI) একক কোনটি?',
-        options: ['নিউটন (N)', 'জুল (J)', 'ওয়াট (W)', 'প্যাসকেল (Pa)'],
-        correctAnswer: 'নিউটন (N)',
-        explanation: 'আন্তর্জাতিক পদ্ধতিতে বলের একক নিউটন (kg·m/s²)।',
-        topic: 'Physics',
-      },
-      {
-        id: 'q-auto-r5',
-        quizId: '',
-        type: 'mcq',
-        prompt: 'স্থির অবস্থান থেকে যাত্রা শুরু করা যেকোনো গতিশীল বস্তুর আদিবেগ (u) কত ধরা হয়?',
-        options: ['0 m/s', '1 m/s', '9.8 m/s', 'অসীম'],
-        correctAnswer: '0 m/s',
-        explanation: 'স্থির অবস্থান মানে বস্তুটির প্রাথমিক বেগ u = 0।',
-        topic: 'Physics',
-      },
-    ];
+    title = `সমন্বিত মেধা যাচাই কুইজ: সর্বমোট পঠিত অধ্যায় (Comprehensive Revision) — ${studyContext.primarySubject}`;
   }
 
-  // Calculate smart timing
-  const timingInfo = calculateSmartTime(questions, subject);
+  let questions: any[] = [];
+  const questionCount = Math.max(1, Number(config.questionCount) || 5);
+  const difficulty = config.difficulty || 'mixed';
+
+  // 3. Attempt dynamic AI generation
+  try {
+    const topicSummary = studyContext.topics.map((t) => `${t.subject}: ${t.topicText}`).slice(0, 6).join('\n');
+    const system = `You are an expert curriculum quiz generator for Bangladesh NCTB curriculum. Generate strictly valid JSON. Format: {"questions":[{"type":"mcq|true_false","prompt":"...","options":["..."],"correct_answer":"...","explanation":"...","topic":"..."}]}`;
+    const user = `Student Grade: ${studyContext.child.grade || 'Class 8'} (NCTB, ${studyContext.child.medium || 'Bangla'} medium).
+Topics studied recently:
+${topicSummary || 'General curriculum'}
+Generate ${questionCount} questions with difficulty='${difficulty}'.
+Language: ${studyContext.child.medium === 'English' ? 'en' : 'bn'}.
+Output strictly valid JSON with questions array.`;
+
+    const aiRes = await callAI({ system, user, model: 'fast', maxTokens: 2500, responseFormat: 'json' });
+    const jsonMatch = aiRes.content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsed.questions) && parsed.questions.length >= questionCount && !aiRes.content.includes('What is the quadratic formula?')) {
+        questions = parsed.questions.slice(0, questionCount).map((q: any, idx: number) => ({
+          id: `q-auto-ai-${Date.now()}-${idx + 1}`,
+          quizId: '',
+          position: idx,
+          type: q.type || 'mcq',
+          prompt: q.prompt,
+          options: Array.isArray(q.options) ? q.options : [],
+          optionsJson: Array.isArray(q.options) ? q.options : [],
+          correctAnswer: q.correct_answer || q.correctAnswer || (q.options ? q.options[0] : 'Correct'),
+          explanation: q.explanation || 'NCTB Curriculum explanation.',
+          topic: q.topic || studyContext.primarySubject,
+        }));
+      }
+    }
+  } catch {
+    // AI call failed or timed out, will fallback to proper curriculum generator
+  }
+
+  // 4. Fallback to proper curriculum generator if AI didn't provide enough questions
+  if (!questions || questions.length < questionCount) {
+    questions = generateProperCurriculumQuestions(studyContext, {
+      questionCount,
+      difficulty,
+      strategy: config.topicStrategy,
+    });
+  }
+
+  // Guarantee exact question count
+  if (questions.length > questionCount) {
+    questions = questions.slice(0, questionCount);
+  }
+
+  // 5. Calculate smart dynamic timing
+  const timingInfo = calculateSmartTime(questions, studyContext.primarySubject);
   const timeLimitMin =
     config.timeStrategy === 'ai_dynamic'
       ? timingInfo.minutes
-      : config.customTimeMinutes || 15;
+      : config.customTimeMinutes || (config.timeStrategy === 'fixed_10' ? 10 : config.timeStrategy === 'fixed_20' ? 20 : 15);
 
   const quizId = 'auto-quiz-' + Date.now();
-  questions.forEach((q) => (q.quizId = quizId));
+  questions.forEach((q, idx) => {
+    q.id = q.id || `q-auto-${Date.now()}-${idx + 1}`;
+    q.quizId = quizId;
+    q.position = idx;
+    if (!q.optionsJson && q.options) q.optionsJson = q.options;
+    if (!q.options && q.optionsJson) q.options = q.optionsJson;
+  });
 
   const quizObj = {
     id: quizId,
@@ -938,10 +1860,12 @@ export async function runAutoQuizSchedule(childId: string, parentId: string) {
     timeLimitMin,
     timingBreakdown: timingInfo,
     isAutoScheduled: true,
+    subject: studyContext.primarySubject,
     scopeJson: {
       strategy: config.topicStrategy,
       topicAge: '1-day-old',
-      subject,
+      subject: studyContext.primarySubject,
+      topicsCovered: studyContext.topics.map((t) => t.topicText).slice(0, 5),
     },
     settingsJson: {
       numQuestions: questions.length,
@@ -953,13 +1877,44 @@ export async function runAutoQuizSchedule(childId: string, parentId: string) {
     createdAt: new Date().toISOString(),
   };
 
+  // 6. Persist to Prisma DB if available, else keep in memory
+  try {
+    await prisma.quiz.create({
+      data: {
+        id: quizId,
+        childId,
+        createdBy: parentId,
+        title,
+        status: 'assigned',
+        timeLimitMin,
+        scopeJson: quizObj.scopeJson,
+        settingsJson: quizObj.settingsJson,
+      },
+    });
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      await prisma.quizQuestion.create({
+        data: {
+          id: q.id,
+          quizId,
+          position: i,
+          type: q.type,
+          prompt: q.prompt,
+          optionsJson: q.optionsJson || q.options || [],
+          correctAnswer: q.correctAnswer || q.correct_answer || 'Correct',
+          explanation: q.explanation,
+          topic: q.topic || 'General',
+        },
+      });
+    }
+  } catch {}
+
   memQuizzes.unshift(quizObj);
   config.lastGeneratedAt = new Date().toISOString();
   memAutoSchedules[childId] = config;
 
-  // Create notifications
+  // 7. Create notification for parent
   try {
-    let childName = isTasnim ? 'Tasnim Islam' : 'Rahim Ahmed';
     await prisma.notification.create({
       data: {
         userId: parentId,
@@ -967,7 +1922,7 @@ export async function runAutoQuizSchedule(childId: string, parentId: string) {
         payloadJson: {
           quizId,
           childId,
-          childName,
+          childName: studyContext.child.name,
           title,
           timeLimitMin,
           questionCount: questions.length,

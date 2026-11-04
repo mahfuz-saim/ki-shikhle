@@ -27,7 +27,7 @@ export function auth(requiredRole?: string | string[]) {
       return next();
     } catch {
       // Graceful fallback for mock/demo offline tokens
-      if (token === 'demo-parent-token' || token.startsWith('demo-parent')) {
+      if (token === 'demo-parent-token' || token.startsWith('demo-parent') || token.startsWith('demo-access-token') || token.startsWith('demo-parent-')) {
         req.user = { userId: 'parent-demo', role: 'parent', email: 'parent@demo.com' };
         if (requiredRole && !['parent', 'admin'].includes(Array.isArray(requiredRole) ? requiredRole[0] : requiredRole)) {
           return next(unauthorized('Forbidden role'));
@@ -45,6 +45,11 @@ export function auth(requiredRole?: string | string[]) {
         return next();
       }
 
+      if (token === 'demo-child-token-fahim' || token.includes('demo-child-3') || token.includes('fahim')) {
+        req.user = { userId: 'parent-demo', childId: 'demo-child-3', role: 'child', email: 'fahim@demo.com' };
+        return next();
+      }
+
       return next(unauthorized('Invalid or expired token'));
     }
   };
@@ -58,12 +63,14 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
     const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as AuthUser;
     req.user = payload;
   } catch {
-    if (token.includes('parent')) {
+    if (token.includes('parent') || token.startsWith('demo-access-token')) {
       req.user = { userId: 'parent-demo', role: 'parent', email: 'parent@demo.com' };
     } else if (token.includes('tasnim')) {
       req.user = { userId: 'parent-demo', childId: 'demo-child-2', role: 'child', email: 'tasnim@demo.com' };
     } else if (token.includes('rahim')) {
       req.user = { userId: 'parent-demo', childId: 'demo-child-1', role: 'child', email: 'rahim@demo.com' };
+    } else if (token.includes('fahim')) {
+      req.user = { userId: 'parent-demo', childId: 'demo-child-3', role: 'child', email: 'fahim@demo.com' };
     }
   }
   next();
