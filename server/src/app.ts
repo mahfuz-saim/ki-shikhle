@@ -40,6 +40,7 @@ app.use(
       if (clientOrigins.includes(origin) || clientOrigins.includes('*')) return origin;
       if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return origin;
       if (/^https:\/\/[a-zA-Z0-9_-]+\.vercel\.app$/.test(origin)) return origin;
+      if (/^https:\/\/[a-zA-Z0-9._-]+\.pages\.dev$/.test(origin)) return origin;
       return null as any;
     },
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
