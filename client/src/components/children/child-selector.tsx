@@ -32,8 +32,6 @@ export function ChildSelector({
   const router = useRouter();
   const pathname = usePathname();
 
-  if (!childrenList || childrenList.length === 0) return null;
-
   const select = useCallback(
     (child: Child) => {
       setActiveChild(child);
@@ -51,6 +49,10 @@ export function ChildSelector({
     },
     [pathname, router, setActiveChild]
   );
+
+  // The hook above must run on every render, so this early return has to come after
+  // it — returning first would call `useCallback` conditionally.
+  if (!childrenList || childrenList.length === 0) return null;
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
