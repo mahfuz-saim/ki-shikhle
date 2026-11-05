@@ -1425,7 +1425,7 @@ export default function KidSchedulePage() {
                                 </p>
                               </div>
 
-                              <ClassLogNotes entry={loggedEntry} isBn={isBn} />
+                              <ClassLogNotes entry={loggedEntry} isBn={isBn} collapsible />
 
                               {/* Homework Assigned callout */}
                               {loggedEntry.homeworkAssigned && (
@@ -1462,14 +1462,7 @@ export default function KidSchedulePage() {
                             </div>
                           )}
 
-                          {/* Pending Prompt (If Not Logged Yet) */}
-                          {!isLogged && (
-                            <div className="p-3 rounded-2xl bg-amber-500/5 border border-dashed border-amber-500/30 flex items-center justify-between gap-3 text-xs">
-                              <p className="text-muted-foreground">
-                                {t('childSchedule.text_51')}
-                              </p>
-                            </div>
-                          )}
+
                         </div>
 
                         {/* Right Actions: Log Button / Edit / Delete */}
