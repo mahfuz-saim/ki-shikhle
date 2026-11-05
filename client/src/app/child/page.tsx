@@ -495,21 +495,6 @@ export default function KidDashboard() {
           </Card>
         </div>
 
-        {/* Monthly Study Consistency Calendar (Full-width clean card) */}
-        <Card className="rounded-3xl border shadow-sm">
-          <CardHeader className="p-4 sm:p-6 pb-3">
-            <CardTitle className="text-base font-bold">
-              {t('childHome.text_18')}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              {t('childHome.text_19')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6 pt-0">
-            <MonthlyActivityCalendar data={consistency} isBn={isBn} />
-          </CardContent>
-        </Card>
-
         {/* ======================================================== */}
         {/* 5. Topic Mastery & Needs Practice (Weakest / Strongest) */}
         {/* ======================================================== */}
@@ -596,6 +581,21 @@ export default function KidDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Monthly Study Consistency Calendar (Full-width clean card) */}
+        <Card className="rounded-3xl border shadow-sm">
+          <CardHeader className="p-4 sm:p-6 pb-3">
+            <CardTitle className="text-base font-bold">
+              {t('childHome.text_18')}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {t('childHome.text_19')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <MonthlyActivityCalendar data={consistency} isBn={isBn} />
+          </CardContent>
+        </Card>
       </div>
     </KidShell>
   );
