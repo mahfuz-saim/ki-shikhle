@@ -6,7 +6,7 @@ import { AppError, badRequest, conflict, notFound, unauthorized } from '../../ut
 import { env } from '../../config/env';
 import jwt from 'jsonwebtoken';
 import { randomId } from '../../utils/crypto';
-import { store, ensureDemoCredentials } from '../../core/store';
+import { store, ensureDemoCredentials, sanitizeChild } from '../../core/store';
 
 const ACCESS_TTL = env.JWT_ACCESS_TTL || '7d';
 const TRIAL_DAYS = env.TRIAL_DAYS || 15;
@@ -323,7 +323,10 @@ export async function refreshTokens(oldRefreshToken: string) {
           { expiresIn: (env.JWT_ACCESS_TTL || '7d') as any }
         );
         const newRefresh = await createRefreshToken(child.id);
-        return { accessToken: newAccess, refreshToken: newRefresh, user: sanitize(child) };
+        // `sanitize` strips only `passwordHash` — a Child row also carries
+        // `pinHash`, the PIN used for child-mode entry. That hash was reaching the
+        // client on every refresh. `sanitizeChild` strips both.
+        return { accessToken: newAccess, refreshToken: newRefresh, user: sanitizeChild(child) };
       }
       throw unauthorized('User not found');
     }

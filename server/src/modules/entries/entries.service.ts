@@ -654,7 +654,13 @@ export async function listEntries(actor: Actor, childId: string, query: { from?:
     }
     const page = parseInt(query.page || '1'); const limit = parseInt(query.limit || '20');
     const [data, total] = await Promise.all([
-      prisma.learningEntry.findMany({ where, orderBy: { date: 'desc' }, skip: (page - 1) * limit, take: limit, include: { revisions: true } }),
+      // The revisions were included so a client could show an edit history. Nothing
+      // reads them: the client never renders a revision, and every revision's
+      // `snapshotJson` is a full copy of the entry as it was — which included the
+      // child's `passwordHash` and `pinHash`, because `updateEntry` snapshotted a
+      // row loaded with `include: { child: true }`. Shipping them meant every
+      // `GET /children/:id/entries` carried credential hashes to the browser.
+      prisma.learningEntry.findMany({ where, orderBy: { date: 'desc' }, skip: (page - 1) * limit, take: limit }),
       prisma.learningEntry.count({ where }),
     ]);
     return { data, total, page, limit };
@@ -689,7 +695,10 @@ export async function updateEntry(actor: Actor, entryId: string, data: any, chan
 
   let entry: any;
   try {
-    entry = await prisma.learningEntry.findUnique({ where: { id: entryId }, include: { child: true } });
+    // The child is loaded so the revision snapshot can record who the entry
+    // belongs to. It must not carry the child's credential hashes into a stored
+    // snapshot (and from there into every entries response).
+    entry = await prisma.learningEntry.findUnique({ where: { id: entryId }, include: { child: { select: { id: true, name: true, grade: true } } } });
     if (!entry) throw notFound('Entry not found');
     // 48h edit window for child role
     if (changedBy === 'child' && Date.now() - new Date(entry.createdAt).getTime() > 48 * 3600000) throw forbidden('Edit window expired (48h)');

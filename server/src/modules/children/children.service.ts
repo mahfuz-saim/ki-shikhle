@@ -315,6 +315,11 @@ export async function enterChildMode(actor: Actor, childId: string, pin: string)
     if (row) {
       pinHash = row.pinHash;
       if (row.pinHash) {
+        // The PIN is optional in the request schema, because a child whose parent
+        // never set a PIN must still be able to enter their portal. But if a PIN IS
+        // set, one has to be supplied — say so plainly rather than failing with a
+        // generic "Invalid PIN" from the argon2 verifier.
+        if (!pin) throw badRequest('PIN required');
         const ok = await verifyPin(row.pinHash, pin);
         if (!ok) throw badRequest('Invalid PIN');
       }
@@ -338,6 +343,7 @@ export async function enterChildMode(actor: Actor, childId: string, pin: string)
   const mem = store.children.find(actor.ownerId, childId);
   if (!mem || mem.deletedAt) throw notFound('Child not found');
   if (mem.pinHash) {
+    if (!pin) throw badRequest('PIN required');
     const ok = await verifyPin(mem.pinHash, pin);
     if (!ok) throw badRequest('Invalid PIN');
   }

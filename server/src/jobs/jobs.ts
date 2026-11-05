@@ -52,7 +52,12 @@ export async function runAutoQuizSchedulerJob() {
 
   let children: any[] = [];
   try {
-    children = await prisma.child.findMany({ where: { deletedAt: null } });
+    // Projected: the job only needs the child's id and its owner. The full row would
+    // pull every tenant's `passwordHash` and `pinHash` into the job's memory.
+    children = await prisma.child.findMany({
+      where: { deletedAt: null },
+      select: { id: true, parentId: true, name: true, grade: true, medium: true },
+    });
   } catch {}
   if (!children || children.length === 0) {
     // degraded mode — the cron runner is platform-level, so it may enumerate every child.

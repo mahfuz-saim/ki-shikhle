@@ -35,8 +35,19 @@ export const pinSchema = z.object({
   params: z.object({ id: z.string() }),
 });
 
+/**
+ * Entering child mode.
+ *
+ * The PIN is optional here. The service only checks a PIN when the child actually
+ * *has* one (`pinHash` set) — a child whose parent never set a PIN must still be
+ * able to enter their own portal, and the parent's own token is what authorises
+ * the request in the first place.
+ *
+ * The schema used to demand 4-6 digits unconditionally, so entering without a PIN
+ * was rejected with a 400 before the service was ever reached.
+ */
 export const enterSchema = z.object({
-  body: z.object({ pin: z.string().min(4).max(6) }),
+  body: z.object({ pin: z.string().min(4).max(6).optional().or(z.literal('')).nullable() }),
   params: z.object({ id: z.string() }),
 });
 

@@ -596,9 +596,63 @@ export async function listQuizzes(actor: Actor, childId: string) {
   try {
     const dbList = await prisma.quiz.findMany({ where:{childId}, orderBy:{createdAt:'desc'}, include:{questions:true}});
     const memList = store.quizzes.forChild(actor.ownerId, childId).filter((q:any)=> !dbList.some((d:any)=> d.id === q.id));
-    return [...memList, ...dbList].map((q: any) => sanitizeQuizForRole(q, actor));
+    const all = [...memList, ...dbList];
+
+    // Attach the child's most recent attempt to each quiz.
+    //
+    // The list used to carry no attempt at all, so the client's "View Result"
+    // button fell back to a hardcoded `att-1` id — an attempt that does not
+    // exist. Every real quiz's results page therefore errored. The attempt is
+    // what makes the quiz "completed", so its score comes with it too.
+    const attempts = await prisma.quizAttempt.findMany({
+      where: { childId },
+      orderBy: { startedAt: 'desc' },
+      select: { id: true, quizId: true, score: true, maxScore: true, submittedAt: true },
+    });
+    const latestByQuiz = new Map<string, any>();
+    for (const a of attempts) {
+      if (!latestByQuiz.has(a.quizId)) latestByQuiz.set(a.quizId, a);
+    }
+    for (const a of store.attempts.forChild(actor.ownerId, childId)) {
+      if (!latestByQuiz.has(a.quizId)) latestByQuiz.set(a.quizId, a);
+    }
+
+    return all.map((q: any) => {
+      const attempt = latestByQuiz.get(q.id);
+      const enriched = attempt
+        ? {
+            ...q,
+            attemptId: attempt.id,
+            score: attempt.score ?? null,
+            maxScore: attempt.maxScore ?? null,
+            // A quiz with a submitted attempt is completed, whatever the quiz row
+            // itself says — the attempt is the record of what happened.
+            status: attempt.submittedAt ? 'completed' : q.status,
+          }
+        : q;
+      return sanitizeQuizForRole(enriched, actor);
+    });
   }
-  catch { return store.quizzes.forChild(actor.ownerId, childId).map((q: any) => sanitizeQuizForRole(q, actor)); }
+  catch {
+    const all = store.quizzes.forChild(actor.ownerId, childId);
+    const latestByQuiz = new Map<string, any>();
+    for (const a of store.attempts.forChild(actor.ownerId, childId)) {
+      if (!latestByQuiz.has(a.quizId)) latestByQuiz.set(a.quizId, a);
+    }
+    return all.map((q: any) => {
+      const attempt = latestByQuiz.get(q.id);
+      const enriched = attempt
+        ? {
+            ...q,
+            attemptId: attempt.id,
+            score: attempt.score ?? null,
+            maxScore: attempt.maxScore ?? null,
+            status: attempt.submittedAt ? 'completed' : q.status,
+          }
+        : q;
+      return sanitizeQuizForRole(enriched, actor);
+    });
+  }
 }
 
 /**
@@ -636,7 +690,11 @@ export async function getQuiz(actor: Actor, quizId: string) {
 
   let quiz: any;
   try {
-    quiz = await prisma.quiz.findUnique({ where:{id:quizId}, include:{questions:true, child:true}});
+    // `child: true` pulls the whole Child row — including `passwordHash` and
+    // `pinHash` — into a response that is JSON-serialised straight to the browser.
+    // The child is only ever needed for its id, so select the columns that are
+    // actually returned.
+    quiz = await prisma.quiz.findUnique({ where:{id:quizId}, include:{questions:true, child:{ select:{ id:true, name:true, grade:true, avatar:true } }}});
   } catch {
     quiz = store.quizzes.find(actor.ownerId, quizId);
   }
@@ -1517,7 +1575,12 @@ export function calculateSmartTime(questions: any[], subject?: string): { minute
  */
 export async function getChildInfo(actor: Actor, childId: string) {
   try {
-    const child = await prisma.child.findUnique({ where: { id: childId } });
+    // Only the profile fields are read from here. Without a projection the row also
+    // carries `passwordHash` and `pinHash`, which must never travel further.
+    const child = await prisma.child.findUnique({
+      where: { id: childId },
+      select: { id: true, name: true, grade: true, curriculum: true, medium: true, parentId: true, avatar: true },
+    });
     if (child) return child;
   } catch {}
   const memChild = store.children.find(actor.ownerId, childId);

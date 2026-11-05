@@ -169,7 +169,13 @@ function matchesUser(child: { email?: string | null }, userId: string, email?: s
 export async function loadChild(childId: string): Promise<MemChild | undefined> {
   if (!childId) return undefined;
   try {
-    const child = await prisma.child.findUnique({ where: { id: childId } });
+    // Projected: the callers read `parentId`, `deletedAt` and `email`. Loading the
+    // whole row would carry the child's `passwordHash` and `pinHash` into whatever
+    // the caller does with it next.
+    const child = await prisma.child.findUnique({
+      where: { id: childId },
+      select: { id: true, parentId: true, email: true, deletedAt: true },
+    });
     if (child) return child as unknown as MemChild;
   } catch {
     // degraded — fall through
@@ -180,7 +186,10 @@ export async function loadChild(childId: string): Promise<MemChild | undefined> 
 async function findChildByEmail(email: string): Promise<MemChild | undefined> {
   const norm = email.trim().toLowerCase();
   try {
-    const child = await prisma.child.findFirst({ where: { email: norm } });
+    const child = await prisma.child.findFirst({
+      where: { email: norm },
+      select: { id: true, parentId: true, email: true, deletedAt: true },
+    });
     if (child) return child as unknown as MemChild;
   } catch {
     // degraded — fall through

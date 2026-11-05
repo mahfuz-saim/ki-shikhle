@@ -28,8 +28,12 @@ router.get('/files/:key', auth(), async (req: Request, res: Response, next: Next
     const key = String(req.params.key || '').replace(/[^a-zA-Z0-9._-]/g, '');
     if (!key) throw notFound('File not found');
 
+    // Only the child's parent id is needed to decide access. Loading the whole
+    // Child row would pull its `passwordHash` and `pinHash` into memory for no
+    // reason — and into the response if this handler ever starts returning the
+    // note.
     const note: any = await prisma.note
-      .findFirst({ where: { fileUrl: { endsWith: key } }, include: { child: true } })
+      .findFirst({ where: { fileUrl: { endsWith: key } }, include: { child: { select: { id: true, parentId: true } } } })
       .catch(() => null);
     if (!note) throw notFound('File not found');
 
