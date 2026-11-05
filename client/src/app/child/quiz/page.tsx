@@ -12,6 +12,7 @@ import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import {
   Brain,
+  ChevronRight,
   Play,
   CheckCircle2,
   Clock,
@@ -48,7 +49,6 @@ export default function ChildQuizHubPage() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [topics, setTopics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
   /**
    * The locale is read through a ref instead of being an effect dependency.
@@ -293,20 +293,12 @@ export default function ChildQuizHubPage() {
 
   const quizList = Array.isArray(quizzes) ? quizzes : [];
 
-  const pendingQuizzes = quizList.filter(
-    (q) => q.status === 'assigned' || q.isNew || q.score === null || q.score === undefined
-  );
-
-  const completedQuizzes = quizList.filter(
-    (q) => q.status === 'completed' || (q.score !== null && q.score !== undefined)
-  );
-
-  const filteredQuizzes =
-    filter === 'pending'
-      ? pendingQuizzes
-      : filter === 'completed'
-      ? completedQuizzes
-      : quizList;
+  const isCompletedQuiz = (quiz: any) => quiz.status === 'completed'
+    || (quiz.score !== null && quiz.score !== undefined);
+  const completedQuizzes = quizList.filter(isCompletedQuiz);
+  // Completed attempts belong only in history, even if an older payload still
+  // marks the quiz assigned/new. Drafts are never available for a child to take.
+  const pendingQuizzes = quizList.filter((quiz) => quiz.status !== 'draft' && !isCompletedQuiz(quiz));
 
   // Aggregate stats
   const totalCompleted = completedQuizzes.length;
@@ -331,6 +323,128 @@ export default function ChildQuizHubPage() {
         ? 95
         : 90
       : 0;
+
+  const renderQuiz = (q: any) => {
+    const isDone = q.status === 'completed' || (q.score !== null && q.score !== undefined);
+    const scoreNum = q.score || 0;
+    const scoreColor =
+      scoreNum >= 85
+        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+        : scoreNum >= 70
+        ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30'
+        : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30';
+
+    return (
+      <Card
+        key={q.id}
+        className={`rounded-3xl border transition-all overflow-hidden ${
+          !isDone
+            ? 'border-indigo-500/40 bg-gradient-to-r from-indigo-500/5 via-card to-card hover:border-indigo-500/60 shadow-xs'
+            : 'border-border/70 bg-card hover:border-primary/40 shadow-xs'
+        }`}
+      >
+        <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Left: Info, Subject & Title */}
+          <div className="space-y-2 flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              {isDone ? (
+                <Badge className="bg-emerald-500 text-white font-bold text-[10px] px-2 py-0.5 flex items-center gap-1">
+                  <Check className="w-3 h-3 stroke-[3]" />
+                  <span>{t('childQuiz.text_25')}</span>
+                </Badge>
+              ) : (
+                <Badge className="bg-rose-500 text-white font-bold text-[10px] px-2 py-0.5 flex items-center gap-1 animate-pulse">
+                  <Sparkles className="w-3 h-3" />
+                  <span>{t('childQuiz.text_26')}</span>
+                </Badge>
+              )}
+
+              {q.subject && (
+                <Badge variant="outline" className="text-[10px] font-semibold border-primary/25 text-primary">
+                  {q.subject}
+                </Badge>
+              )}
+
+              <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-lg border">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>
+                  {q.questionCount || 5} {t('childQuiz.text_27')}
+                </span>
+                <span>•</span>
+                <span>
+                  {t('childQuiz.mins', { p0: isBn ? toBnNum(q.timeLimitMin || 15) : q.timeLimitMin || 15 }, `${q.timeLimitMin || 15} mins`)}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-base sm:text-lg font-black text-foreground tracking-tight">
+                {q.title}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {isDone
+                  ? t('childQuiz.taken', { p0: isBn ? q.completedAt || 'সম্প্রতি' : q.completedAt || 'Recently' }, `Taken: ${q.completedAt || 'Recently'}`)
+                  : t('childQuiz.text_28')}
+              </p>
+            </div>
+
+            {/* Result Score Bar if completed */}
+            {isDone && (
+              <div className="pt-2 flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-xs font-black px-2.5 py-1 rounded-xl border ${scoreColor}`}>
+                    {t('childQuiz.score', { p0: isBn ? toBnNum(scoreNum) : scoreNum }, `Score: ${scoreNum}%`)}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1 text-amber-500">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-3.5 h-3.5 ${
+                        i < Math.round((scoreNum / 100) * 5)
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'text-muted-foreground/30'
+                      }`}
+                    />
+                  ))}
+                  <span className="text-[11px] font-bold text-foreground ml-1">
+                    ({scoreNum >= 85 ? (t('childQuiz.text_29')) : (t('childQuiz.text_30'))})
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+            <Link href={`/child/quiz/${q.id}`}>
+              <Button
+                size="sm"
+                className={`h-10 px-4 text-xs font-bold rounded-2xl shadow-md gap-1.5 ${
+                  !isDone
+                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                    : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                }`}
+              >
+                {!isDone ? (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-white" />
+                    <span>{t('childQuiz.text_31')}</span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>{t('childQuiz.text_32')}</span>
+                  </>
+                )}
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </Card>
+    );
+  };
 
   return (
     <KidShell>
@@ -481,65 +595,12 @@ export default function ChildQuizHubPage() {
         </div>
 
         {/* ======================================================== */}
-        {/* 3. Filter Navigation Tabs */}
+        {/* 3. Available Quizzes */}
         {/* ======================================================== */}
-        <div className="flex items-center justify-between gap-3 border-b pb-3 flex-wrap">
-          <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-2xl border text-xs">
-            <button
-              type="button"
-              onClick={() => setFilter('all')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
-                filter === 'all'
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {t('childQuiz.text_17')} ({isBn ? toBnNum(quizList.length) : quizList.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setFilter('pending')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-                filter === 'pending'
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <span>{t('childQuiz.text_18')}</span>
-              {totalPending > 0 && (
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                    filter === 'pending' ? 'bg-white/20 text-white' : 'bg-rose-500 text-white'
-                  }`}
-                >
-                  {isBn ? toBnNum(totalPending) : totalPending}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setFilter('completed')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-                filter === 'completed'
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <span>{t('childQuiz.text_19')}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                  filter === 'completed' ? 'bg-white/20 text-white' : 'bg-muted-foreground/20 text-foreground'
-                }`}
-              >
-                {isBn ? toBnNum(totalCompleted) : totalCompleted}
-              </span>
-            </button>
-          </div>
-
-          <span className="text-xs text-muted-foreground font-medium">
-            {t('childQuiz.showing_quiz', { p0: isBn ? toBnNum(filteredQuizzes.length) : filteredQuizzes.length, p1: filteredQuizzes.length === 1 ? '' : 'zes' }, `Showing ${filteredQuizzes.length} quiz${filteredQuizzes.length === 1 ? '' : 'zes'}`)}
+        <div className="flex items-center justify-between gap-3 border-b pb-3">
+          <h2 className="text-sm font-bold">{isBn ? 'দেওয়ার জন্য কুইজ' : 'Available quizzes'}</h2>
+          <span className="text-xs text-muted-foreground">
+            {t('childQuiz.showing_quiz', { p0: isBn ? toBnNum(pendingQuizzes.length) : pendingQuizzes.length, p1: pendingQuizzes.length === 1 ? '' : 'zes' }, `Showing ${pendingQuizzes.length} quiz${pendingQuizzes.length === 1 ? '' : 'zes'}`)}
           </span>
         </div>
 
@@ -547,153 +608,20 @@ export default function ChildQuizHubPage() {
         {/* 4. Quiz Cards Grid (Pending & Results) */}
         {/* ======================================================== */}
         <div className="space-y-4">
-          {filteredQuizzes.length === 0 ? (
+          {pendingQuizzes.length === 0 ? (
             <Card className="rounded-3xl border border-dashed p-10 text-center bg-muted/10">
               <Brain className="w-12 h-12 mx-auto text-muted-foreground/60 mb-3" />
               <h3 className="text-base font-bold text-foreground">
-                {filter === 'pending'
-                  ? t('childQuiz.text_20')
-                  : t('childQuiz.text_21')}
+                {loading ? t('common.loading', 'Loading...') : t('childQuiz.text_20')}
               </h3>
               <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                {filter === 'pending'
-                  ? t('childQuiz.text_22')
-                  : t('childQuiz.text_23')}
+                {t('childQuiz.text_22')}
               </p>
-              <div className="mt-4">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setFilter('all')}
-                  className="rounded-xl text-xs"
-                >
-                  {t('childQuiz.text_24')}
-                </Button>
-              </div>
+
             </Card>
           ) : (
             <div className="grid gap-3.5">
-              {filteredQuizzes.map((q) => {
-                const isDone = q.status === 'completed' || (q.score !== null && q.score !== undefined);
-                const scoreNum = q.score || 0;
-                const scoreColor =
-                  scoreNum >= 85
-                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                    : scoreNum >= 70
-                    ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30'
-                    : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30';
-
-                return (
-                  <Card
-                    key={q.id}
-                    className={`rounded-3xl border transition-all overflow-hidden ${
-                      !isDone
-                        ? 'border-indigo-500/40 bg-gradient-to-r from-indigo-500/5 via-card to-card hover:border-indigo-500/60 shadow-xs'
-                        : 'border-border/70 bg-card hover:border-primary/40 shadow-xs'
-                    }`}
-                  >
-                    <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      {/* Left: Info, Subject & Title */}
-                      <div className="space-y-2 flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {isDone ? (
-                            <Badge className="bg-emerald-500 text-white font-bold text-[10px] px-2 py-0.5 flex items-center gap-1">
-                              <Check className="w-3 h-3 stroke-[3]" />
-                              <span>{t('childQuiz.text_25')}</span>
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-rose-500 text-white font-bold text-[10px] px-2 py-0.5 flex items-center gap-1 animate-pulse">
-                              <Sparkles className="w-3 h-3" />
-                              <span>{t('childQuiz.text_26')}</span>
-                            </Badge>
-                          )}
-
-                          {q.subject && (
-                            <Badge variant="outline" className="text-[10px] font-semibold border-primary/25 text-primary">
-                              {q.subject}
-                            </Badge>
-                          )}
-
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-lg border">
-                            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span>
-                              {q.questionCount || 5} {t('childQuiz.text_27')}
-                            </span>
-                            <span>•</span>
-                            <span>
-                              {t('childQuiz.mins', { p0: isBn ? toBnNum(q.timeLimitMin || 15) : q.timeLimitMin || 15 }, `${q.timeLimitMin || 15} mins`)}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <h3 className="text-base sm:text-lg font-black text-foreground tracking-tight">
-                            {q.title}
-                          </h3>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {isDone
-                              ? t('childQuiz.taken', { p0: isBn ? q.completedAt || 'সম্প্রতি' : q.completedAt || 'Recently' }, `Taken: ${q.completedAt || 'Recently'}`)
-                              : t('childQuiz.text_28')}
-                          </p>
-                        </div>
-
-                        {/* Result Score Bar if completed */}
-                        {isDone && (
-                          <div className="pt-2 flex items-center gap-3 flex-wrap">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`text-xs font-black px-2.5 py-1 rounded-xl border ${scoreColor}`}>
-                                {t('childQuiz.score', { p0: isBn ? toBnNum(scoreNum) : scoreNum }, `Score: ${scoreNum}%`)}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-1 text-amber-500">
-                              {Array.from({ length: 5 }, (_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`w-3.5 h-3.5 ${
-                                    i < Math.round((scoreNum / 100) * 5)
-                                      ? 'fill-amber-400 text-amber-400'
-                                      : 'text-muted-foreground/30'
-                                  }`}
-                                />
-                              ))}
-                              <span className="text-[11px] font-bold text-foreground ml-1">
-                                ({scoreNum >= 85 ? (t('childQuiz.text_29')) : (t('childQuiz.text_30'))})
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Right: Actions */}
-                      <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                        <Link href={`/child/quiz/${q.id}`}>
-                          <Button
-                            size="sm"
-                            className={`h-10 px-4 text-xs font-bold rounded-2xl shadow-md gap-1.5 ${
-                              !isDone
-                                ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                                : 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                            }`}
-                          >
-                            {!isDone ? (
-                              <>
-                                <Play className="w-3.5 h-3.5 fill-white" />
-                                <span>{t('childQuiz.text_31')}</span>
-                              </>
-                            ) : (
-                              <>
-                                <RotateCcw className="w-3.5 h-3.5" />
-                                <span>{t('childQuiz.text_32')}</span>
-                              </>
-                            )}
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
+              {pendingQuizzes.map(renderQuiz)}
             </div>
           )}
         </div>
@@ -802,6 +730,24 @@ export default function ChildQuizHubPage() {
             </CardDescription>
           </CardHeader>
         </Card>
+
+        <details className="group/past-quizzes rounded-3xl border bg-card shadow-xs">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 sm:p-5 text-sm font-bold [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              {isBn ? 'আগের কুইজ দেখুন' : 'Show past quiz'}
+              <Badge variant="secondary">{isBn ? toBnNum(totalCompleted) : totalCompleted}</Badge>
+            </span>
+            <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 transition-transform group-open/past-quizzes:rotate-90" />
+          </summary>
+          <div className="border-t p-4 sm:p-5 space-y-3.5">
+            {completedQuizzes.length > 0 ? completedQuizzes.map(renderQuiz) : (
+              <p className="text-xs text-muted-foreground text-center py-3">
+                {loading ? t('common.loading', 'Loading...') : (isBn ? 'এখনও কোনো কুইজ দেওয়া হয়নি।' : 'No past quizzes yet.')}
+              </p>
+            )}
+          </div>
+        </details>
       </div>
     </KidShell>
   );
