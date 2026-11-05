@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { ClassLogNotes } from '@/components/children/class-log-notes';
+import { ClassNoteImageUpload, type ClassNoteImageDraft } from '@/components/children/class-note-image-upload';
 import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useChildScope } from '@/components/auth/use-child-scope';
@@ -166,6 +167,8 @@ export default function KidSchedulePage() {
   // Currently active class being logged
   const [activeRoutineForLog, setActiveRoutineForLog] = useState<any>(null);
   const [existingEntryForLog, setExistingEntryForLog] = useState<any>(null);
+  const [noteAttachment, setNoteAttachment] = useState<ClassNoteImageDraft | null>(null);
+  const [classLogSaveError, setClassLogSaveError] = useState('');
 
   // Class Log Form state
   const [logForm, setLogForm] = useState({
@@ -811,7 +814,9 @@ export default function KidSchedulePage() {
 
   // Open Log Modal for a specific class
   const handleOpenLogModal = (routine: any) => {
-    if (isFutureClassDate(selectedDate)) return;
+    if (isFutureClassDate(selectedDate) || loading) return;
+    setNoteAttachment(null);
+    setClassLogSaveError('');
     const existing = findEntryForRoutine(routine);
     setActiveRoutineForLog(routine);
     setExistingEntryForLog(existing || null);
@@ -838,7 +843,11 @@ export default function KidSchedulePage() {
   // Submit class log
   const handleSaveClassLog = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeRoutineForLog || !logForm.topicsText.trim() || loading) return;
+    if (!activeRoutineForLog || !logForm.topicsText.trim() || loading || noteAttachment?.processing) return;
+    if (noteAttachment && !noteAttachment.summary.trim()) {
+      setClassLogSaveError(isBn ? 'ছবির নোট তৈরি করুন অথবা ছবিটি সরিয়ে আবার সংরক্ষণ করুন।' : 'Generate or enter the image note, or remove the image before saving.');
+      return;
+    }
     if (isFutureClassDate(selectedDate)) {
       setErrorMsg(isBn ? 'ভবিষ্যতের ক্লাস লগ করা যাবে না।' : 'Future classes cannot be logged.');
       return;
@@ -868,28 +877,51 @@ export default function KidSchedulePage() {
       notes: logForm.notes.trim(),
     };
 
+    let savedLog: any = null;
+    setClassLogSaveError('');
+    const showSavedLog = (entry: any) => {
+      setExistingEntryForLog(entry);
+      setEntries((previous) => [entry, ...previous.filter((item) => item.id !== entry.id)]);
+    };
     try {
-      if (existingEntryForLog?.id) {
-        const res = await api.patch(`/entries/${existingEntryForLog.id}`, payload);
-        const updated = res.data?.data || { ...existingEntryForLog, ...payload };
-        setEntries((prev) => (Array.isArray(prev) ? prev.map((item) => (item.id === existingEntryForLog.id ? updated : item)) : [updated]));
-        setSuccessMsg(t('childSchedule.text_23'));
-      } else {
-        const res = await api.post(`/children/${childId}/entries`, payload);
-        // The server's row is the entry. Inventing one locally produced a class log
-        // that looked saved and existed nowhere on the server.
-        const created = res.data?.data;
-        if (!created) throw new Error('The server did not return the saved entry');
-        setEntries((prev) => (Array.isArray(prev) ? [created, ...prev] : [created]));
-        setSuccessMsg(t('childSchedule.text_24'));
+      const response = existingEntryForLog?.id
+        ? await api.patch(`/entries/${existingEntryForLog.id}`, payload)
+        : await api.post(`/children/${childId}/entries`, payload);
+      savedLog = response.data?.data;
+      if (!savedLog?.id) throw new Error('The server did not return the saved class log');
+      // Keep the saved ID even if the image upload fails. Retry updates this log
+      // instead of creating another class log and losing the attachment draft.
+      showSavedLog(savedLog);
+
+      if (noteAttachment) {
+        const form = new FormData();
+        form.append('file', noteAttachment.file);
+        form.append('entryId', savedLog.id);
+        form.append('subject', payload.subject);
+        form.append('date', selectedDate);
+        form.append('title', noteAttachment.title.trim() || `${payload.subject} — ${selectedDate}`);
+        form.append('textClean', noteAttachment.textClean || noteAttachment.summary);
+        form.append('aiSummary', noteAttachment.summary);
+        const uploaded = await api.post(`/children/${childId}/notes`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const note = uploaded.data?.data;
+        if (!note?.id) throw new Error('The server did not return the uploaded note');
+        savedLog = { ...savedLog, linkedNotes: [...(savedLog.linkedNotes || []), note] };
+        showSavedLog(savedLog);
       }
 
+      setSuccessMsg(existingEntryForLog?.id ? t('childSchedule.text_23') : t('childSchedule.text_24'));
+      setNoteAttachment(null);
       setLogModalOpen(false);
       setTimeout(() => setSuccessMsg(''), 4500);
-    } catch (e: any) {
-      // The class log was NOT saved. The old code invented an entry and reported
-      // success, so the parent saw a class log that the server had never heard of.
-      setErrorMsg(e?.response?.data?.error?.message || 'The class log could not be saved.');
+    } catch (error: any) {
+      const detail = error?.response?.data?.error?.message || error.message || 'Please try again.';
+      const message = savedLog
+        ? (isBn ? 'ক্লাস লগ সংরক্ষিত হয়েছে, কিন্তু ছবির নোট সংরক্ষণ হয়নি। আবার সংরক্ষণ করুন। ' : 'Class log saved, but the image note could not be saved. Retry Save without closing this form. ') + detail
+        : detail;
+      setClassLogSaveError(message);
+      setErrorMsg(message);
     } finally {
       setLoading(false);
     }
@@ -1627,6 +1659,7 @@ export default function KidSchedulePage() {
       <Modal
         isOpen={logModalOpen}
         onClose={() => {
+          if (loading) return;
           if (isListening && recognitionRef.current) {
             try {
               recognitionRef.current.stop();
@@ -1793,6 +1826,18 @@ export default function KidSchedulePage() {
             </div>
           </div>
 
+          {classLogSaveError && (
+            <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">{classLogSaveError}</p>
+          )}
+          <ClassNoteImageUpload childId={childId} subject={activeRoutineForLog?.subject || activeRoutineForLog?.name || 'Class'}
+            date={selectedDate} draft={noteAttachment} onChange={setNoteAttachment} disabled={loading} isBn={isBn} />
+          {existingEntryForLog?.linkedNotes?.some((note: any) => note.fileUrl) && (
+            <details className="rounded-xl border p-3">
+              <summary className="cursor-pointer text-xs font-semibold">{isBn ? 'সংরক্ষিত ক্লাস নোট' : 'Previously saved class notes'}</summary>
+              <ClassLogNotes entry={existingEntryForLog} isBn={isBn} />
+            </details>
+          )}
+
           {/* Class notes are saved to the library and linked to this class log. */}
           <div>
             <Label htmlFor="class-notes" className="text-xs font-bold block mb-1">
@@ -1863,6 +1908,7 @@ export default function KidSchedulePage() {
               type="button"
               variant="outline"
               size="sm"
+              disabled={loading}
               onClick={() => {
                 if (isListening && recognitionRef.current) {
                   try {
@@ -1878,7 +1924,7 @@ export default function KidSchedulePage() {
             <Button
               type="submit"
               size="sm"
-              disabled={loading || !logForm.topicsText.trim() || isFutureClassDate(selectedDate)}
+              disabled={loading || !!noteAttachment?.processing || (!!noteAttachment && !noteAttachment.summary.trim()) || !logForm.topicsText.trim() || isFutureClassDate(selectedDate)}
               className="bg-primary text-primary-foreground font-bold rounded-xl px-4 gap-1.5"
             >
               <Check className="w-4 h-4 stroke-[2.5]" />
