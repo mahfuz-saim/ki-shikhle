@@ -183,7 +183,7 @@ export default function LoginPage() {
                 className="w-full h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
                 disabled={loading}
               >
-                {loading ? (t('login.text_12')) : t('login.text_5')}
+                {loading ? (t('login.text_12')) : t('login.sign_in')}
               </Button>
             </form>
 

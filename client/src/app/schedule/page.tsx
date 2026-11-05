@@ -182,7 +182,7 @@ export default function SchedulePage() {
   const demoProfile = demoProfileOf(currentChild);
   const isDemoChild = demoProfile !== null;
   const institutionType = getInstitutionType(currentChild?.grade);
-  const instInfo = getInstitutionInfo(institutionType, isBn);
+  const instInfo = getInstitutionInfo(institutionType, t);
 
   const [routines, setRoutines] = useState<any[]>([]);
   const [schedule, setSchedule] = useState<any>(null);
@@ -643,7 +643,7 @@ export default function SchedulePage() {
               className="gap-1.5 text-xs h-9 shadow-sm bg-primary text-primary-foreground font-bold"
             >
               <Plus className="w-4 h-4" />
-              <span>{t('schedule.createRoutine', 'Add Routine')}</span>
+              <span>{t('schedule.add_routine', 'Add Routine')}</span>
             </Button>
           </div>
         </div>
@@ -674,7 +674,7 @@ export default function SchedulePage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-base sm:text-lg font-extrabold text-foreground tracking-tight">
-                    {t('schedule.text_2', { p0: isBn ? BN_MONTHS[weekDates[3].getMonth()] : EN_MONTHS[weekDates[3].getMonth()], p1: isBn ? toBnNum(weekDates[3].getFullYear()) : weekDates[3].getFullYear() }, `${EN_MONTHS[weekDates[3].getMonth()]} ${weekDates[3].getFullYear()}`)}
+                    {t('schedule.week_of_month', { p0: isBn ? BN_MONTHS[weekDates[3].getMonth()] : EN_MONTHS[weekDates[3].getMonth()], p1: isBn ? toBnNum(weekDates[3].getFullYear()) : weekDates[3].getFullYear() }, `${EN_MONTHS[weekDates[3].getMonth()]} ${weekDates[3].getFullYear()}`)}
                   </h2>
                   {weekOffset !== 0 && (
                     <Badge variant="outline" className="text-[10px] font-semibold text-muted-foreground">
@@ -685,7 +685,7 @@ export default function SchedulePage() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground font-medium">
-                  {t('schedule.text_3', { p0: isBn ? toBnNum(weekDates[0].getDate()) : EN_MONTHS[weekDates[0].getMonth()].slice(0, 3), p1: isBn ? BN_MONTHS[weekDates[0].getMonth()] : weekDates[0].getDate(), p2: isBn ? toBnNum(
+                  {t('schedule.week_date_range', { p0: isBn ? toBnNum(weekDates[0].getDate()) : EN_MONTHS[weekDates[0].getMonth()].slice(0, 3), p1: isBn ? BN_MONTHS[weekDates[0].getMonth()] : weekDates[0].getDate(), p2: isBn ? toBnNum(
                         weekDates[6].getDate()
                       ) : EN_MONTHS[
                         weekDates[6].getMonth()
@@ -1267,7 +1267,7 @@ export default function SchedulePage() {
               {t('common.cancel', 'Cancel')}
             </Button>
             <Button type="submit" size="sm" disabled={loading} className="rounded-xl font-bold">
-              {loading ? t('common.loading', 'Saving...') : t('common.save', 'Create Routine')}
+              {loading ? t('common.saving', 'Saving...') : t('schedule.create_routine', 'Create Routine')}
             </Button>
           </div>
         </form>

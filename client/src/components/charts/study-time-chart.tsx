@@ -63,14 +63,14 @@ export function StudyTimeChart({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>
           <XAxis dataKey="date" fontSize={12} />
-          <YAxis fontSize={12} unit={t('charts.text')} />
+          <YAxis fontSize={12} unit={t('charts.axis_unit')} />
           <Tooltip
             formatter={(value: any, name: any) => {
               const v = Number(value) || 0;
               const h = Math.floor(v / 60);
               const m = v % 60;
               const formatted = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-              return [`${v} ${t('charts.text_2')} (${formatted})`, name];
+              return [`${v} ${t('charts.minutes')} (${formatted})`, name];
             }}
           />
           <Legend />
@@ -210,10 +210,10 @@ export function SubjectDonut({
               </div>
               <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground font-semibold">
                 <span className="text-foreground font-bold">
-                  {t('charts.text', { p0: isBn ? toBnNum(val) : val }, `${val}`)}
+                  {t('charts.lesson_count', { p0: isBn ? toBnNum(val) : val }, `${val}`)}
                 </span>
                 <span className="text-[11px] text-muted-foreground/70 min-w-[38px] text-right">
-                  {t('charts.text_2', { p0: isBn ? toBnNum(pct) : pct }, `${pct}%`)}
+                  {t('charts.percentage', { p0: isBn ? toBnNum(pct) : pct }, `${pct}%`)}
                 </span>
               </div>
             </div>

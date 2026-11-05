@@ -126,7 +126,7 @@ export default function KidSchedulePage() {
 
   const studentGrade = user?.grade || activeChild?.grade || 'Class 8';
   const institutionType = getInstitutionType(studentGrade);
-  const instInfo = getInstitutionInfo(institutionType, isBn);
+  const instInfo = getInstitutionInfo(institutionType, t);
 
   // The child whose schedule this is, and the demo dataset that applies (if any).
   const { childId, isTasnim, isFahim, isDemoChild } = useChildScope();

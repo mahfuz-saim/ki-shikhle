@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 export default function AdminPage() {
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   const toBnNum = (n: number | string) => {
     if (!isBn) return String(n ?? 0);
@@ -61,9 +61,7 @@ export default function AdminPage() {
           const first: any = (failures[0] as any).reason;
           setLoadError(
             first?.response?.data?.error?.message ||
-              (isBn
-                ? 'কিছু অ্যাডমিন ডেটা লোড করা যায়নি।'
-                : 'Some admin data could not be loaded.')
+              (t('admin.some_admin_data_could_not_be_loaded'))
           );
         }
       })

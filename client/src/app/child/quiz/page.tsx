@@ -343,7 +343,7 @@ export default function ChildQuizHubPage() {
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
                 <Brain className="w-4 h-4" />
-                {t('childQuiz.text')}
+                {t('childQuiz.heading')}
               </span>
               <Badge variant="secondary" className="text-[10px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25 font-bold">
                 {studentGrade}
@@ -447,7 +447,7 @@ export default function ChildQuizHubPage() {
             </CardHeader>
             <CardContent className="p-4 pt-1">
               <div className="text-2xl font-black text-foreground">
-                {t('childQuiz.text', { p0: isBn ? toBnNum(avgScore) : avgScore }, `${avgScore}%`)}
+                {t('childQuiz.avg_score', { p0: isBn ? toBnNum(avgScore) : avgScore }, `${avgScore}%`)}
               </div>
               <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
                 {avgScore >= 85
@@ -471,7 +471,7 @@ export default function ChildQuizHubPage() {
             </CardHeader>
             <CardContent className="p-4 pt-1">
               <div className="text-2xl font-black text-foreground">
-                {t('childQuiz.text', { p0: isBn ? toBnNum(avgScore) : avgScore }, `${avgScore}%`)}
+                {t('childQuiz.highest_score', { p0: isBn ? toBnNum(highestScore) : highestScore }, `${highestScore}%`)}
               </div>
               <p className="text-[11px] text-muted-foreground font-medium mt-1">
                 {t('childQuiz.text_16')}

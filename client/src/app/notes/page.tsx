@@ -564,7 +564,7 @@ function NotesPageInner() {
                     className="w-full h-9 text-xs font-semibold gap-1.5 shadow-sm"
                   >
                     <FileText className="w-4 h-4" />
-                    <span>{saving ? t('common.loading', 'Saving...') : t('notes.saveNote', 'Save Note to Library')}</span>
+                    <span>{saving ? t('common.saving', 'Saving...') : t('notes.saveNote', 'Save Note to Library')}</span>
                   </Button>
                 </div>
               </div>

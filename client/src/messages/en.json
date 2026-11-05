@@ -13,9 +13,10 @@
     "billing": "Billing & Plans",
     "settings": "Settings",
     "notifications": "Notifications",
-    "admin": "Admin",
+    "admin": "Admin Portal",
     "logout": "Logout",
-    "kidMode": "Child Mode"
+    "kidMode": "Child Mode",
+    "subscription_billing": "Subscription & Billing"
   },
   "bottomNav": {
     "dashboard": "Dashboard",
@@ -39,11 +40,11 @@
     "streak": "Daily Streak",
     "weeklyStudyTime": "Weekly Study Time",
     "subjectDistribution": "Subject Distribution",
-    "scoreTrend": "Score Progress Trend",
-    "subjectMastery": "Subject Mastery & Accuracy",
+    "scoreTrend": "Quiz Score Progress",
+    "subjectMastery": "Subject Mastery Radar",
     "consistency": "90-Day Study Consistency",
-    "weakestTopics": "Weakest Topics (Needs Revision)",
-    "strongestTopics": "Strongest Topics (Mastered)",
+    "weakestTopics": "Needs Practice",
+    "strongestTopics": "Mastered Topics",
     "missedSessions": "Missed Sessions & Reminders",
     "upcomingSchedule": "Upcoming 7-Day Schedule",
     "recentActivity": "Recent Activity Feed",
@@ -125,36 +126,42 @@
     "text_72": "Tuition",
     "text_73": "School",
     "text_74": "Self-study",
-    "text_75": "No recent activities recorded yet"
+    "text_75": "No recent activities recorded yet",
+    "30_second_snapshot_of_your_child_s_study_consist": "30-second snapshot of your child's study consistency and quiz performance.",
+    "view_calendar": "View Calendar"
   },
   "child": {
     "title": "Children Profiles",
-    "add": "Add Child",
-    "edit": "Edit Child",
+    "add": "Add Student Account",
+    "edit": "Edit Student Profile",
     "delete": "Delete Profile",
     "switchToChild": "Enter Child Mode",
     "enterPin": "Enter Child PIN",
     "pinPrompt": "Enter the 4-6 digit PIN to unlock Child Mode",
     "exitChildMode": "Exit Child Mode",
     "name": "Full Name",
-    "nickname": "Nickname / Call Name",
-    "grade": "Grade / Class",
+    "nickname": "Nickname",
+    "grade": "Class / Grade",
     "curriculum": "Curriculum",
     "medium": "Medium of Instruction",
     "version": "Version / Medium of Education",
     "pin": "Security PIN (4-6 digits)",
     "active": "Active Student",
-    "selectChild": "Select Child",
-    "noChildren": "No child profiles added yet. Click 'Add Child' to get started."
+    "selectChild": "Switch Student",
+    "noChildren": "No child profiles added yet. Click 'Add Child' to get started.",
+    "create_account": "Create Student Account",
+    "manage_accounts": "Manage / Add Student",
+    "student_full_name": "Student Full Name",
+    "nickname_optional": "Nickname (Optional)"
   },
   "schedule": {
     "title": "Routine & Schedule",
     "createRoutine": "Add Recurring Routine",
-    "routineName": "Routine Name (e.g. Math Tuition)",
+    "routineName": "Routine Name",
     "source": "Learning Source",
     "startTime": "Start Time",
-    "duration": "Duration (minutes)",
-    "weekdays": "Days of the Week",
+    "duration": "Duration (mins)",
+    "weekdays": "Days of Week",
     "reschedule": "Reschedule Session",
     "cancel": "Cancel Session",
     "extra": "Add Extra Session",
@@ -230,7 +237,12 @@
     "today_s_schedule_is_100_completed_showing_tomorr": "Today's schedule is 100% completed! Showing tomorrow's routine.",
     "view_today_s_routine": "View Today's Routine",
     "today_s_routine": "Today's Routine",
-    "tomorrow_s_routine": "Tomorrow's Routine"
+    "tomorrow_s_routine": "Tomorrow's Routine",
+    "week_of_month": "{p0} {p1}",
+    "week_date_range": "{p0} {p1} – {p2} {p3}",
+    "full_date": "{p0}, {p2} {p1}, {p3}",
+    "create_routine": "Create Routine",
+    "add_routine": "Add Routine"
   },
   "notes": {
     "title": "Notes & OCR Scanner",
@@ -240,7 +252,7 @@
     "extractedText": "Extracted Text (Editable Preview)",
     "confidence": "OCR Confidence",
     "improveWithAi": "Improve with AI Vision",
-    "saveNote": "Save Note",
+    "saveNote": "Save Note to Library",
     "allNotes": "Saved Study Notes",
     "mathematics": "Mathematics",
     "physics": "Physics",
@@ -286,21 +298,22 @@
     "formatted_study_note": "Formatted Study Note",
     "text_27": "Formatted",
     "text_28": "Close",
-    "text_29": "Delete"
+    "text_29": "Delete",
+    "physics_chapter_3_force_motion_newton_s_second_l": "Physics Chapter 3: Force & Motion. Newton's Second Law: Force equals mass times acceleration (F = ma). Net force accelerates an object."
   },
   "quiz": {
     "title": "AI Quizzes",
-    "builderTitle": "Create AI Quiz for Child",
-    "scope": "Notes / Lessons Scope",
+    "builderTitle": "AI Quiz Builder",
+    "scope": "Lessons Scope",
     "numQuestions": "Number of Questions",
-    "difficulty": "Difficulty Level",
-    "language": "Quiz Language",
+    "difficulty": "Difficulty",
+    "language": "Language",
     "generate": "Generate AI Quiz",
     "assign": "Assign to Child",
     "takeQuiz": "Take Quiz",
     "results": "Quiz Results & Explanation",
-    "regenerateQuestion": "Regenerate Question",
-    "removeQuestion": "Remove Question",
+    "regenerateQuestion": "Regenerate",
+    "removeQuestion": "Remove",
     "myQuizzes": "Assigned Quizzes"
   },
   "billing": {
@@ -308,8 +321,8 @@
     "trialBanner": "15-Day Free Trial",
     "trialDaysLeft": "days remaining in trial",
     "plans": "Subscription Plans",
-    "demoCheckout": "Demo Checkout",
-    "invoices": "Invoices & Payment History",
+    "demoCheckout": "Complete Subscription (Demo)",
+    "invoices": "Invoices & Receipts",
     "free": "Free",
     "basic": "Basic",
     "premium": "Premium",
@@ -363,7 +376,8 @@
     "extra_children_x": "Extra Children (+{p0} x ৳{p1}):",
     "confirm_demo_payment": "Confirm Demo Payment (৳{p0})",
     "child_covered_in_5_child_plan": "{p0} Child{p1} (Covered in 5-child plan)",
-    "child_free_tier_includes_1": "{p0} Child{p1} (Free tier includes 1)"
+    "child_free_tier_includes_1": "{p0} Child{p1} (Free tier includes 1)",
+    "active_plan": "Active Plan"
   },
   "common": {
     "save": "Save Changes",
@@ -376,7 +390,10 @@
     "success": "Operation successful",
     "empty": "No items found",
     "viewAll": "View All",
-    "back": "Back"
+    "back": "Back",
+    "creating": "Creating...",
+    "saving": "Saving...",
+    "loading_quiz": "Loading quiz..."
   },
   "results": {
     "text": "Could not load the results. Please try again.",
@@ -453,7 +470,10 @@
     "text_46": "Private Tuition",
     "text_47": "Self-Study",
     "text_48": "How well did you understand this? (Confidence)",
-    "text_49": "Save Lesson 🎉"
+    "text_49": "Save Lesson 🎉",
+    "listening_speak_about_today_s_lessons": "🎙️ Listening... Speak about today's lessons...",
+    "confidence": "Confidence",
+    "e_g_physics_chapter_3_newton_s_2nd_law_derivatio": "e.g. Physics Chapter 3: Newton's 2nd Law derivation"
   },
   "childNotes": {
     "text": "AI study note saved successfully!",
@@ -523,7 +543,8 @@
     "text_46": "Additional context or raw text can be edited here...",
     "text_47": "Cancel",
     "text_48": "Saving...",
-    "text_49": "Save Class Note"
+    "text_49": "Save Class Note",
+    "e_g_equations_of_motion_newton_s_laws": "e.g. Equations of Motion & Newton's Laws"
   },
   "childHome": {
     "text": "Primary Science: Safe Water & Purification",
@@ -558,7 +579,9 @@
     "pending": "{p0} Pending",
     "latest_click_to_open_quiz_page_test_your_mastery": "Latest: \"{p0}\" — Click to open Quiz page & test your mastery",
     "h_m": "{p0}h {p1}m",
-    "pending_ai_quiz_ready_for_you": "{p0} Pending AI Quiz{p1} Ready For You!"
+    "pending_ai_quiz_ready_for_you": "{p0} Pending AI Quiz{p1} Ready For You!",
+    "pending_quiz_title": "Primary Science: Safe Water & Purification",
+    "avg_score": "{p0}%"
   },
   "childQuiz": {
     "text": "AI Revision Quiz Hub",
@@ -605,7 +628,10 @@
     "taken": "Taken: {p0}",
     "score": "Score: {p0}%",
     "accuracy": "{p0}% Accuracy",
-    "showing_quiz": "Showing {p0} quiz{p1}"
+    "showing_quiz": "Showing {p0} quiz{p1}",
+    "heading": "AI Revision Quiz Hub",
+    "avg_score": "{p0}%",
+    "highest_score": "{p0}%"
   },
   "childQuizPlay": {
     "text": "Progress saved! You can resume anytime.",
@@ -759,7 +785,8 @@
     "log_class": "Log Class: {p0}",
     "mins": "{p0} mins",
     "all_of_today_s_classes_have_been_logged_showing_": "All of today's classes have been logged! Showing tomorrow's schedule.",
-    "view_today_s_routine": "View Today's Routine"
+    "view_today_s_routine": "View Today's Routine",
+    "tuition_coaching": "Tuition & Coaching"
   },
   "children": {
     "text": "Create and manage student logins, curriculum grades, and individual portals.",
@@ -897,7 +924,11 @@
     "text_109": "Save Settings",
     "unlogged_study_alert_settings_successfully_saved": "Unlogged study alert settings successfully saved for {p0}!",
     "receive_an_automatic_notification_if_has_not_log": "Receive an automatic notification if {p0} has not logged their daily study sessions.",
-    "please_select_a_time_that_is_after_all_of_s_dail": "Please select a time that is after all of {p0}'s daily educational activities (school/college, private tuition, and evening self-study) are finished (e.g. 9:00 PM or 9:30 PM). This ensures your child has enough time to log their study, and you will only be alerted if lessons remain unlogged."
+    "please_select_a_time_that_is_after_all_of_s_dail": "Please select a time that is after all of {p0}'s daily educational activities (school/college, private tuition, and evening self-study) are finished (e.g. 9:00 PM or 9:30 PM). This ensures your child has enough time to log their study, and you will only be alerted if lessons remain unlogged.",
+    "unit_6_eat_healthy_food_pyramid_healthy_fruits_a_2": "Unit 6: Eat Healthy – Food pyramid, healthy fruits and vegetables vocabulary",
+    "unit_3_health_and_hygiene_passage_comprehension__2": "Unit 3: Health and Hygiene – Passage comprehension, new vocabulary with synonyms & theme",
+    "right_forms_of_verbs_10_basic_grammar_rules_and__2": "Right forms of verbs – 10 basic grammar rules and 20 practice fill-in-the-blanks",
+    "self": "Self"
   },
   "quizNew": {
     "elementary_math": "Elementary Math",
@@ -966,7 +997,11 @@
     "quiz_successfully_assigned_to": "Quiz successfully assigned to {p0}!",
     "quiz_assigned_to": "Quiz assigned to {p0}!",
     "generate_ai_quiz_for": "Generate AI Quiz for {p0}",
-    "assign_to": "Assign to {p0}"
+    "assign_to": "Assign to {p0}",
+    "physics_newton_s_2nd_law": "Physics: Newton's 2nd Law",
+    "by_newton_s_second_law_of_motion_force_equals_ma": "By Newton's Second Law of Motion, Force equals mass multiplied by acceleration.",
+    "today_s_lessons": "Today's lessons",
+    "yesterday_s_lessons": "Yesterday's lessons"
   },
   "login": {
     "text": "Incorrect email or password",
@@ -982,7 +1017,8 @@
     "text_11": "Show password",
     "text_12": "Logging in...",
     "text_13": "Create Free Account",
-    "load_demo_account_s_credentials": "Load demo account's credentials"
+    "load_demo_account_s_credentials": "Load demo account's credentials",
+    "sign_in": "Sign In"
   },
   "notifications": {
     "text": "Rahim Ahmed",
@@ -1097,7 +1133,8 @@
     "text_64": "Choose Pro Family",
     "text_65": "Privacy Policy",
     "text_66": "Terms of Service",
-    "everything_you_need_to_support_your_child_s_lear": "Everything you need to support your child's learning"
+    "everything_you_need_to_support_your_child_s_lear": "Everything you need to support your child's learning",
+    "bilingual_ocr_notes_reader": "Bilingual OCR & Notes Reader"
   },
   "pricing": {
     "free": "Free Tier",
@@ -1120,7 +1157,8 @@
     "text_14": "Most Popular & Best Value",
     "text_15": "Test Demo Checkout",
     "text_16": "Data Safety & Privacy Guarantee",
-    "text_17": "Your child\\'s learning logs and handwritten notes are never deleted. Even on the Free tier, your history is safe."
+    "text_17": "Your child\\'s learning logs and handwritten notes are never deleted. Even on the Free tier, your history is safe.",
+    "your_child_s_learning_logs_and_handwritten_notes": "Your child's learning logs and handwritten notes are never deleted. Even on the Free tier, your history is safe."
   },
   "quizzes": {
     "text": "Primary Math: Factors & LCM-HCF Quiz",
@@ -1206,7 +1244,10 @@
     "text_71": "Student Pending",
     "today_s_auto_quiz_generated_successfully": "⚡ Today's auto-quiz generated successfully! ({p0})",
     "custom_quizzes_and_spaced_repetition_auto_schedu": "Custom quizzes and spaced repetition auto-scheduler for {p0}",
-    "math_3m_q_non_math_50s_q": "Math: {p0} (3m/q) • Non-Math: {p1} (50s/q)"
+    "math_3m_q_non_math_50s_q": "Math: {p0} (3m/q) • Non-Math: {p1} (50s/q)",
+    "run_today_s_auto_quiz": "Run Today's Auto-Quiz",
+    "optimal": "Optimal",
+    "assigned": "Assigned"
   },
   "quizDetail": {
     "text": "Could not load this quiz.",
@@ -1247,7 +1288,11 @@
     "text_19": "Missed",
     "text_20": "Rest / Future",
     "text_21": "Consistency:",
-    "study_logged_session": ": Study logged ({p0} session{p1})"
+    "study_logged_session": ": Study logged ({p0} session{p1})",
+    "axis_unit": " m",
+    "minutes": "mins",
+    "lesson_count": "{p0}",
+    "percentage": "{p0}%"
   },
   "header": {
     "ai": "Pro Family (150 Quizzes/mo)",
@@ -1260,7 +1305,8 @@
     "text_2": "Light",
     "text_3": "Upgrade your plan",
     "days_left_in_your_free_trial": "{p0} days left in your free trial.",
-    "your_free_trial_ends_in_day": "Your free trial ends in {p0} day{p1}!"
+    "your_free_trial_ends_in_day": "Your free trial ends in {p0} day{p1}!",
+    "language_2": "Language (ভাষা)"
   },
   "kidShell": {
     "text": "New AI Quiz Assigned!",
@@ -1296,7 +1342,8 @@
     "language": "ভাষা (Language)",
     "theme": "Theme",
     "text_31": "Dark",
-    "text_32": "Light"
+    "text_32": "Light",
+    "language_2": "Language (ভাষা)"
   },
   "publicNav": {
     "text": "Features",
@@ -1305,5 +1352,26 @@
     "text_4": "Dashboard",
     "text_5": "Login",
     "text_6": "Get Started Free"
+  },
+  "admin": {
+    "some_admin_data_could_not_be_loaded": "Some admin data could not be loaded."
+  },
+  "institution": {
+    "college_classes": "🏛️ College Classes",
+    "college_routine": "College Routine",
+    "manage_college_lectures_lab_sessions_and_private": "Manage college lectures, lab sessions, and private tuition routines.",
+    "admission_prep": "Admission Prep",
+    "admission": "Admission",
+    "coaching_tests": "🎓 Coaching & Tests",
+    "admission_prep_routine": "Admission Prep Routine",
+    "manage_university_and_medical_admission_coaching": "Manage university and medical admission coaching, mock tests, and intensive self-study schedules.",
+    "school_classes": "🏫 School Classes",
+    "school_routine": "School Routine",
+    "manage_school_periods_homework_sessions_and_priv": "Manage school periods, homework sessions, and private tuition routines.",
+    "college": "College",
+    "school": "School",
+    "college_classes_heading": "Today's College Classes & Schedule",
+    "school_classes_heading": "Today's School Classes & Schedule",
+    "admission_classes_heading": "Today's Admission Routine & Tests"
   }
 }

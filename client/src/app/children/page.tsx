@@ -400,12 +400,12 @@ export default function ChildrenPage() {
       <Modal
         isOpen={addModalOpen}
         onClose={() => setAddModalOpen(false)}
-        title={t('child.add', 'Create Student Account')}
+        title={t('child.create_account', 'Create Student Account')}
         description="Set up an independent student login with email and password. Students log in via the main login page to access their dedicated portal."
       >
         <form onSubmit={handleCreate} className="space-y-4 pt-1">
           <div>
-            <Label className="text-xs font-semibold">{t('child.name', 'Student Full Name')}</Label>
+            <Label className="text-xs font-semibold">{t('child.student_full_name', 'Student Full Name')}</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -417,7 +417,7 @@ export default function ChildrenPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-semibold">{t('child.nickname', 'Nickname (Optional)')}</Label>
+              <Label className="text-xs font-semibold">{t('child.nickname_optional', 'Nickname (Optional)')}</Label>
               <Input
                 value={form.nickname}
                 onChange={(e) => setForm({ ...form, nickname: e.target.value })}
@@ -504,7 +504,7 @@ export default function ChildrenPage() {
               {t('common.cancel', 'Cancel')}
             </Button>
             <Button type="submit" size="sm" disabled={loading}>
-              {loading ? t('common.loading', 'Creating...') : t('child.add', 'Create Student Account')}
+              {loading ? t('common.creating', 'Creating...') : t('child.create_account', 'Create Student Account')}
             </Button>
           </div>
         </form>
@@ -601,7 +601,7 @@ export default function ChildrenPage() {
               {t('common.cancel', 'Cancel')}
             </Button>
             <Button type="submit" size="sm" disabled={loading}>
-              {loading ? t('common.loading', 'Saving...') : t('common.save', 'Save Changes')}
+              {loading ? t('common.saving', 'Saving...') : t('common.save', 'Save Changes')}
             </Button>
           </div>
         </form>
@@ -644,7 +644,7 @@ export default function ChildrenPage() {
               {t('common.cancel', 'Cancel')}
             </Button>
             <Button type="submit" size="sm" disabled={loading || newPassword.length < 4}>
-              {loading ? t('common.loading', 'Saving...') : 'Update Password'}
+              {loading ? t('common.saving', 'Saving...') : 'Update Password'}
             </Button>
           </div>
         </form>

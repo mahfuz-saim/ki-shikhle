@@ -145,7 +145,7 @@ export function Header() {
                       onClick={() => setChildDropdownOpen(false)}
                       className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-primary hover:bg-primary/10 transition-colors font-medium"
                     >
-                      + {t('child.add', 'Manage / Add Student')}
+                      + {t('child.manage_accounts', 'Manage / Add Student')}
                     </Link>
                   </div>
                 </div>
@@ -256,7 +256,7 @@ export function Header() {
                   className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  {t('nav.billing', 'Subscription & Billing')}
+                  {t('nav.subscription_billing', 'Subscription & Billing')}
                 </Link>
                 <button
                   onClick={() => {

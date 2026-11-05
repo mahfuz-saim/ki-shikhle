@@ -13,9 +13,10 @@
     "billing": "বিলিং ও প্ল্যান",
     "settings": "সেটিংস",
     "notifications": "নোটিফিকেশন",
-    "admin": "অ্যাডমিন",
+    "admin": "অ্যাডমিন পোর্টাল",
     "logout": "লগআউট",
-    "kidMode": "চাইল্ড মোড"
+    "kidMode": "চাইল্ড মোড",
+    "subscription_billing": "সাবস্ক্রিপশন ও বিলিং"
   },
   "bottomNav": {
     "dashboard": "ড্যাশবোর্ড",
@@ -39,11 +40,11 @@
     "streak": "দৈনিক স্ট্রিক",
     "weeklyStudyTime": "সাপ্তাহিক পড়ার সময়",
     "subjectDistribution": "বিষয়ভিত্তিক বণ্টন",
-    "scoreTrend": "স্কোর অগ্রগতির ধারা",
-    "subjectMastery": "বিষয়ে দক্ষতা ও নির্ভুলতা",
+    "scoreTrend": "কুইজ স্কোর অগ্রগতি",
+    "subjectMastery": "বিষয়ে দক্ষতার রাডার",
     "consistency": "৯০ দিনের পড়ার ধারাবাহিকতা",
-    "weakestTopics": "দুর্বল অধ্যায়সমূহ (পুনরাবৃত্তি প্রয়োজন)",
-    "strongestTopics": "আয়ত্তাধীন অধ্যায়সমূহ (দক্ষ)",
+    "weakestTopics": "রিভিশন ও অনুশীলনের প্রয়োজন",
+    "strongestTopics": "আয়ত্তাধীন অধ্যায়সমূহ",
     "missedSessions": "মিস হওয়া সেশন ও রিমাইন্ডার",
     "upcomingSchedule": "আসন্ন ৭ দিনের রুটিন",
     "recentActivity": "সাম্প্রতিক কার্যক্রম",
@@ -125,12 +126,14 @@
     "text_72": "টিউশন",
     "text_73": "স্কুল",
     "text_74": "স্ব-শিক্ষা",
-    "text_75": "এখনো কোনো সাম্প্রতিক অ্যাক্টিভিটি পাওয়া যায়নি"
+    "text_75": "এখনো কোনো সাম্প্রতিক অ্যাক্টিভিটি পাওয়া যায়নি",
+    "30_second_snapshot_of_your_child_s_study_consist": "এক নজরে সন্তানের পড়ার অগ্রগতি, সময় ও কুইজ ফলাফল",
+    "view_calendar": "ক্যালেন্ডার দেখুন"
   },
   "child": {
     "title": "সন্তানদের প্রোফাইল",
-    "add": "নতুন সন্তান যোগ করুন",
-    "edit": "প্রোফাইল সম্পাদনা",
+    "add": "নতুন শিক্ষার্থী অ্যাকাউন্ট যোগ করুন",
+    "edit": "শিক্ষার্থীর প্রোফাইল সম্পাদনা",
     "delete": "প্রোফাইল মুছুন",
     "switchToChild": "চাইল্ড মোডে যান",
     "enterPin": "চাইল্ড পিন দিন",
@@ -144,13 +147,17 @@
     "version": "সংস্করণ / মাধ্যম",
     "pin": "নিরাপত্তা পিন (৪-৬ সংখ্যা)",
     "active": "সক্রিয় শিক্ষার্থী",
-    "selectChild": "সন্তান নির্বাচন করুন",
-    "noChildren": "কোনো সন্তানের প্রোফাইল যোগ করা হয়নি। শুরু করতে 'নতুন সন্তান যোগ করুন'-এ ক্লিক করুন।"
+    "selectChild": "শিক্ষার্থী পরিবর্তন করুন",
+    "noChildren": "কোনো সন্তানের প্রোফাইল যোগ করা হয়নি। শুরু করতে 'নতুন সন্তান যোগ করুন'-এ ক্লিক করুন।",
+    "create_account": "শিক্ষার্থী অ্যাকাউন্ট তৈরি করুন",
+    "manage_accounts": "শিক্ষার্থী পরিচালনা / যোগ করুন",
+    "student_full_name": "শিক্ষার্থীর পূর্ণ নাম",
+    "nickname_optional": "ডাকনাম (ঐচ্ছিক)"
   },
   "schedule": {
     "title": "রুটিন ও সময়সূচি",
     "createRoutine": "নতুন নিয়মিত রুটিন যোগ করুন",
-    "routineName": "রুটিনের নাম (যেমন: গণিত প্রাইভেট)",
+    "routineName": "রুটিনের নাম",
     "source": "পড়ার মাধ্যম",
     "startTime": "শুরুর সময়",
     "duration": "সময়কাল (মিনিট)",
@@ -230,7 +237,12 @@
     "today_s_schedule_is_100_completed_showing_tomorr": "আজকের সব শিডিউল সম্পন্ন হয়েছে! আগামীকালের রুটিন প্রদর্শিত হচ্ছে।",
     "view_today_s_routine": "আজকের রুটিন দেখুন",
     "today_s_routine": "আজকের রুটিন",
-    "tomorrow_s_routine": "আগামীকালের রুটিন"
+    "tomorrow_s_routine": "আগামীকালের রুটিন",
+    "week_of_month": "{p0} {p1}",
+    "week_date_range": "{p0} {p1} – {p2} {p3}",
+    "full_date": "{p0}, {p1} {p2} {p3}",
+    "create_routine": "রুটিন তৈরি করুন",
+    "add_routine": "রুটিন যোগ"
   },
   "notes": {
     "title": "ক্লাস নোট ও ওসিআর স্ক্যানার",
@@ -240,7 +252,7 @@
     "extractedText": "শনাক্তকৃত লেখা (সম্পাদনাযোগ্য)",
     "confidence": "ওসিআর নির্ভুলতা",
     "improveWithAi": "এআই ভিশন দিয়ে উন্নত করুন",
-    "saveNote": "নোট সংরক্ষণ করুন",
+    "saveNote": "নোট লাইব্রেরিতে সংরক্ষণ করুন",
     "allNotes": "সংরক্ষিত পড়ার নোটসমূহ",
     "mathematics": "গণিত (Mathematics)",
     "physics": "পদার্থবিজ্ঞান (Physics)",
@@ -286,21 +298,22 @@
     "formatted_study_note": "সাজানো স্টাডি নোট (Formatted Study Note)",
     "text_27": "ফরম্যাটেড",
     "text_28": "বন্ধ করুন",
-    "text_29": "মুছুন"
+    "text_29": "মুছুন",
+    "physics_chapter_3_force_motion_newton_s_second_l": "পদার্থবিজ্ঞান অধ্যায় ৩: বল ও ত্বরণ। নিউটনের ২য় সূত্র: কোনো বস্তুর ভরবেগের পরিবর্তনের হার তার উপর প্রযুক্ত বলের সমানুপাতিক। F = ma"
   },
   "quiz": {
     "title": "এআই কুইজ",
-    "builderTitle": "সন্তানের জন্য নতুন এআই কুইজ তৈরি করুন",
-    "scope": "নোট ও পড়ার পরিধি",
+    "builderTitle": "এআই কুইজ বিল্ডার",
+    "scope": "পাঠের পরিধি",
     "numQuestions": "প্রশ্নের সংখ্যা",
-    "difficulty": "কঠিনতার স্তর",
-    "language": "কুইজের ভাষা",
+    "difficulty": "কठিনতা",
+    "language": "ভাষা",
     "generate": "এআই কুইজ তৈরি করুন",
     "assign": "সন্তানকে দিন",
     "takeQuiz": "কুইজ শুরু করুন",
     "results": "কুইজের ফলাফল ও এআই বিশ্লেষণ",
-    "regenerateQuestion": "প্রশ্ন পুনরায় তৈরি করুন",
-    "removeQuestion": "প্রশ্ন বাদ দিন",
+    "regenerateQuestion": "পুনরায় তৈরি করুন",
+    "removeQuestion": "বাদ দিন",
     "myQuizzes": "নির্ধারিত কুইজসমূহ"
   },
   "billing": {
@@ -308,8 +321,8 @@
     "trialBanner": "১৫ দিনের ফ্রি ট্রায়াল",
     "trialDaysLeft": "দিন বাকি আছে",
     "plans": "সাবস্ক্রিপশন প্ল্যানসমূহ",
-    "demoCheckout": "ডেমো পেমেন্ট সম্পন্ন করুন",
-    "invoices": "ইনভয়েস ও পেমেন্টের ইতিহাস",
+    "demoCheckout": "সাবস্ক্রিপশন সম্পন্ন করুন (ডেমো)",
+    "invoices": "ইনভয়েস ও রসিদ",
     "free": "ফ্রি (Free)",
     "basic": "বেসিক (Basic)",
     "premium": "প্রিমিয়াম (Premium)",
@@ -363,7 +376,8 @@
     "extra_children_x": "অতিরিক্ত সন্তান (+{p0} জন x ৳{p1}):",
     "confirm_demo_payment": "পেমেন্ট নিশ্চিত করুন (৳{p0})",
     "child_covered_in_5_child_plan": "{p0} জন শিক্ষার্থী (প্যাকেজের অন্তর্ভুক্ত - কমিয়েছেন)",
-    "child_free_tier_includes_1": "{p0} জন শিক্ষার্থী (ফ্রি স্লট: ১ জন)"
+    "child_free_tier_includes_1": "{p0} জন শিক্ষার্থী (ফ্রি স্লট: ১ জন)",
+    "active_plan": "বর্তমান প্ল্যান"
   },
   "common": {
     "save": "সংরক্ষণ করুন",
@@ -376,7 +390,10 @@
     "success": "সফলভাবে সম্পন্ন হয়েছে",
     "empty": "কোনো তথ্য পাওয়া যায়নি",
     "viewAll": "সব দেখুন",
-    "back": "ফিরে যান"
+    "back": "ফিরে যান",
+    "creating": "তৈরি হচ্ছে...",
+    "saving": "সংরক্ষণ হচ্ছে...",
+    "loading_quiz": "কুইজ লোড হচ্ছে..."
   },
   "results": {
     "text": "ফলাফল লোড করা যায়নি। আবার চেষ্টা করুন।",
@@ -453,7 +470,10 @@
     "text_46": "প্রাইভেট টিউশন",
     "text_47": "সেলফ-স্টাডি",
     "text_48": "কতটুকু ভালো বুঝেছ?",
-    "text_49": "সংরক্ষণ করুন 🎉"
+    "text_49": "সংরক্ষণ করুন 🎉",
+    "listening_speak_about_today_s_lessons": "🎙️ শুনছি... বলো আজকে ক্লাসে বা প্রাইভেটে কী কী শিখেছ...",
+    "confidence": "বোঝাপড়া",
+    "e_g_physics_chapter_3_newton_s_2nd_law_derivatio": "যেমন: পদার্থবিজ্ঞান অধ্যায় ৩ বল ও ভরবেগ"
   },
   "childNotes": {
     "text": "এআই স্টাডি নোট সফলভাবে সংরক্ষিত হয়েছে!",
@@ -523,7 +543,8 @@
     "text_46": "কোনো অতিরিক্ত নির্দেশনা বা টেক্সট থাকলে এখানে লিখতে পারো...",
     "text_47": "বাতিল",
     "text_48": "সংরক্ষণ হচ্ছে...",
-    "text_49": "ক্লাস নোট সংরক্ষণ করুন"
+    "text_49": "ক্লাস নোট সংরক্ষণ করুন",
+    "e_g_equations_of_motion_newton_s_laws": "যেমন: গতির সমীকরণ ও নিউটনের ২য় সূত্র"
   },
   "childHome": {
     "text": "প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ",
@@ -558,7 +579,9 @@
     "pending": "{p0}টি বাকি",
     "latest_click_to_open_quiz_page_test_your_mastery": "সর্বশেষ: \"{p0}\" — প্রস্তুতি যাচাই করতে কুইজ পেজে যান",
     "h_m": "{p0}ঘ {p1}মি",
-    "pending_ai_quiz_ready_for_you": "তোমার জন্য {p0}টি নতুন এআই কুইজ অপেক্ষমাণ আছে!"
+    "pending_ai_quiz_ready_for_you": "তোমার জন্য {p0}টি নতুন এআই কুইজ অপেক্ষমাণ আছে!",
+    "pending_quiz_title": "প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ",
+    "avg_score": "{p0}%"
   },
   "childQuiz": {
     "text": "এআই রিভিশন কুইজ সেন্টার",
@@ -605,7 +628,10 @@
     "taken": "সম্পন্ন হয়েছে: {p0}",
     "score": "স্কোর: {p0}%",
     "accuracy": "{p0}% নির্ভুলতা",
-    "showing_quiz": "মোট {p0} টি কুইজ দেখানো হচ্ছে"
+    "showing_quiz": "মোট {p0} টি কুইজ দেখানো হচ্ছে",
+    "heading": "এআই রিভিশন কুইজ সেন্টার",
+    "avg_score": "{p0}%",
+    "highest_score": "{p0}%"
   },
   "childQuizPlay": {
     "text": "অগ্রগতি সংরক্ষিত হয়েছে!",
@@ -759,7 +785,8 @@
     "log_class": "ক্লাস বিবরণী লগ করুন: {p0}",
     "mins": "{p0} মিনিট ক্লাস",
     "all_of_today_s_classes_have_been_logged_showing_": "আজকের সব ক্লাসের পড়া লগ সম্পন্ন হয়েছে! আগামীকালের রুটিন প্রদর্শিত হচ্ছে।",
-    "view_today_s_routine": "আজকের রুটিন দেখুন"
+    "view_today_s_routine": "আজকের রুটিন দেখুন",
+    "tuition_coaching": "প্রাইভেট ও কোচিং"
   },
   "children": {
     "text": "সন্তানদের পৃথক প্রোফাইল ও লগইন ক্রেডেনশিয়াল পরিচালনা করুন",
@@ -897,7 +924,11 @@
     "text_109": "সেভ করুন",
     "unlogged_study_alert_settings_successfully_saved": "{p0}-এর আনলগড স্টাডি অ্যালার্ট সফলভাবে সংরক্ষিত হয়েছে!",
     "receive_an_automatic_notification_if_has_not_log": "{p0}-এর আজকের কোনো পড়ার বিবরণ লিপিবদ্ধ না থাকলে নির্ধারিত সময়ে অভিভাবক হিসেবে অ্যালার্ট পান",
-    "please_select_a_time_that_is_after_all_of_s_dail": "অনুগ্রহ করে এমন একটি সময় নির্ধারণ করুন যা {p0} সারাদিনের সব শিক্ষা কার্যক্রম (স্কুল/কলেজ, প্রাইভেট টিউশন এবং রাতের সেলফ-স্টাডি) শেষ হওয়ার পরের সময় (যেমন রাত ৯:০০ টা বা ৯:৩০ টা)। এতে শিক্ষার্থী সারাদিন পড়ে বিবরণ যুক্ত করার পর্যাপ্ত সময় পাবে এবং কোনো পড়া বাদ থাকলে নির্ধারিত সময়ে অভিভাবক হিসেবে আপনি তাৎক্ষণিক নোটিফিকেশন পাবেন।"
+    "please_select_a_time_that_is_after_all_of_s_dail": "অনুগ্রহ করে এমন একটি সময় নির্ধারণ করুন যা {p0} সারাদিনের সব শিক্ষা কার্যক্রম (স্কুল/কলেজ, প্রাইভেট টিউশন এবং রাতের সেলফ-স্টাডি) শেষ হওয়ার পরের সময় (যেমন রাত ৯:০০ টা বা ৯:৩০ টা)। এতে শিক্ষার্থী সারাদিন পড়ে বিবরণ যুক্ত করার পর্যাপ্ত সময় পাবে এবং কোনো পড়া বাদ থাকলে নির্ধারিত সময়ে অভিভাবক হিসেবে আপনি তাৎক্ষণিক নোটিফিকেশন পাবেন।",
+    "unit_6_eat_healthy_food_pyramid_healthy_fruits_a_2": "Unit 6: Eat Healthy — Food pyramid, healthy fruits and vegetables vocabulary",
+    "unit_3_health_and_hygiene_passage_comprehension__2": "Unit 3: Health and Hygiene — Passage comprehension, new vocabulary with synonyms & theme",
+    "right_forms_of_verbs_10_basic_grammar_rules_and__2": "Right forms of verbs — 10 basic grammar rules and 20 practice fill-in-the-blanks",
+    "self": "সেলফ-স্টাডি"
   },
   "quizNew": {
     "elementary_math": "প্রাথমিক গণিত (Elementary Math)",
@@ -966,7 +997,11 @@
     "quiz_successfully_assigned_to": "কুইজটি {p0}-এর জন্য সফলভাবে অ্যাসাইন করা হয়েছে!",
     "quiz_assigned_to": "কুইজটি {p0}-এর জন্য অ্যাসাইন করা হয়েছে!",
     "generate_ai_quiz_for": "{p0}-এর জন্য AI কুইজ তৈরি করুন",
-    "assign_to": "{p0}-কে অ্যাসাইন করুন"
+    "assign_to": "{p0}-কে অ্যাসাইন করুন",
+    "physics_newton_s_2nd_law": "পদার্থবিজ্ঞান: নিউটনের ২য় সূত্র",
+    "by_newton_s_second_law_of_motion_force_equals_ma": "নিউটনের দ্বিতীয় সূত্রানুসারে বল হলো ভর ও ত্বরণের গুণফল (F=ma)।",
+    "today_s_lessons": "আজকের পাঠ",
+    "yesterday_s_lessons": "গতকালের পাঠ"
   },
   "login": {
     "text": "ইমেইল অথবা পাসওয়ার্ড সঠিক নয়",
@@ -982,7 +1017,8 @@
     "text_11": "পাসওয়ার্ড দেখুন",
     "text_12": "লগইন হচ্ছে...",
     "text_13": "ফ্রি অ্যাকাউন্ট তৈরি করুন",
-    "load_demo_account_s_credentials": "ডেমো অ্যাকাউন্টের ক্রেডেনশিয়াল লোড করুন"
+    "load_demo_account_s_credentials": "ডেমো অ্যাকাউন্টের ক্রেডেনশিয়াল লোড করুন",
+    "sign_in": "লগইন করুন"
   },
   "notifications": {
     "text": "রহিম আহমেদ",
@@ -1097,7 +1133,8 @@
     "text_64": "প্রো ফ্যামিলি নিন",
     "text_65": "গোপনীয়তা নীতি",
     "text_66": "ব্যবহারের শর্তাবলী",
-    "everything_you_need_to_support_your_child_s_lear": "সন্তানের পড়াশোনায় পাশে থাকার সবকিছু এক সাথে"
+    "everything_you_need_to_support_your_child_s_lear": "সন্তানের পড়াশোনায় পাশে থাকার সবকিছু এক সাথে",
+    "bilingual_ocr_notes_reader": "বাংলা ও ইংরেজি নোট ওসিআর"
   },
   "pricing": {
     "free": "বিনামূল্যে (Free)",
@@ -1120,7 +1157,8 @@
     "text_14": "সর্বাধিক জনপ্রিয় ও সাশ্রয়ী",
     "text_15": "পেমেন্ট ডেমো টেস্ট করুন",
     "text_16": "নিরাপদ ডেটা নিশ্চয়তা",
-    "text_17": "প্ল্যান পরিবর্তন বা মেয়াদ শেষ হলেও সন্তানের খাতার নোট ও পাঠ্য ইতিহাস মুছে যায় না। ফ্রি প্ল্যানে সবসময় ডেটা সুরক্ষিত থাকে।"
+    "text_17": "প্ল্যান পরিবর্তন বা মেয়াদ শেষ হলেও সন্তানের খাতার নোট ও পাঠ্য ইতিহাস মুছে যায় না। ফ্রি প্ল্যানে সবসময় ডেটা সুরক্ষিত থাকে।",
+    "your_child_s_learning_logs_and_handwritten_notes": "প্ল্যান পরিবর্তন বা মেয়াদ শেষ হলেও সন্তানের খাতার নোট ও পাঠ্য ইতিহাস মুছে যায় না। ফ্রি প্ল্যানে সবসময় ডেটা সুরক্ষিত থাকে।"
   },
   "quizzes": {
     "text": "প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু কুইজ",
@@ -1206,7 +1244,10 @@
     "text_71": "শিক্ষার্থীর পেন্ডিং",
     "today_s_auto_quiz_generated_successfully": "⚡ আজকের স্বয়ংক্রিয় কুইজ সফলভাবে প্রস্তুত হয়েছে! ({p0})",
     "custom_quizzes_and_spaced_repetition_auto_schedu": "{p0}-এর জন্য ক্লাস নোট ও ১ দিন আগের পাঠের ওপর স্বয়ংক্রিয় কুইজ প্রস্তুতি",
-    "math_3m_q_non_math_50s_q": "গণিত/বিশ্লেষণ: {p0}টি (৩ মি./প্রশ্ন) • সাধারণ: {p1}টি (৫০ সে./প্রশ্ন)"
+    "math_3m_q_non_math_50s_q": "গণিত/বিশ্লেষণ: {p0}টি (৩ মি./প্রশ্ন) • সাধারণ: {p1}টি (৫০ সে./প্রশ্ন)",
+    "run_today_s_auto_quiz": "⚡ আজকের কুইজ এখনই তৈরি করো",
+    "optimal": "সুপারিশকৃত",
+    "assigned": "অ্যাসাইনকৃত"
   },
   "quizDetail": {
     "text": "কুইজটি লোড করা যায়নি।",
@@ -1247,7 +1288,11 @@
     "text_19": "মিস হয়েছে",
     "text_20": "অন্যান্য / ভবিষ্যৎ",
     "text_21": "ধারাবাহিকতা:",
-    "study_logged_session": ": পড়াশোনা সম্পন্ন ({p0}টি সেশন)"
+    "study_logged_session": ": পড়াশোনা সম্পন্ন ({p0}টি সেশন)",
+    "axis_unit": " মি",
+    "minutes": "মিনিট",
+    "lesson_count": "{p0}টি",
+    "percentage": "{p0}%"
   },
   "header": {
     "ai": "প্রো ফ্যামিলি (১৫০ AI কুইজ/মাস)",
@@ -1260,7 +1305,8 @@
     "text_2": "লাইট",
     "text_3": "প্ল্যান আপগ্রেড করুন",
     "days_left_in_your_free_trial": "ফ্রি ট্রায়ালে আর {p0} দিন আছে।",
-    "your_free_trial_ends_in_day": "ফ্রি ট্রায়াল শেষ হতে {p0} দিন বাকি!"
+    "your_free_trial_ends_in_day": "ফ্রি ট্রায়াল শেষ হতে {p0} দিন বাকি!",
+    "language_2": "ভাষা (Language)"
   },
   "kidShell": {
     "text": "নতুন এআই কুইজ প্রস্তুত!",
@@ -1296,7 +1342,8 @@
     "language": "Language (ভাষা)",
     "theme": "থিম (Theme)",
     "text_31": "ডার্ক",
-    "text_32": "লাইট"
+    "text_32": "লাইট",
+    "language_2": "ভাষা (Language)"
   },
   "publicNav": {
     "text": "ফিচারসমূহ",
@@ -1305,5 +1352,26 @@
     "text_4": "ড্যাশবোর্ড",
     "text_5": "লগইন",
     "text_6": "ফ্রি শুরু করুন"
+  },
+  "admin": {
+    "some_admin_data_could_not_be_loaded": "কিছু অ্যাডমিন ডেটা লোড করা যায়নি।"
+  },
+  "institution": {
+    "college_classes": "🏛️ কলেজ ক্লাস",
+    "college_routine": "কলেজ ক্লাস রুটিন",
+    "manage_college_lectures_lab_sessions_and_private": "কলেজের নির্ধারিত ক্লাস, ল্যাব ও প্রাইভেট টিউশনের রুটিন পরিচালনা করুন।",
+    "admission_prep": "এডমিশন টেস্ট / কোচিং",
+    "admission": "এডমিশন",
+    "coaching_tests": "🎓 কোচিং ও মডেল টেস্ট",
+    "admission_prep_routine": "এডমিশন রুটিন ও সময়সূচী",
+    "manage_university_and_medical_admission_coaching": "বিশ্ববিদ্যালয় ও মেডিকেল ভর্তি পরীক্ষার কোচিং, মডেল টেস্ট ও সেলফ-স্টাডি রুটিন।",
+    "school_classes": "🏫 স্কুল ক্লাস",
+    "school_routine": "স্কুল ক্লাস রুটিন",
+    "manage_school_periods_homework_sessions_and_priv": "স্কুলের নির্ধারিত ক্লাস ও প্রাইভেট টিউশনের সময়সূচি পরিচালনা করুন।",
+    "college": "কলেজ",
+    "school": "স্কুল",
+    "college_classes_heading": "আজকের কলেজের ক্লাস ও রুটিন",
+    "school_classes_heading": "আজকের স্কুলের ক্লাস ও রুটিন",
+    "admission_classes_heading": "আজকের এডমিশন রুটিন ও মডেল টেস্ট"
   }
 }

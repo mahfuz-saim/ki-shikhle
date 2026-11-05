@@ -81,7 +81,7 @@ export default function QuizDetailPage() {
   if (loading) {
     return (
       <AppShell>
-        <div className="p-8 text-center text-xs text-muted-foreground">{t('common.loading', 'Loading quiz...')}</div>
+        <div className="p-8 text-center text-xs text-muted-foreground">{t('common.loading_quiz', 'Loading quiz...')}</div>
       </AppShell>
     );
   }

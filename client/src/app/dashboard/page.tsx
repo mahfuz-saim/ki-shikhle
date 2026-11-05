@@ -687,7 +687,7 @@ export default function DashboardPage() {
                   href="/schedule"
                   className="text-xs text-primary hover:underline font-medium shrink-0"
                 >
-                  {t('common.viewAll', 'View Calendar')} →
+                  {t('dashboard.view_calendar', 'View Calendar')} →
                 </Link>
               </div>
               <CardDescription className="text-xs">

@@ -108,16 +108,38 @@ describe('A child\'s credential lives in exactly one place', () => {
 
 describe('A child-role account with no Child profile is rejected', () => {
   it('fails closed rather than falling back to some other account', async () => {
-    // `ownerx@mail.com` is a child-role `User` with no matching `Child` row — the shape
-    // an orphaned credential takes. It must authenticate as nobody, not as the demo
-    // family and not as some default parent.
-    const orphan = await prisma.user.findFirst({ where: { role: 'child', email: 'ownerx@mail.com' } });
-    if (!orphan) return; // the local database does not have this row
-
-    const res = await call('GET', '/api/v1/children', {
-      token: tokenFor(orphan.id, { role: 'child', email: orphan.email }),
+    // A child-role `User` with no matching `Child` row — the shape an orphaned
+    // credential takes. It must authenticate as nobody, not as the demo family and
+    // not as some default parent.
+    //
+    // The row is created here rather than expected to be present, because the
+    // premise is that it is *absent* from `children`. A leftover row from an older
+    // schema (the demo seed used to write `ownerx@mail.com` as a real child) would
+    // silently turn this into a different test — and one that passes for the wrong
+    // reason.
+    const email = `test-orphan-${Date.now().toString(36)}@example.test`;
+    const orphan = await prisma.user.create({
+      data: {
+        name: 'Orphan Child Identity',
+        email,
+        passwordHash: await hashPassword('OrphanPass1!'),
+        role: 'child',
+      },
+      select: { id: true, email: true },
     });
-    expect(res.status).toBe(401);
+
+    try {
+      // The orphan really has no Child row.
+      const child = await prisma.child.findFirst({ where: { email } });
+      expect(child).toBeNull();
+
+      const res = await call('GET', '/api/v1/children', {
+        token: tokenFor(orphan.id, { role: 'child', email: orphan.email }),
+      });
+      expect(res.status).toBe(401);
+    } finally {
+      await prisma.user.deleteMany({ where: { id: orphan.id } });
+    }
   });
 });
 

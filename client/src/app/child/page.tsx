@@ -41,7 +41,7 @@ export default function KidDashboard() {
   const { childId, isTasnim, isFahim, isDemoChild } = useChildScope();
   const studentGrade = user?.grade || activeChild?.grade || (isFahim ? 'Class 11' : isTasnim ? 'Class 5' : 'Class 8');
   const institutionType = getInstitutionType(studentGrade);
-  const instInfo = getInstitutionInfo(institutionType, isBn);
+  const instInfo = getInstitutionInfo(institutionType, t);
 
   const [summary, setSummary] = useState<any>(null);
   const [quizzes, setQuizzes] = useState<any[]>([]);
@@ -283,7 +283,7 @@ export default function KidDashboard() {
     pendingQuizzes[0] ||
     (isDemoChild
       ? isTasnim
-        ? { title: t('childHome.text') }
+        ? { title: t('childHome.pending_quiz_title') }
         : { title: t('childHome.text_2') }
       : null);
 
@@ -450,7 +450,7 @@ export default function KidDashboard() {
                 </div>
               </div>
               <CardTitle className="text-2xl sm:text-3xl font-extrabold mt-1 text-emerald-600 dark:text-emerald-400">
-                {t('childHome.text', { p0: isBn ? toBnNum(kpis.avgScore || 88) : kpis.avgScore || 88 }, `${kpis.avgScore || 88}%`)}
+                {t('childHome.avg_score', { p0: isBn ? toBnNum(kpis.avgScore || 88) : kpis.avgScore || 88 }, `${kpis.avgScore || 88}%`)}
               </CardTitle>
             </CardHeader>
           </Card>
