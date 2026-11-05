@@ -748,11 +748,13 @@ function SubjectsManager() {
     }
   }
 
-  async function unassign(subjectId: string) {
+  async function unassign(subjectIds: string[]) {
     if (!child?.id) return;
     setAssignError('');
     try {
-      await api.delete(`/subjects/children/${child.id}/subjects/${subjectId}`);
+      await Promise.all(subjectIds.map((subjectId) =>
+        api.delete(`/subjects/children/${child.id}/subjects/${subjectId}`)
+      ));
       loadAssigned(child.id);
     } catch (err: any) {
       const serverMsg = err?.response?.data?.error?.message;
@@ -779,6 +781,30 @@ function SubjectsManager() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  // The catalogue can contain the same subject for multiple grades or seed rows.
+  // Show one card per normalized name, while retaining every assigned record ID.
+  const subjectGroups = new Map<string, { subject: any; assignedIds: string[] }>();
+  const assignedIds = new Set(assigned.map((subject) => subject.id));
+  const normalizeName = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+  for (const subject of list) {
+    const key = normalizeName(subject.nameEn || subject.nameBn || subject.id || '');
+    const group = subjectGroups.get(key);
+    if (!group) {
+      subjectGroups.set(key, {
+        subject,
+        assignedIds: assignedIds.has(subject.id) ? [subject.id] : [],
+      });
+    } else {
+      if (assignedIds.has(subject.id) && !group.assignedIds.includes(subject.id)) {
+        group.assignedIds.push(subject.id);
+      }
+      // Prefer the child's grade when choosing which record to assign.
+      if (subject.grade === child?.grade && subject.curriculum === child?.curriculum) {
+        group.subject = subject;
+      }
     }
   }
 
@@ -812,11 +838,11 @@ function SubjectsManager() {
       {/* Scrollable Subject Box: 6 subjects visible on mobile (3 rows x 2 cols), rest scrollable within box */}
       <div className="max-h-[178px] sm:max-h-[235px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 overscroll-contain">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1 pb-1">
-          {list.map((s: any, i: number) => {
-            const isAssigned = assigned.some((x: any) => x.id === s.id);
+          {Array.from(subjectGroups, ([key, { subject: s, assignedIds }]) => {
+            const isAssigned = assignedIds.length > 0;
             return (
               <div
-                key={i}
+                key={key}
                 className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/20 text-xs hover:bg-muted/40 transition-colors h-[52px]"
               >
                 <div className="min-w-0 flex-1">
@@ -833,7 +859,7 @@ function SubjectsManager() {
                   )}
                   {child && (
                     <button
-                      onClick={() => (isAssigned ? unassign(s.id) : assign(s.id))}
+                      onClick={() => (isAssigned ? unassign(assignedIds) : assign(s.id))}
                       title={isAssigned ? t('children.text_8') : t('children.text_9')}
                       aria-label={isAssigned ? t('children.text_8') : t('children.text_9')}
                       className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-colors ${
