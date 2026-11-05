@@ -196,10 +196,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(newUser);
     const isChild = newUser.role === 'child';
     setIsChildMode(isChild);
+    setChildToken(isChild ? newToken : null);
 
     if (typeof window !== 'undefined') {
       localStorage.setItem('accessToken', newToken);
       localStorage.setItem('userRole', newUser.role);
+      if (isChild) localStorage.setItem('childToken', newToken);
+      else localStorage.removeItem('childToken');
       if (newRefreshToken) {
         localStorage.setItem('refreshToken', newRefreshToken);
       }
@@ -270,7 +273,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     fetchSubscription();
     api
-      .get('/auth/me')
+      .get('/auth/me', { headers: { Authorization: `Bearer ${storedChildToken || storedToken}` } })
       .then((r) => {
         const userData = r.data?.data;
         if (!userData) {
@@ -282,6 +285,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsChildMode(isChild);
 
         if (isChild) {
+          const sessionToken = localStorage.getItem('childToken') || localStorage.getItem('accessToken') || storedToken;
+          setChildToken(sessionToken);
+          localStorage.setItem('childToken', sessionToken);
           const selfChild: Child = {
             id: userData.childId || userData.id,
             name: userData.name || 'Student',
@@ -341,6 +347,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const newToken = res.data?.data?.accessToken;
         if (!newToken) return;
         setToken(newToken);
+        if (localStorage.getItem('childToken') === storedToken) {
+          setChildToken(newToken);
+          localStorage.setItem('childToken', newToken);
+        }
         localStorage.setItem('accessToken', newToken);
         if (res.data?.data?.refreshToken) {
           localStorage.setItem('refreshToken', res.data.data.refreshToken);

@@ -12,6 +12,7 @@ import { useAuth } from '@/components/auth/auth-context';
 import { useI18n, type Translator } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
+import { loadClassLogs, findClassLog } from '@/lib/class-logs';
 import { demoProfileOf, type DemoProfile } from '@/lib/child-scope';
 import {
   Calendar as CalendarIcon,
@@ -28,7 +29,6 @@ import {
   School,
   GraduationCap,
   Building2,
-  Check,
   UserCheck,
   ChevronDown,
   AlertCircle,
@@ -120,18 +120,6 @@ function formatFullDate(date: Date, isBn: boolean, t: Translator): string {
 }
 
 /**
- * The key that identifies one scheduled session.
- *
- * It must match the server's occurrence key — `(date, startTime)` — because the
- * server stores the completion under exactly that pair (it is the unique index
- * on `routine_completions`). Using a different key here would make the page
- * and the server disagree about what is completed.
- */
-function completionKey(date: string, startTime: string): string {
-  return `${date}_${startTime}`;
-}
-
-/**
  * The demo timetable for a child profile.
  *
  * Selected by the server-assigned `demoProfile` — the ids moved to UUIDs, so
@@ -187,7 +175,7 @@ export default function SchedulePage() {
 
   const [routines, setRoutines] = useState<any[]>([]);
   const [schedule, setSchedule] = useState<any>(null);
-  const [completedMap, setCompletedMap] = useState<Record<string, boolean>>({});
+  const [classLogs, setClassLogs] = useState<any[]>([]);
 
   /**
    * The locale is read through a ref rather than as an effect dependency.
@@ -217,8 +205,6 @@ export default function SchedulePage() {
 
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [weekOffset, setWeekOffset] = useState<number>(0);
-  const [autoAdvancedToTomorrow, setAutoAdvancedToTomorrow] = useState<boolean>(false);
-  const [hasUserManuallySelectedDate, setHasUserManuallySelectedDate] = useState<boolean>(false);
 
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -244,75 +230,6 @@ export default function SchedulePage() {
     newDate: tomorrowStr,
     newStartTime: '16:00',
   });
-
-  // Load completed items from localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        if (!childId) {
-          setCompletedMap({});
-          return;
-        }
-        const stored = localStorage.getItem(`ki_completed_schedule_${childId}`);
-        if (stored) {
-          setCompletedMap(JSON.parse(stored));
-        } else {
-          setCompletedMap({});
-        }
-      } catch {
-        setCompletedMap({});
-      }
-    }
-  }, [childId]);
-
-  // Save completed items to localStorage
-  const saveCompletedMap = (newMap: Record<string, boolean>) => {
-    setCompletedMap(newMap);
-    if (typeof window !== 'undefined' && childId) {
-      try {
-        localStorage.setItem(`ki_completed_schedule_${childId}`, JSON.stringify(newMap));
-      } catch {}
-    }
-  };
-
-  /**
-   * Load the completions the server knows about.
-   *
-   * The schedule page used to keep completions in `localStorage` only, so the
-   * server never learned which sessions a child actually finished and the
-   * parent's dashboard could not reflect it. The server is now the source of
-   * truth; `localStorage` is only a cache for the offline case.
-   */
-  const loadCompletions = useCallback(async () => {
-    if (!childId) {
-      setCompletedMap({});
-      return;
-    }
-    const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 60)
-      .toISOString()
-      .slice(0, 10);
-    const to = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 60)
-      .toISOString()
-      .slice(0, 10);
-
-    try {
-      const r = await api.get(`/children/${childId}/routines/completions?from=${from}&to=${to}`);
-      const rows: any[] = r.data?.data || [];
-      const map: Record<string, boolean> = {};
-      for (const row of rows) {
-        if (row.completed) map[completionKey(row.date, row.startTime)] = true;
-      }
-      setCompletedMap(map);
-      // Keep the offline cache in step with the server.
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(`ki_completed_schedule_${childId}`, JSON.stringify(map));
-        } catch {}
-      }
-    } catch {
-      // The server is unreachable — the `localStorage` cache stays in place.
-    }
-  }, [childId, today]);
 
   // Load routines from API
   const loadRoutines = useCallback(async () => {
@@ -362,13 +279,46 @@ export default function SchedulePage() {
   useEffect(() => {
     loadRoutines();
     loadSchedule();
-    loadCompletions();
-  }, [loadRoutines, loadSchedule, loadCompletions]);
+  }, [loadRoutines, loadSchedule]);
 
   // Compute 7 days for the current weekOffset
   const weekDates = useMemo(() => {
     return getWeekDates(weekOffset, today);
   }, [weekOffset, today]);
+
+  // Completion is read-only for parents and comes only from the child's saved log.
+  useEffect(() => {
+    let cancelled = false;
+    let requestId = 0;
+    setClassLogs([]);
+    if (!childId) return;
+    const from = formatDateKey(weekDates[0]);
+    const to = formatDateKey(weekDates[6]);
+    const refreshLogs = async () => {
+      const currentRequest = ++requestId;
+      try {
+        const logs = await loadClassLogs(childId, from, to);
+        if (!cancelled && currentRequest === requestId) setClassLogs(logs);
+      } catch {
+        if (!cancelled && currentRequest === requestId) {
+          setErrorMsg(tRef.current('schedule.logs_load_failed', 'Could not load class logs. Please refresh.'));
+        }
+      }
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshLogs();
+    };
+    void refreshLogs();
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    const interval = window.setInterval(refreshWhenVisible, 30000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.clearInterval(interval);
+    };
+  }, [childId, weekDates]);
 
   // Build occurrences for a given date from server schedule or local routines
   const getSessionsForDate = useCallback(
@@ -411,82 +361,13 @@ export default function SchedulePage() {
   );
 
   const isSessionCompleted = useCallback(
-    (session: any) => {
-      const key = completionKey(session.date, session.startTime);
-      return completedMap[key] === true || session.status === 'completed';
-    },
-    [completedMap]
+    (session: any) => !!findClassLog(classLogs, session.routineId, session.date),
+    [classLogs]
   );
-
-  const toggleSessionCompletion = async (session: any) => {
-    const key = completionKey(session.date, session.startTime);
-    const next = completedMap[key] !== true;
-    const optimistic = { ...completedMap, [key]: next };
-
-    // Optimistic update, reverted if the server rejects it.
-    saveCompletedMap(optimistic);
-
-    if (childId) {
-      try {
-        await api.post(`/children/${childId}/routines/completions`, {
-          date: session.date,
-          startTime: session.startTime,
-          routineId: session.routineId || null,
-          completed: next,
-        });
-      } catch {
-        // The server is the source of truth — put the checkbox back.
-        saveCompletedMap(completedMap);
-        setMsg(
-          t('schedule.text_19')
-        );
-        return;
-      }
-    }
-
-    // If toggling on today and this completes all of today's classes
-    if (session.date === todayStr && next) {
-      const todaySessions = getSessionsForDate(todayStr);
-      const isNowAllDone =
-        todaySessions.length > 0 &&
-        todaySessions.every(
-          (s) => optimistic[completionKey(s.date, s.startTime)] === true || s.status === 'completed'
-        );
-
-      if (isNowAllDone) {
-        setMsg(
-          t('schedule.all_of_today_s_schedule_is_now_complete_great_jo')
-        );
-      }
-    }
-  };
-
-  // Intelligent initialization on page load:
-  // "When page loaded it will show today's routine. After all schedule completed of a day, show tomorrow's routine."
-  useEffect(() => {
-    if (hasUserManuallySelectedDate) return;
-
-    const todaySessions = getSessionsForDate(todayStr);
-    if (todaySessions.length > 0) {
-      const allTodayCompleted = todaySessions.every((s) => isSessionCompleted(s));
-      if (allTodayCompleted) {
-        setSelectedDate(tomorrowStr);
-        setWeekOffset(getWeekOffsetForDate(parseDateKey(tomorrowStr), today));
-        setAutoAdvancedToTomorrow(true);
-        return;
-      }
-    }
-
-    // Default to today
-    setSelectedDate(todayStr);
-    setWeekOffset(0);
-    setAutoAdvancedToTomorrow(false);
-  }, [todayStr, tomorrowStr, getSessionsForDate, isSessionCompleted, hasUserManuallySelectedDate, today]);
 
   // Handle selecting any date from the slider or picker
   const handleSelectDate = (dateKey: string) => {
     setSelectedDate(dateKey);
-    setHasUserManuallySelectedDate(true);
     const offset = getWeekOffsetForDate(parseDateKey(dateKey), today);
     setWeekOffset(offset);
   };
@@ -494,7 +375,6 @@ export default function SchedulePage() {
   const goToToday = () => {
     setSelectedDate(todayStr);
     setWeekOffset(0);
-    setHasUserManuallySelectedDate(true);
   };
 
   const toggleWeekday = (idx: number) => {
@@ -952,7 +832,8 @@ export default function SchedulePage() {
           ) : (
             <div className="space-y-3">
               {selectedSessions.map((session: any, idx: number) => {
-                const isCompleted = isSessionCompleted(session);
+                const classLog = findClassLog(classLogs, session.routineId, session.date);
+                const isCompleted = !!classLog;
                 const isRescheduled = session.status === 'rescheduled';
 
                 return (
@@ -1044,21 +925,14 @@ export default function SchedulePage() {
                         </div>
                       </div>
 
-                      {/* Right: Actions (Mark Complete, Reschedule) */}
+                      {/* Parents review completion; only a saved class log completes a class. */}
                       <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-                        <Button
-                          size="sm"
-                          variant={isCompleted ? 'outline' : 'default'}
-                          onClick={() => toggleSessionCompletion(session)}
-                          className={`text-xs h-9 px-3.5 rounded-xl font-bold gap-1.5 transition-all ${
-                            isCompleted
-                              ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20'
-                              : 'bg-primary text-primary-foreground shadow-xs'
-                          }`}
-                        >
-                          <Check className={`w-3.5 h-3.5 stroke-[3] ${isCompleted ? 'text-emerald-600' : ''}`} />
-                          <span>{isCompleted ? (t('schedule.text_39')) : (t('schedule.text_40'))}</span>
-                        </Button>
+                        <Badge variant="outline" className={isCompleted
+                          ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10'
+                          : 'text-muted-foreground'}>
+                          {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 mr-1" />}
+                          {isCompleted ? (isBn ? 'সম্পন্ন' : 'Completed') : (isBn ? 'লগ অপেক্ষমাণ' : 'Awaiting log')}
+                        </Badge>
 
                         <Button
                           size="sm"
@@ -1072,6 +946,27 @@ export default function SchedulePage() {
                         </Button>
                       </div>
                     </div>
+                    {classLog && (
+                      <details className="border-t border-emerald-500/20 px-4 sm:px-5 py-3">
+                        <summary className="cursor-pointer text-xs font-semibold text-primary">
+                          {isBn ? 'ক্লাস লগ দেখুন' : 'View class log'}
+                        </summary>
+                        <div className="mt-3 space-y-3 text-sm">
+                          <p className="whitespace-pre-wrap break-words">{classLog.topicsText}</p>
+                          {classLog.homeworkAssigned && (
+                            <div className="rounded-xl bg-amber-500/10 p-3">
+                              <p className="font-semibold text-xs">{isBn ? 'হোমওয়ার্ক' : 'Homework'}</p>
+                              <p className="whitespace-pre-wrap break-words">{classLog.homeworkAssigned}</p>
+                            </div>
+                          )}
+                          {classLog.notes && <p className="whitespace-pre-wrap break-words">{classLog.notes}</p>}
+                          <p className="text-xs text-muted-foreground">
+                            {classLog.durationMin ?? 0} {isBn ? 'মিনিট' : 'minutes'}
+                            {classLog.confidence != null && ` • ${isBn ? 'আত্মবিশ্বাস' : 'Confidence'}: ${classLog.confidence}/5`}
+                          </p>
+                        </div>
+                      </details>
+                    )}
                   </Card>
                 );
               })}

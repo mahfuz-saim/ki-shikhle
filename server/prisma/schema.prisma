@@ -206,6 +206,12 @@ model LearningEntry {
   source           Source
   providerName     String?  @map("provider_name")
   date             DateTime @db.Date
+  subject          String?
+  subjectName      String?  @map("subject_name")
+  periodName       String?  @map("period_name")
+  homeworkAssigned String?  @map("homework_assigned")
+  keyConcepts      String[] @default([]) @map("key_concepts")
+  notes            String?
   topicsText       String   @map("topics_text")
   durationMin      Int?     @map("duration_min")
   confidence       Int?

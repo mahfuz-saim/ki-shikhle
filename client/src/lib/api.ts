@@ -149,6 +149,10 @@ api.interceptors.response.use(
 
         if (newAccessToken) {
           if (typeof window !== 'undefined') {
+            // Direct child logins use the same token in both slots. Rotate both.
+            if (localStorage.getItem('childToken') === localStorage.getItem('accessToken')) {
+              localStorage.setItem('childToken', newAccessToken);
+            }
             localStorage.setItem('accessToken', newAccessToken);
             if (newRefreshToken) {
               localStorage.setItem('refreshToken', newRefreshToken);

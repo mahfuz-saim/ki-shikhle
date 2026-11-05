@@ -14,6 +14,7 @@ import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
+import { schoolDate, loadClassLogs, findClassLog } from '@/lib/class-logs';
 import { StudyTimeChart } from '@/components/charts/study-time-chart';
 import {
   Calendar as CalendarIcon,
@@ -143,11 +144,10 @@ export default function KidSchedulePage() {
   // Selected Weekday (0=Sun .. 6=Sat) & Selected Date
   const today = new Date();
   const [selectedWeekday, setSelectedWeekday] = useState<number>(today.getDay());
-  const [selectedDate, setSelectedDate] = useState<string>(today.toISOString().slice(0, 10));
-  const [autoAdvancedToTomorrow, setAutoAdvancedToTomorrow] = useState<boolean>(false);
+  const [selectedDate, setSelectedDate] = useState<string>(schoolDate(today));
 
   // Category filter: 'all' | 'school' | 'tuition'
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'school' | 'tuition'>('school');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'school' | 'tuition'>('all');
 
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -285,10 +285,7 @@ export default function KidSchedulePage() {
       return;
     }
     try {
-      const [routinesRes, entriesRes] = await Promise.all([
-        api.get(`/children/${childId}/routines`).catch(() => ({ data: null })),
-        api.get(`/children/${childId}/entries`).catch(() => ({ data: null })),
-      ]);
+      const routinesRes = await api.get(`/children/${childId}/routines`);
 
       const routineList = unpackList(routinesRes?.data);
       if (routineList.length > 0) {
@@ -299,42 +296,12 @@ export default function KidSchedulePage() {
       } else {
         setRoutines([]);
       }
-
-      const entryList = unpackList(entriesRes?.data);
-      setEntries(entryList);
-
-      // If today's classes are all logged, auto-show tomorrow's routine
-      const todayKey = new Date().toISOString().slice(0, 10);
-      const todayDay = new Date().getDay();
-      const activeList = routineList.length > 0 ? routineList : [];
-      const todayClasses = activeList.filter((r: any) => parseWeekdays(r?.weekdays).includes(todayDay));
-      if (todayClasses.length > 0 && Array.isArray(entryList) && entryList.length > 0) {
-        const allTodayDone = todayClasses.every((r: any) => {
-          const rSub = safeString(r.subject || r.name).toLowerCase();
-          return entryList.some((e: any) => {
-            const ed = typeof e.date === 'string' ? e.date.slice(0, 10) : '';
-            if (ed !== todayKey) return false;
-            if (e.routineId && e.routineId === r.id) return true;
-            const es = safeString(e.subject || e.subjectName).toLowerCase();
-            return (
-              (es && rSub && (es.includes(rSub) || rSub.includes(es))) ||
-              (r.periodName && e.periodName === r.periodName)
-            );
-          });
-        });
-
-        if (allTodayDone) {
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          setSelectedWeekday(tomorrow.getDay());
-          setSelectedDate(tomorrow.toISOString().slice(0, 10));
-          setAutoAdvancedToTomorrow(true);
-        }
-      }
     } catch {
       if (isDemoChild) setDefaultRoutines();
-      else setRoutines([]);
-      setEntries([]);
+      else {
+        setRoutines([]);
+        setErrorMsg('Could not load class routines. Please refresh.');
+      }
     }
 
     // Load weekly study time
@@ -637,6 +604,25 @@ export default function KidSchedulePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [childId, isDemoChild, isCollegeTrack, isPrimaryTrack]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setEntries([]);
+    if (childId) {
+      loadClassLogs(childId, selectedDate)
+        .then((logs) => {
+          if (!cancelled) setEntries(logs);
+        })
+        .catch(() => {
+          if (!cancelled) setErrorMsg(isBn ? 'ক্লাস লগ লোড করা যায়নি।' : 'Could not load class logs.');
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+    // Locale changes do not need another request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childId, selectedDate]);
+
   // Speech Recognition initialization
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -720,7 +706,9 @@ export default function KidSchedulePage() {
   // Filter routines by selected weekday & category
   const routineList = Array.isArray(routines) ? routines : [];
   const filteredRoutines = routineList
-    .filter((r) => r && parseWeekdays(r?.weekdays).includes(selectedWeekday))
+    .filter((r) => r && r.active !== false && parseWeekdays(r.weekdays).includes(selectedWeekday))
+    .filter((r) => (!r.startsOn || String(r.startsOn).slice(0, 10) <= selectedDate)
+      && (!r.endsOn || String(r.endsOn).slice(0, 10) >= selectedDate))
     .filter((r) => {
       if (!r) return false;
       if (categoryFilter === 'school') {
@@ -737,30 +725,8 @@ export default function KidSchedulePage() {
     .sort((a, b) => safeString(a?.startTime || '00:00').localeCompare(safeString(b?.startTime || '00:00')));
 
   // Find if an entry exists for a routine on selectedDate
-  const findEntryForRoutine = (routine: any) => {
-    if (!routine || !Array.isArray(entries)) return null;
-    const routineSubjectLower = safeString(routine.subject || routine.name).toLowerCase();
-    return entries.find((e) => {
-      if (!e) return false;
-      let entryDateKey = '';
-      try {
-        if (typeof e.date === 'string') {
-          entryDateKey = e.date.slice(0, 10);
-        } else if (e.date) {
-          entryDateKey = new Date(e.date).toISOString().slice(0, 10);
-        }
-      } catch {
-        entryDateKey = '';
-      }
-      if (entryDateKey !== selectedDate) return false;
-      if (e.routineId && e.routineId === routine.id) return true;
-      const entrySubLower = safeString(e.subject || e.subjectName).toLowerCase();
-      return (
-        (entrySubLower && routineSubjectLower && (entrySubLower.includes(routineSubjectLower) || routineSubjectLower.includes(entrySubLower))) ||
-        (routine.periodName && e.periodName === routine.periodName)
-      );
-    });
-  };
+  const findEntryForRoutine = (routine: any) =>
+    findClassLog(entries, routine?.id, selectedDate);
 
   // Daily statistics for selected day
   const totalClassesToday = filteredRoutines.length;
@@ -901,7 +867,7 @@ export default function KidSchedulePage() {
   };
 
   // 1-Click Load Routine Templates
-  const handleApplyTemplate = (type: 'school_8' | 'school_5' | 'college_science' | 'college_commerce') => {
+  const handleApplyTemplate = async (type: 'school_8' | 'school_5' | 'college_science' | 'college_commerce') => {
     let newItems: any[] = [];
     if (type === 'school_8') {
       newItems = [
@@ -937,16 +903,27 @@ export default function KidSchedulePage() {
       ];
     }
 
-    const built = newItems.map((item, idx) => ({
-      id: 'tmpl-' + Date.now() + '-' + idx,
-      ...item,
-      startsOn: new Date().toISOString().slice(0, 10),
-    }));
-
-    setRoutines((prev) => (Array.isArray(prev) ? [...built, ...prev.filter((r) => r.source !== built[0].source)] : built));
-    setTemplateModalOpen(false);
-    setSuccessMsg(t('childSchedule.text_30'));
-    setTimeout(() => setSuccessMsg(''), 4000);
+    if (!childId || loading) return;
+    setLoading(true);
+    try {
+      const missingItems = newItems.filter((item) => !routines.some((routine) =>
+        routine.source === item.source && routine.startTime === item.startTime
+        && routine.subject === item.subject
+        && JSON.stringify([...parseWeekdays(routine.weekdays)].sort()) === JSON.stringify([...item.weekdays].sort())
+      ));
+      await Promise.all(missingItems.map((item) =>
+        api.post(`/children/${childId}/routines`, { ...item, startsOn: schoolDate() })
+      ));
+      await loadData();
+      setTemplateModalOpen(false);
+      setSuccessMsg(t('childSchedule.text_30'));
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (error: any) {
+      setErrorMsg(error?.response?.data?.error?.message || 'The routine template could not be saved.');
+      await loadData();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const selectedWeekdayObj = WEEKDAYS.find((w) => w.index === selectedWeekday) || WEEKDAYS[0];
@@ -1018,37 +995,6 @@ export default function KidSchedulePage() {
           </div>
         )}
 
-        {/* Auto-Tomorrow Notification Banner */}
-        {autoAdvancedToTomorrow && (
-          <div className="p-4 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 dark:text-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs sm:text-sm font-bold">
-                  {t('childSchedule.all_of_today_s_classes_have_been_logged_showing_')}
-                </p>
-                <p className="text-[11px] opacity-80 mt-0.5">
-                  {t('childSchedule.text_34')}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedWeekday(today.getDay());
-                setSelectedDate(today.toISOString().slice(0, 10));
-                setAutoAdvancedToTomorrow(false);
-              }}
-              className="h-8 text-xs font-bold border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-900 dark:text-emerald-100 shrink-0 rounded-xl"
-            >
-              {t('childSchedule.view_today_s_routine')}
-            </Button>
-          </div>
-        )}
-
         {/* ======================================================== */}
         {/* 2. Weekday Bar (Sun to Sat) with Quick Today Indicator */}
         {/* ======================================================== */}
@@ -1117,7 +1063,7 @@ export default function KidSchedulePage() {
                     type="button"
                     onClick={() => {
                       setSelectedWeekday(w.index);
-                      setSelectedDate(targetDate.toISOString().slice(0, 10));
+                      setSelectedDate(schoolDate(targetDate));
                     }}
                     className={`py-2 sm:py-3 px-0.5 sm:px-1 rounded-xl sm:rounded-2xl border text-center transition-all flex flex-col items-center justify-between relative group ${
                       isSelected
