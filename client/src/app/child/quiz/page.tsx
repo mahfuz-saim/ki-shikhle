@@ -19,7 +19,6 @@ import {
   Sparkles,
   Award,
   RotateCcw,
-  AlertTriangle,
   Star,
   Check,
   ArrowRight,
@@ -47,14 +46,13 @@ export default function ChildQuizHubPage() {
   const studentGrade = activeChild?.grade || (user as any)?.grade || (isFahim ? 'Class 11' : isTasnim ? 'Class 5' : 'Class 8');
 
   const [quizzes, setQuizzes] = useState<any[]>([]);
-  const [topics, setTopics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   /**
    * The locale is read through a ref instead of being an effect dependency.
    *
    * `isBn` used to sit in the dependency array, so toggling the UI language
-   * re-fired both dashboard requests. The locale only affects the *copy* of the
+   * re-fired the quiz request. The locale only affects the *copy* of the
    * demo fallback, so it is read at call time instead.
    */
   const isBnRef = useRef(isBn);
@@ -206,44 +204,8 @@ export default function ChildQuizHubPage() {
           },
         ];
 
-    const fallbackTopics = isFahim
-      ? {
-          weakest: [
-            { subject: isBnRef.current ? 'উচ্চতর গণিত ১ম পত্র (ম্যাট্রিক্স)' : 'Higher Math (Matrix)', accuracy: 68 },
-            { subject: isBnRef.current ? 'পদার্থবিজ্ঞান ১ম পত্র (ভেক্টর গুণন)' : 'Physics 1st (Vectors)', accuracy: 72 },
-          ],
-          strongest: [
-            { subject: isBnRef.current ? 'আইসিটি (সংখ্যা পদ্ধতি)' : 'ICT (Number Systems)', accuracy: 96 },
-            { subject: isBnRef.current ? 'রসায়ন ১ম পত্র (গুণগত রসায়ন)' : 'Chemistry 1st (Qualitative)', accuracy: 94 },
-          ],
-        }
-      : isTasnim
-      ? {
-          weakest: [
-            { subject: isBnRef.current ? 'প্রাথমিক বিজ্ঞান (জীবনের জন্য পানি)' : 'Science (Safe Water)', accuracy: 74 },
-            { subject: isBnRef.current ? 'প্রাথমিক গণিত (ভগ্নাংশ)' : 'Math (Fractions)', accuracy: 78 },
-          ],
-          strongest: [
-            { subject: isBnRef.current ? 'প্রাথমিক গণিত (লসাগু ও গসাগু)' : 'Math (LCM & HCF)', accuracy: 95 },
-            { subject: isBnRef.current ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS (Liberation War)', accuracy: 92 },
-          ],
-        }
-      : {
-          weakest: [
-            { subject: isBnRef.current ? 'সাধারণ গণিত (বীজগণিত ৪.১)' : 'Math (Algebra 4.1)', accuracy: 70 },
-            { subject: isBnRef.current ? 'ইংরেজি ১ম পত্র (Prepositions)' : 'English (Prepositions)', accuracy: 75 },
-          ],
-          strongest: [
-            { subject: isBnRef.current ? 'সাধারণ বিজ্ঞান (গতির সূত্র)' : 'Science (Motion Laws)', accuracy: 92 },
-            { subject: isBnRef.current ? 'বাংলা ১ম পত্র (কবিতা)' : 'Bangla 1st Paper', accuracy: 88 },
-          ],
-        };
-
-    Promise.all([
-      childId ? api.get(`/children/${childId}/quizzes`).catch(() => null) : Promise.resolve(null),
-      childId ? api.get(`/children/${childId}/dashboard/topics`).catch(() => null) : Promise.resolve(null),
-    ])
-      .then(([quizzesRes, topicsRes]) => {
+    (childId ? api.get(`/children/${childId}/quizzes`).catch(() => null) : Promise.resolve(null))
+      .then((quizzesRes) => {
         if (!isMounted) return;
 
         const rawQuizzes = quizzesRes?.data?.data;
@@ -270,17 +232,10 @@ export default function ChildQuizHubPage() {
           // The fallback list is the demo dataset — only for a demo child.
           setQuizzes(isDemoChild ? fallbackQuizzes : []);
         }
-
-        if (topicsRes?.data?.data && (topicsRes.data.data.weakest || topicsRes.data.data.strongest)) {
-          setTopics(topicsRes.data.data);
-        } else {
-          setTopics(isDemoChild ? fallbackTopics : null);
-        }
       })
       .catch(() => {
         if (!isMounted) return;
         setQuizzes(isDemoChild ? fallbackQuizzes : []);
-        setTopics(isDemoChild ? fallbackTopics : null);
       })
       .finally(() => {
         if (isMounted) setLoading(false);
@@ -624,96 +579,6 @@ export default function ChildQuizHubPage() {
               {pendingQuizzes.map(renderQuiz)}
             </div>
           )}
-        </div>
-
-        {/* ======================================================== */}
-        {/* 5. Topic Mastery & Needs Practice (Weakest / Strongest) */}
-        {/* ======================================================== */}
-        <div className="grid lg:grid-cols-2 gap-6 pt-2">
-          {/* Weakest Topics (Needs Practice) */}
-          <Card className="rounded-3xl border shadow-xs bg-card/60 backdrop-blur-sm">
-            <CardHeader className="p-4 sm:p-6 pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                <span>{t('childQuiz.text_33')}</span>
-              </CardTitle>
-              <CardDescription className="text-xs">
-                {t('childQuiz.text_34')}
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
-              {topics?.weakest && topics.weakest.length > 0 ? (
-                topics.weakest.map((w: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-2xl border border-amber-500/25 bg-amber-500/5 space-y-1.5"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-foreground">{w.subject}</span>
-                      <span className="font-extrabold text-amber-700 dark:text-amber-400">
-                        {t('childQuiz.accuracy', { p0: isBn ? toBnNum(w.accuracy) : w.accuracy }, `${w.accuracy}% Accuracy`)}
-                      </span>
-                    </div>
-                    <div className="w-full h-2 bg-amber-500/20 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                        style={{ width: `${w.accuracy}%` }}
-                      />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-muted-foreground p-3 text-center">
-                  {t('childQuiz.text_35')}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Strongest Topics (Mastered) */}
-          <Card className="rounded-3xl border shadow-xs bg-card/60 backdrop-blur-sm">
-            <CardHeader className="p-4 sm:p-6 pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                <span>{t('childQuiz.text_36')}</span>
-              </CardTitle>
-              <CardDescription className="text-xs">
-                {t('childQuiz.text_37')}
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
-              {topics?.strongest && topics.strongest.length > 0 ? (
-                topics.strongest.map((s: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 space-y-1.5"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-foreground">{s.subject}</span>
-                      <span className="font-extrabold text-emerald-700 dark:text-emerald-400">
-                        {/* `s.accuracy`, not `w.accuracy` — this is the *strongest* topics
-                            list, and `w` belongs to the weak-topics map above. It
-                            rendered `undefined%` before. */}
-                        {t('childQuiz.accuracy', { p0: isBn ? toBnNum(s.accuracy) : s.accuracy }, `${s.accuracy}% Accuracy`)}
-                      </span>
-                    </div>
-                    <div className="w-full h-2 bg-emerald-500/20 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                        style={{ width: `${s.accuracy}%` }}
-                      />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-muted-foreground p-3 text-center">
-                  {t('childQuiz.text_38')}
-                </p>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
         {/* ======================================================== */}

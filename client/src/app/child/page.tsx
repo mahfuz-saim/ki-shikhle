@@ -21,6 +21,8 @@ import {
   ArrowRight,
   Calendar,
   Sparkles,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 
 function toBnNum(num: number | string): string {
@@ -44,6 +46,7 @@ export default function KidDashboard() {
   const instInfo = getInstitutionInfo(institutionType, t);
 
   const [summary, setSummary] = useState<any>(null);
+  const [topics, setTopics] = useState<any>(null);
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [consistency, setConsistency] = useState<Record<string, number>>({});
   const [hasPendingLog, setHasPendingLog] = useState(true);
@@ -53,7 +56,7 @@ export default function KidDashboard() {
    * The locale is read through a ref instead of being an effect dependency.
    *
    * `isBn` used to be in the dependency array, so toggling the UI language
-   * re-fired all four dashboard requests. The locale only affects the *copy* of
+   * re-fired all five dashboard requests. The locale only affects the *copy* of
    * the demo fallback, so it is read at call time instead.
    */
   const isBnRef = useRef(isBn);
@@ -64,6 +67,7 @@ export default function KidDashboard() {
   useEffect(() => {
     let cancelled = false;
     setSummary(null);
+    setTopics(null);
     // No child to act for — there is nothing to load, and nothing to fake.
     if (!childId) {
       setQuizzes([]);
@@ -87,23 +91,6 @@ export default function KidDashboard() {
           : isTasnim
           ? { studyDays: 6, totalTime: 1080, streak: 6, quizzes: 6, avgScore: 95 }
           : { studyDays: 6, totalTime: 1350, streak: 6, quizzes: 5, avgScore: 88 },
-        recent: isFahim
-          ? [
-              { date: new Date().toISOString(), topicsText: 'Physics 1st Paper - Projectile Motion (প্রক্ষেপকের গাণিতিক সমাধান)', source: 'college' },
-              { date: new Date(Date.now() - 3600000 * 3).toISOString(), topicsText: 'Chemistry 1st Paper - Bohr Atomic Model & Quantum Numbers', source: 'college' },
-              { date: new Date(Date.now() - 3600000 * 6).toISOString(), topicsText: 'Physics Coaching - Advanced Trajectory Equations', source: 'tuition' },
-            ]
-          : isTasnim
-          ? [
-              { date: new Date().toISOString(), topicsText: 'Elementary Math - Factors & Multiples (লসাগু ও গসাগু নির্ণয়)', source: 'school' },
-              { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'Primary Science - Safe Drinking Water & Purification Steps', source: 'school' },
-              { date: new Date(Date.now() - 3600000 * 7).toISOString(), topicsText: 'Math Tutor - Word Problems on Bell Intervals', source: 'tuition' },
-            ]
-          : [
-              { date: new Date().toISOString(), topicsText: 'Mathematics - Algebraic Formulae (বর্গের সূত্রাবলী ও প্রয়োগ)', source: 'school' },
-              { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'General Science - 3 Equations of Motion & v-t Graphs', source: 'school' },
-              { date: new Date(Date.now() - 3600000 * 7).toISOString(), topicsText: 'Math Tuition - Value Finding with Rahim Sir', source: 'tuition' },
-            ],
       });
 
     // 1. Summary & KPIs
@@ -221,6 +208,53 @@ export default function KidDashboard() {
         else setConsistency({});
       });
 
+    // Topic mastery replaces the recent study-log feed on the dashboard.
+    const fallbackTopics = isFahim
+      ? {
+          weakest: [
+            { subject: isBnRef.current ? 'উচ্চতর গণিত ১ম পত্র (ম্যাট্রিক্স)' : 'Higher Math (Matrix)', accuracy: 68 },
+            { subject: isBnRef.current ? 'পদার্থবিজ্ঞান ১ম পত্র (ভেক্টর গুণন)' : 'Physics 1st (Vectors)', accuracy: 72 },
+          ],
+          strongest: [
+            { subject: isBnRef.current ? 'আইসিটি (সংখ্যা পদ্ধতি)' : 'ICT (Number Systems)', accuracy: 96 },
+            { subject: isBnRef.current ? 'রসায়ন ১ম পত্র (গুণগত রসায়ন)' : 'Chemistry 1st (Qualitative)', accuracy: 94 },
+          ],
+        }
+      : isTasnim
+      ? {
+          weakest: [
+            { subject: isBnRef.current ? 'প্রাথমিক বিজ্ঞান (জীবনের জন্য পানি)' : 'Science (Safe Water)', accuracy: 74 },
+            { subject: isBnRef.current ? 'প্রাথমিক গণিত (ভগ্নাংশ)' : 'Math (Fractions)', accuracy: 78 },
+          ],
+          strongest: [
+            { subject: isBnRef.current ? 'প্রাথমিক গণিত (লসাগু ও গসাগু)' : 'Math (LCM & HCF)', accuracy: 95 },
+            { subject: isBnRef.current ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS (Liberation War)', accuracy: 92 },
+          ],
+        }
+      : {
+          weakest: [
+            { subject: isBnRef.current ? 'সাধারণ গণিত (বীজগণিত ৪.১)' : 'Math (Algebra 4.1)', accuracy: 70 },
+            { subject: isBnRef.current ? 'ইংরেজি ১ম পত্র (Prepositions)' : 'English (Prepositions)', accuracy: 75 },
+          ],
+          strongest: [
+            { subject: isBnRef.current ? 'সাধারণ বিজ্ঞান (গতির সূত্র)' : 'Science (Motion Laws)', accuracy: 92 },
+            { subject: isBnRef.current ? 'বাংলা ১ম পত্র (কবিতা)' : 'Bangla 1st Paper', accuracy: 88 },
+          ],
+        };
+
+    api
+      .get(`/children/${childId}/dashboard/topics`)
+      .then((response) => {
+        if (cancelled) return;
+        const result = response.data?.data;
+        setTopics(result && (result.weakest || result.strongest)
+          ? result
+          : isDemoChild ? fallbackTopics : null);
+      })
+      .catch(() => {
+        if (!cancelled) setTopics(isDemoChild ? fallbackTopics : null);
+      });
+
     // 4. Check if today's class logs are pending
     api
       .get(`/children/${childId}/entries`)
@@ -249,7 +283,7 @@ export default function KidDashboard() {
       cancelled = true;
     };
     // `isBn` is deliberately NOT a dependency — it is read through `isBnRef` at
-    // call time. Including it re-fired all four requests on every locale toggle.
+    // call time. Including it re-fired all five requests on every locale toggle.
   }, [childId, isTasnim, isFahim, isDemoChild]);
 
   // Preserve legitimate zero values and quiz-only activity; missing KPIs are zero.
@@ -476,67 +510,92 @@ export default function KidDashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Learning Activity Feed */}
-        <Card className="rounded-3xl border shadow-sm">
-          <CardHeader className="p-4 sm:p-6 pb-3">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-primary" />
-                <span>{t('childHome.text_20')}</span>
+        {/* ======================================================== */}
+        {/* 5. Topic Mastery & Needs Practice (Weakest / Strongest) */}
+        {/* ======================================================== */}
+        <div className="grid lg:grid-cols-2 gap-6 pt-2">
+          {/* Weakest Topics (Needs Practice) */}
+          <Card className="rounded-3xl border shadow-xs bg-card/60 backdrop-blur-sm">
+            <CardHeader className="p-4 sm:p-6 pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <span>{t('childQuiz.text_33')}</span>
               </CardTitle>
-              <Link href="/child/schedule" className="text-xs text-primary hover:underline font-semibold flex items-center gap-1">
-                <span>{t('childHome.text_21')}</span>
-                <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-            <CardDescription className="text-xs">
-              {t('childHome.text_22')}
-            </CardDescription>
-          </CardHeader>
+              <CardDescription className="text-xs">
+                {t('childQuiz.text_34')}
+              </CardDescription>
+            </CardHeader>
 
-          <CardContent className="p-4 sm:p-6 pt-0">
-            <div className="space-y-2.5">
-              {summary?.recent?.slice(0, 4).map((r: any, idx: number) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between gap-2.5 p-3 rounded-2xl border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors min-w-0"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 text-xs font-bold">
-                      <BookOpen className="w-4 h-4" />
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
+              {topics?.weakest && topics.weakest.length > 0 ? (
+                topics.weakest.map((w: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-2xl border border-amber-500/25 bg-amber-500/5 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-foreground">{w.subject}</span>
+                      <span className="font-extrabold text-amber-700 dark:text-amber-400">
+                        {t('childQuiz.accuracy', { p0: isBn ? toBnNum(w.accuracy) : w.accuracy }, `${w.accuracy}% Accuracy`)}
+                      </span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-foreground truncate">
-                        {r.topicsText || r.topic}
-                      </p>
-                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
-                        <span className="capitalize font-semibold text-primary/80">
-                          {r.source === 'tuition'
-                            ? (t('childHome.text_23'))
-                            : r.source === 'college'
-                            ? (t('childHome.text_24'))
-                            : r.source === 'school'
-                            ? (t('childHome.text_25'))
-                            : (t('childHome.text_26'))}
-                        </span>
-                        <span>•</span>
-                        <span>
-                          {isBn
-                            ? toBnNum(new Date(r.date).toLocaleDateString())
-                            : new Date(r.date).toLocaleDateString()}
-                        </span>
-                      </div>
+                    <div className="w-full h-2 bg-amber-500/20 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                        style={{ width: `${w.accuracy}%` }}
+                      />
                     </div>
                   </div>
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground p-3 text-center">
+                  {t('childQuiz.text_35')}
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
-                  <Badge variant="outline" className="text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10 shrink-0 font-bold">
-                    ✓ {t('childHome.text_27')}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+          {/* Strongest Topics (Mastered) */}
+          <Card className="rounded-3xl border shadow-xs bg-card/60 backdrop-blur-sm">
+            <CardHeader className="p-4 sm:p-6 pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span>{t('childQuiz.text_36')}</span>
+              </CardTitle>
+              <CardDescription className="text-xs">
+                {t('childQuiz.text_37')}
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
+              {topics?.strongest && topics.strongest.length > 0 ? (
+                topics.strongest.map((s: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-foreground">{s.subject}</span>
+                      <span className="font-extrabold text-emerald-700 dark:text-emerald-400">
+                        {t('childQuiz.accuracy', { p0: isBn ? toBnNum(s.accuracy) : s.accuracy }, `${s.accuracy}% Accuracy`)}
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-emerald-500/20 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                        style={{ width: `${s.accuracy}%` }}
+                      />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground p-3 text-center">
+                  {t('childQuiz.text_38')}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </KidShell>
   );
