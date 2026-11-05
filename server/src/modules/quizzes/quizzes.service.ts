@@ -451,8 +451,21 @@ function normalizeQuizJson(raw: any): any {
   return { questions: normalized };
 }
 
-function hashRequest(digests: string, settings: any) {
-  return sha256Hex(digests + JSON.stringify(settings));
+/**
+ * The cache key for a generated quiz.
+ *
+ * The key MUST include the account and the child. It used to be a hash of the
+ * digests and the settings alone — and the digests are empty for a child with no
+ * notes, so **every** account with the same settings hashed to the same key. The
+ * second account to generate a quiz therefore received the *first account's* quiz
+ * object, complete with its id and questions, and that quiz was not in its own
+ * child's quiz list: the id 404'd and the list looked empty.
+ *
+ * That is a cross-tenant leak as well as a bug — the cached object carries the
+ * generating account's `createdBy` and its child's id.
+ */
+function hashRequest(ownerId: string, childId: string, digests: string, settings: any) {
+  return sha256Hex(`${ownerId}::${childId}::${digests}::${JSON.stringify(settings)}`);
 }
 
 export async function generateQuiz(actor: Actor, childId: string, input: any, createdBy: string) {
@@ -475,7 +488,7 @@ export async function generateQuiz(actor: Actor, childId: string, input: any, cr
   const settings = { numQuestions: Number(input.numQuestions||10), difficulty: input.difficulty||'mixed', types: input.types||['mcq','true_false'], language: input.language||'en', timeLimitMin: input.timeLimitMin };
 
   // Cache check (short window 5 min)
-  const cacheKey = hashRequest(digestText, settings);
+  const cacheKey = hashRequest(actor.ownerId, childId, digestText, settings);
   const cached = quizCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
     console.log('[Quiz Cache] hit', cacheKey.slice(0,8));

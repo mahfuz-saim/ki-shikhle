@@ -119,6 +119,24 @@ export async function cleanupTenants(...tenants: Tenant[]): Promise<void> {
   const ids = tenants.map((t) => t.parentId).filter(Boolean);
   if (!ids.length) return;
 
+  // A quiz references its generator through `quizzes.createdBy`, and that column is
+  // `RESTRICT` — so the quiz rows have to go before the parent row does. Attempts,
+  // answers and explanations reference the quiz, and the quiz references the child.
+  const childIds = tenants.map((t) => t.childId).filter(Boolean);
+  const quizIds = (
+    await prisma.quiz.findMany({
+      where: { OR: [{ childId: { in: childIds } }, { createdBy: { in: ids } }] },
+      select: { id: true },
+    })
+  ).map((q: { id: string }) => q.id);
+
+  if (quizIds.length) {
+    await prisma.quizAnswer.deleteMany({ where: { attempt: { quizId: { in: quizIds } } } });
+    await prisma.quizAttempt.deleteMany({ where: { quizId: { in: quizIds } } });
+    await prisma.quizQuestion.deleteMany({ where: { quizId: { in: quizIds } } });
+    await prisma.quiz.deleteMany({ where: { id: { in: quizIds } } });
+  }
+
   // Subscriptions cascade from the user, and children cascade from the parent, but the
   // child-role `users` rows have to be removed by their own email.
   await prisma.user.deleteMany({ where: { email: { in: tenants.map((t) => t.childEmail) } } });
