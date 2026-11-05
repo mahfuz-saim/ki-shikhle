@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/components/auth/auth-context';
+import { useRouteGuard } from '@/components/auth/route-guard';
 import { useI18n } from '@/lib/i18n-context';
+import { demoProfileOf } from '@/lib/child-scope';
+import { api } from '@/lib/api';
 import {
   LayoutDashboard,
   BookOpen,
@@ -29,24 +32,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageShellSkeleton } from '@/components/ui/skeleton';
 
-export function KidShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { user, token, loading, activeChild, setActiveChild, childrenList, logout } = useAuth();
-  const { locale, toggleLocale, isBn, t } = useI18n();
-  const { theme, setTheme } = useTheme();
-
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-
-  const notifRef = useRef<HTMLDivElement>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-
-  const isParent = user?.role === 'parent';
-  const childId = activeChild?.id || (user as any)?.childId || user?.id || 'demo-child-1';
-  const isTasnim = childId === 'demo-child-2' || user?.email?.includes('tasnim') || activeChild?.name?.includes('Tasnim');
-
-  const [notifications, setNotifications] = useState([
+/**
+ * The demo tenant's kid-shell notification cards. Shown only when the server
+ * returned nothing AND the signed-in child belongs to the demo tenant.
+ */
+function buildDemoKidNotifications(isTasnim: boolean, isBn: boolean) {
+  return [
     {
       id: 'kn-1',
       type: 'new_quiz',
@@ -86,15 +77,110 @@ export function KidShell({ children }: { children: React.ReactNode }) {
       read: true,
       time: isBn ? 'গতকাল' : 'Yesterday',
     },
-  ]);
+  ];
+}
 
+export function KidShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, token, loading, activeChild, setActiveChild, childrenList, logout } = useAuth();
+  const { locale, toggleLocale, isBn, t } = useI18n();
+  const { theme, setTheme } = useTheme();
+
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const notifRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const isParent = user?.role === 'parent';
+  // A parent's own `user.id` is NOT a child id, and the demo ids moved to
+  // UUIDs — so neither fallback may be used here.
+  const childId = activeChild?.id || (user as any)?.childId || null;
+  const demoProfile = demoProfileOf(activeChild) || demoProfileOf({ demoProfile: (user as any)?.demoProfile });
+  const isTasnim = demoProfile === 'tasnim';
+  const isDemoChild = demoProfile !== null;
+
+  /**
+   * Notifications come from the server. The old code rendered three hardcoded
+   * demo cards for *every* child, so a brand-new student saw "Rahim's 5-day
+   * streak" before they had logged anything. The fixture is now shown only to
+   * the demo tenant, and only when the server has nothing to say.
+   */
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
+
+  /**
+   * The locale is read through a ref rather than as a dependency.
+   *
+   * `isBn` was in the `useCallback` dependency list, which made the callback a
+   * new identity on every locale toggle — and because the effect depends on the
+   * callback, that re-fetched `/notifications` each time the user switched
+   * language. The locale only affects the *copy* of a notification, so it is
+   * read at call time.
+   */
+  const isBnRef = useRef(isBn);
+  useEffect(() => {
+    isBnRef.current = isBn;
+  }, [isBn]);
+
+  const loadNotifications = useCallback(async () => {
+    setNotificationsLoading(true);
+    const bn = isBnRef.current;
+    try {
+      const res = await api.get('/notifications');
+      const data = res.data?.data;
+      if (Array.isArray(data) && data.length > 0) {
+        setNotifications(
+          data.map((n: any) => ({
+            id: n.id,
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            link: n.link || '/child',
+            actionText: bn ? 'দেখুন' : 'View',
+            icon: n.type === 'quiz_completed' || n.type === 'results_ready' ? 'quiz' : 'log',
+            read: !!n.readAt,
+            time: n.createdAt
+              ? new Date(n.createdAt).toLocaleString(bn ? 'bn-BD' : 'en-US')
+              : '',
+          }))
+        );
+        setNotificationsLoading(false);
+        return;
+      }
+    } catch {
+      // fall through to the fixture / empty state
+    }
+    setNotifications(isDemoChild ? buildDemoKidNotifications(isTasnim, bn) : []);
+    setNotificationsLoading(false);
+  }, [isDemoChild, isTasnim]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
+    // Persist first, then update the UI. The old code only flipped a local
+    // flag, so the unread badge came back on the next page load.
+    try {
+      await api.post('/notifications/read-all');
+    } catch {
+      // ignore — the UI still reflects the local state
+    }
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const markOneRead = (id: string) => {
+  const markOneRead = async (id: string) => {
+    // The demo fixture ids do not exist on the server.
+    if (!id.startsWith('kn-')) {
+      try {
+        await api.post(`/notifications/${id}/read`);
+      } catch {
+        // ignore — the UI still reflects the local state
+      }
+    }
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
@@ -137,6 +223,16 @@ export function KidShell({ children }: { children: React.ReactNode }) {
     }
   }, [loading, token, user, router]);
 
+  /**
+   * The child portal serves the child **and** a parent previewing that child.
+   *
+   * A parent may legitimately open `/child` to look at what their child sees, so
+   * `parent` is allowed here. A signed-out visitor is sent to sign in.
+   */
+  const { allowed: guardAllowed, resolving: guardResolving } = useRouteGuard({
+    allow: ['child', 'parent'],
+  });
+
   const handleLogoutOrExit = () => {
     if (isParent) {
       router.push('/dashboard');
@@ -148,7 +244,9 @@ export function KidShell({ children }: { children: React.ReactNode }) {
   // Loading state rendered inline via PageShellSkeleton inside main, avoiding full-screen layout unmount
 
   const studentName = activeChild?.name || user?.name || (isBn ? 'শিক্ষার্থী' : 'Student');
-  const gradeLabel = activeChild?.grade || (user as any)?.grade || (isTasnim ? 'Class 5' : 'Class 8');
+  // No hardcoded grade either — a student with no grade record shows a dash
+  // instead of somebody else's class.
+  const gradeLabel = activeChild?.grade || (user as any)?.grade || '—';
 
   const kidNavItems = [
     {
@@ -328,15 +426,17 @@ export function KidShell({ children }: { children: React.ReactNode }) {
               />
             </Link>
 
-            {/* Student Streak Badge */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-              <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-              <span>
-                {isBn
-                  ? (isTasnim ? '৬ দিনের স্ট্রিক!' : '৫ দিনের স্ট্রিক!')
-                  : (isTasnim ? '6-Day Streak!' : '5-Day Streak!')}
-              </span>
-            </div>
+            {/* Student Streak Badge — only the demo tenant has a curated streak */}
+            {isDemoChild && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <span>
+                  {isBn
+                    ? (isTasnim ? '৬ দিনের স্ট্রিক!' : '৫ দিনের স্ট্রিক!')
+                    : (isTasnim ? '6-Day Streak!' : '5-Day Streak!')}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Right Section: Actions & Controls */}
@@ -394,7 +494,16 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                   </div>
 
                   <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-0.5">
-                    {notifications.map((n) => (
+                    {notificationsLoading ? (
+                      <div className="p-4 text-center text-xs text-muted-foreground">
+                        {isBn ? 'লোড হচ্ছে…' : 'Loading…'}
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-muted-foreground">
+                        {isBn ? 'কোনো নোটিফিকেশন নেই' : 'No notifications'}
+                      </div>
+                    ) : null}
+                    {!notificationsLoading && notifications.map((n) => (
                       <div
                         key={n.id}
                         className={`p-2.5 rounded-xl border text-xs transition-all ${
@@ -647,7 +756,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
 
         {/* Page Content Container (matching AppShell main container layout) */}
         <main className="flex-1 pb-20 md:pb-8 pt-4 px-4 sm:px-6 md:px-8 max-w-7xl w-full mx-auto page-fade">
-          {loading ? <PageShellSkeleton /> : children}
+          {loading || guardResolving || !guardAllowed ? <PageShellSkeleton /> : children}
         </main>
 
         {/* Mobile Bottom Navigation (Visible on mobile screens < md, matching parent bottom nav) */}

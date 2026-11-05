@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AppShell } from '@/components/layout/app-shell';
+import { AdminShell } from '@/components/layout/admin-shell';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import {
@@ -19,74 +19,64 @@ import {
 
 export default function AdminPage() {
   const { isBn } = useI18n();
+
+  const toBnNum = (n: number | string) => {
+    if (!isBn) return String(n ?? 0);
+    const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    return String(n ?? 0).replace(/\d/g, (d) => bnDigits[parseInt(d, 10)]);
+  };
+
   const [metrics, setMetrics] = useState<any>(null);
   const [usage, setUsage] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api
-      .get('/admin/metrics')
-      .then((r) => setMetrics(r.data.data))
-      .catch(() =>
-        setMetrics({
-          signups: 64,
-          trials: 28,
-          paid: 18,
-          conversion: 32,
-          mrr: 5382,
-          aiCostTotal: 4.85,
-          aiCalls: 184,
-        })
-      );
+    let cancelled = false;
+    setLoading(true);
+    setLoadError('');
 
-    api
-      .get('/admin/ai-usage')
-      .then((r) => setUsage(r.data.data))
-      .catch(() =>
-        setUsage({
-          data: [
-            {
-              feature: 'quiz_generate',
-              model: 'claude-3-5-haiku-latest',
-              inputTokens: 1240,
-              outputTokens: 760,
-              costEst: 0.0038,
-              cacheHit: true,
-            },
-            {
-              feature: 'parent_explanation',
-              model: 'claude-sonnet-4-20250514',
-              inputTokens: 850,
-              outputTokens: 620,
-              costEst: 0.0125,
-              cacheHit: false,
-            },
-          ],
-          total: 2,
-        })
-      );
+    /**
+     * The old code substituted a full set of **fabricated** numbers (64 signups,
+     * 28 trials, 18 paid, ৳5382 MRR, two fake AI usage rows, two fake users) on
+     * every failed request. An admin reading that screen would believe the
+     * platform had 64 signups when the request had simply failed. Now a failure
+     * is reported as a failure.
+     */
+    Promise.allSettled([
+      api.get('/admin/metrics'),
+      api.get('/admin/ai-usage'),
+      api.get('/admin/users'),
+    ])
+      .then(([m, u, us]) => {
+        if (cancelled) return;
+        if (m.status === 'fulfilled') setMetrics(m.value.data.data);
+        if (u.status === 'fulfilled') setUsage(u.value.data.data);
+        if (us.status === 'fulfilled') setUsers(us.value.data.data || []);
 
-    api
-      .get('/admin/users')
-      .then((r) => setUsers(r.data.data))
-      .catch(() =>
-        setUsers([
-          {
-            id: 'u1',
-            email: 'parent.dhaka@example.com',
-            name: 'Nasrin Sultana',
-            trialEndsAt: new Date(Date.now() + 5 * 86400000).toISOString(),
-          },
-          {
-            id: 'u2',
-            email: 'kamal.hossain@example.com',
-            name: 'Kamal Hossain',
-            trialEndsAt: new Date(Date.now() + 2 * 86400000).toISOString(),
-          },
-        ])
-      );
+        const failures = [m, u, us].filter((r) => r.status === 'rejected');
+        if (failures.length > 0) {
+          const first: any = (failures[0] as any).reason;
+          setLoadError(
+            first?.response?.data?.error?.message ||
+              (isBn
+                ? 'কিছু অ্যাডমিন ডেটা লোড করা যায়নি।'
+                : 'Some admin data could not be loaded.')
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   const handleExtendTrial = async (userId: string) => {
     try {
@@ -102,13 +92,16 @@ export default function AdminPage() {
             : u
         )
       );
-    } catch {
-      setMsg(`Trial extended by 7 days (demo).`);
+    } catch (err: any) {
+      // The old code reported "Trial extended by 7 days (demo)." on failure —
+      // i.e. a success message for a request that never happened.
+      const serverMsg = err?.response?.data?.error?.message;
+      setMsg(serverMsg || 'Could not extend the trial.');
     }
   };
 
   return (
-    <AppShell>
+    <AdminShell>
       <div className="space-y-6 w-full">
         {/* Header */}
         <div className="pb-2 border-b">
@@ -132,6 +125,15 @@ export default function AdminPage() {
           </div>
         )}
 
+        {loadError && (
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs font-semibold flex items-center justify-between gap-3">
+            <span>{loadError}</span>
+            <button onClick={() => setLoadError('')} className="underline text-[11px]">
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Top SaaS Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="rounded-2xl border p-4 bg-card/60 backdrop-blur shadow-sm">
@@ -139,7 +141,7 @@ export default function AdminPage() {
               Total Signups
             </p>
             <p className="text-2xl sm:text-3xl font-extrabold text-foreground mt-1">
-              {metrics?.signups || 64}
+              {metrics ? toBnNum(metrics.signups) : '—'}
             </p>
           </Card>
 
@@ -148,7 +150,7 @@ export default function AdminPage() {
               Free Plan Users
             </p>
             <p className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">
-              {metrics?.trials || 28}
+              {metrics ? toBnNum(metrics.trials) : '—'}
             </p>
           </Card>
 
@@ -157,19 +159,21 @@ export default function AdminPage() {
               Paid Subscribers
             </p>
             <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-              {metrics?.paid || 18}{' '}
-              <span className="text-xs font-normal text-muted-foreground">
-                ({metrics?.conversion || 32}% conv)
-              </span>
+              {metrics ? toBnNum(metrics.paid) : '—'}{' '}
+              {metrics && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({toBnNum(metrics.conversion)}% conv)
+                </span>
+              )}
             </p>
           </Card>
 
           <Card className="rounded-2xl border p-4 bg-card/60 backdrop-blur shadow-sm">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              MRR (Demo)
+              MRR
             </p>
             <p className="text-2xl sm:text-3xl font-extrabold text-foreground mt-1">
-              ৳{metrics?.mrr || 5382}
+              {metrics ? `৳${toBnNum(metrics.mrr)}` : '—'}
             </p>
           </Card>
         </div>
@@ -266,6 +270,6 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
-    </AppShell>
+    </AdminShell>
   );
 }

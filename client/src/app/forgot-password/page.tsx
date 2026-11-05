@@ -24,7 +24,12 @@ export default function ForgotPage() {
       const r = await api.post('/auth/forgot-password', { email });
       setMsg(r.data?.data?.message || 'Password reset link sent to your email.');
     } catch (e: any) {
-      setMsg('If an account exists with this email, a reset link has been dispatched.');
+      // The old code swallowed the failure and showed the success copy, so a
+      // broken request looked identical to a dispatched reset email.
+      const serverMsg = e?.response?.data?.error?.message;
+      setErr(
+        serverMsg || 'Could not send the password reset link. Please try again.'
+      );
     } finally {
       setLoading(false);
     }

@@ -43,57 +43,23 @@ export default function LoginPage() {
       }
       router.push('/dashboard');
     } catch (err: any) {
+      // Show the real error. This used to have a catch-all that logged the visitor in as
+      // the demo parent (or as a demo child, picked by substring-matching their email)
+      // on ANY failure — including a typo'd password and including the API being down.
+      // So a wrong password "worked", and every account could reach the demo family.
       const serverMsg = err.response?.data?.error?.message;
-      if (err.response?.status === 401 && serverMsg) {
+      if (serverMsg) {
         setError(serverMsg);
-        setLoading(false);
-        return;
-      }
-
-      // Offline dev fallback
-      const normEmail = email.trim().toLowerCase();
-      if (normEmail.includes('tasnim')) {
-        login('demo-child-token-tasnim', {
-          id: 'demo-child-2',
-          name: 'Tasnim Islam',
-          email: normEmail,
-          role: 'child',
-          childId: 'demo-child-2',
-          grade: 'Class 5',
-          curriculum: 'NCTB',
-        });
-        router.push('/child');
-      } else if (normEmail.includes('fahim')) {
-        login('demo-child-token-fahim', {
-          id: 'demo-child-3',
-          name: 'Fahim Islam',
-          email: normEmail,
-          role: 'child',
-          childId: 'demo-child-3',
-          grade: 'Class 11',
-          curriculum: 'NCTB',
-        });
-        router.push('/child');
-      } else if (normEmail.includes('rahim') || normEmail.includes('student')) {
-        login('demo-child-token-rahim', {
-          id: 'demo-child-1',
-          name: 'Rahim Ahmed',
-          email: normEmail,
-          role: 'child',
-          childId: 'demo-child-1',
-          grade: 'Class 8',
-          curriculum: 'NCTB',
-        });
-        router.push('/child');
+      } else if (err.response?.status === 401) {
+        setError(isBn ? 'ইমেইল অথবা পাসওয়ার্ড সঠিক নয়' : 'Incorrect email or password');
+      } else if (err.request) {
+        setError(
+          isBn
+            ? 'সার্ভারে পৌঁছানো যায়নি। অনুগ্রহ করে ইন্টারনেট সংযোগ পরীক্ষা করুন।'
+            : 'Could not reach the server. Please check your connection and try again.'
+        );
       } else {
-        login('demo-parent-token', {
-          id: 'parent-demo',
-          name: 'Rafiqul Islam',
-          email: normEmail,
-          role: 'parent',
-          trialEndsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
-        });
-        router.push('/dashboard');
+        setError(isBn ? 'লগইন করা যায়নি। আবার চেষ্টা করুন।' : 'Could not sign in. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -165,8 +131,11 @@ export default function LoginPage() {
           <CardContent className="space-y-4 pt-2">
             <form onSubmit={onSubmit} className="space-y-3.5">
               <div>
-                <Label className="text-xs font-semibold">{isBn ? 'ইমেইল অ্যাড্রেস' : 'Email Address'}</Label>
+                <Label htmlFor="login-email" className="text-xs font-semibold">
+                  {isBn ? 'ইমেইল অ্যাড্রেস' : 'Email Address'}
+                </Label>
                 <Input
+                  id="login-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -178,13 +147,16 @@ export default function LoginPage() {
 
               <div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold">{isBn ? 'পাসওয়ার্ড' : 'Password'}</Label>
+                  <Label htmlFor="login-password" className="text-xs font-semibold">
+                    {isBn ? 'পাসওয়ার্ড' : 'Password'}
+                  </Label>
                   <Link href="/forgot-password" className="text-[11px] text-primary hover:underline">
                     {isBn ? 'পাসওয়ার্ড ভুলে গেছেন?' : 'Forgot password?'}
                   </Link>
                 </div>
                 <div className="relative mt-1">
                   <Input
+                    id="login-password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

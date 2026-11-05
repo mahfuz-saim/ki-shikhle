@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
+import { demoProfileOf, type DemoProfile } from '@/lib/child-scope';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -109,8 +110,25 @@ function formatFullDate(date: Date, isBn: boolean): string {
     : `${dayName}, ${monthName} ${dateNum}, ${yearNum}`;
 }
 
-function getDefaultRoutines(childId: string, isBn: boolean) {
-  if (childId === 'demo-child-2') {
+/**
+ * The key that identifies one scheduled session.
+ *
+ * It must match the server's occurrence key — `(date, startTime)` — because the
+ * server stores the completion under exactly that pair (it is the unique index
+ * on `routine_completions`). Using a different key here would make the page
+ * and the server disagree about what is completed.
+ */
+function completionKey(date: string, startTime: string): string {
+  return `${date}_${startTime}`;
+}
+
+/**
+ * The demo routine fixtures. Selected by the server-assigned `demoProfile` —
+ * the ids moved to UUIDs, so `childId === 'demo-child-2'` never matched and
+ * every demo child saw Rahim's timetable.
+ */
+function getDefaultRoutines(profile: DemoProfile | null, isBn: boolean) {
+  if (profile === 'tasnim') {
     return [
       { id: 'r-t-p1', name: isBn ? '১ম পিরিয়ড: প্রাথমিক বাংলা' : '1st Period: Primary Bangla', periodName: '১ম পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:30', durationMin: 45, subject: 'Bangla', teacher: 'ফরিদা ইয়াসমিন ম্যাডাম' },
       { id: 'r-t-p2', name: isBn ? '২য় পিরিয়ড: প্রাথমিক ইংরেজি' : '2nd Period: Primary English', periodName: '২য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:15', durationMin: 45, subject: 'English', teacher: 'সায়মা সুলতানা ম্যাডাম' },
@@ -120,7 +138,7 @@ function getDefaultRoutines(childId: string, isBn: boolean) {
       { id: 'r-t3', name: isBn ? 'সন্ধ্যায় হোমওয়ার্ক ও সেলফ স্টাডি' : 'Evening Homework & Self-Study', periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '18:30', durationMin: 75, subject: 'Self-Study' },
     ];
   }
-  if (childId === 'demo-child-3') {
+  if (profile === 'fahim') {
     return [
       { id: 'r-f-c1', name: isBn ? '১ম পিরিয়ড: পদার্থবিজ্ঞান ১ম পত্র' : '1st Period: Physics 1st Paper', periodName: '১ম পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '08:30', durationMin: 50, subject: 'Physics', teacher: 'ড. মাহবুব স্যার' },
       { id: 'r-f-c2', name: isBn ? '২য় পিরিয়ড: রসায়ন ১ম পত্র' : '2nd Period: Chemistry 1st Paper', periodName: '২য় পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '09:20', durationMin: 50, subject: 'Chemistry', teacher: 'তাহমিনা ম্যাডাম' },
@@ -144,14 +162,30 @@ export default function SchedulePage() {
   const { activeChild, setActiveChild, childrenList } = useAuth();
   const { t, isBn } = useI18n();
 
-  const childId = activeChild?.id || childrenList[0]?.id || 'demo-child-1';
-  const currentChild = childrenList.find((c) => c.id === childId) || activeChild || childrenList[0];
+  // No hardcoded fallback id: an account with no children gets no child, and
+  // the page renders its empty state instead of the demo tenant's data.
+  const childId = activeChild?.id || childrenList[0]?.id || null;
+  const currentChild = activeChild || childrenList[0] || null;
+  const demoProfile = demoProfileOf(currentChild);
+  const isDemoChild = demoProfile !== null;
   const institutionType = getInstitutionType(currentChild?.grade);
   const instInfo = getInstitutionInfo(institutionType, isBn);
 
   const [routines, setRoutines] = useState<any[]>([]);
   const [schedule, setSchedule] = useState<any>(null);
   const [completedMap, setCompletedMap] = useState<Record<string, boolean>>({});
+
+  /**
+   * The locale is read through a ref rather than as an effect dependency.
+   *
+   * `isBn` was a dependency of `loadRoutines`, so switching the UI language
+   * re-fetched the timetable. The locale only affects the *copy* of the demo
+   * fixture, so it is read at call time.
+   */
+  const isBnRef = useRef(isBn);
+  useEffect(() => {
+    isBnRef.current = isBn;
+  }, [isBn]);
 
   // Date and Slider State
   const today = useMemo(() => new Date(), []);
@@ -195,6 +229,10 @@ export default function SchedulePage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
+        if (!childId) {
+          setCompletedMap({});
+          return;
+        }
         const stored = localStorage.getItem(`ki_completed_schedule_${childId}`);
         if (stored) {
           setCompletedMap(JSON.parse(stored));
@@ -210,33 +248,85 @@ export default function SchedulePage() {
   // Save completed items to localStorage
   const saveCompletedMap = (newMap: Record<string, boolean>) => {
     setCompletedMap(newMap);
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && childId) {
       try {
         localStorage.setItem(`ki_completed_schedule_${childId}`, JSON.stringify(newMap));
       } catch {}
     }
   };
 
+  /**
+   * Load the completions the server knows about.
+   *
+   * The schedule page used to keep completions in `localStorage` only, so the
+   * server never learned which sessions a child actually finished and the
+   * parent's dashboard could not reflect it. The server is now the source of
+   * truth; `localStorage` is only a cache for the offline case.
+   */
+  const loadCompletions = useCallback(async () => {
+    if (!childId) {
+      setCompletedMap({});
+      return;
+    }
+    const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 60)
+      .toISOString()
+      .slice(0, 10);
+    const to = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 60)
+      .toISOString()
+      .slice(0, 10);
+
+    try {
+      const r = await api.get(`/children/${childId}/routines/completions?from=${from}&to=${to}`);
+      const rows: any[] = r.data?.data || [];
+      const map: Record<string, boolean> = {};
+      for (const row of rows) {
+        if (row.completed) map[completionKey(row.date, row.startTime)] = true;
+      }
+      setCompletedMap(map);
+      // Keep the offline cache in step with the server.
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`ki_completed_schedule_${childId}`, JSON.stringify(map));
+        } catch {}
+      }
+    } catch {
+      // The server is unreachable — the `localStorage` cache stays in place.
+    }
+  }, [childId, today]);
+
   // Load routines from API
   const loadRoutines = useCallback(async () => {
+    if (!childId) {
+      setRoutines([]);
+      return;
+    }
     try {
       const r = await api.get(`/children/${childId}/routines`);
       const list = r.data?.data || [];
       if (list && list.length > 0) {
         setRoutines(list);
       } else {
-        setRoutines(getDefaultRoutines(childId, isBn));
+        // Only the demo tenant has a curated timetable fixture.
+        setRoutines(isDemoChild ? getDefaultRoutines(demoProfile, isBnRef.current) : []);
       }
     } catch {
-      setRoutines(getDefaultRoutines(childId, isBn));
+      setRoutines(isDemoChild ? getDefaultRoutines(demoProfile, isBnRef.current) : []);
     }
-  }, [childId, isBn]);
+    // `isBn` is deliberately NOT a dependency — it only affects the copy of the
+    // demo fixture, and including it re-fetched the timetable on every locale
+    // toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childId, isDemoChild, demoProfile]);
 
   // Load computed schedule from API
   const loadSchedule = useCallback(async () => {
     const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 14).toISOString().slice(0, 10);
     const to = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 28).toISOString().slice(0, 10);
 
+    if (!childId) {
+      setSchedule(null);
+      return;
+    }
     try {
       const r = await api.get(`/children/${childId}/schedule?from=${from}&to=${to}`);
       if (r.data?.data?.occurrences?.length) {
@@ -252,7 +342,8 @@ export default function SchedulePage() {
   useEffect(() => {
     loadRoutines();
     loadSchedule();
-  }, [loadRoutines, loadSchedule]);
+    loadCompletions();
+  }, [loadRoutines, loadSchedule, loadCompletions]);
 
   // Compute 7 days for the current weekOffset
   const weekDates = useMemo(() => {
@@ -299,30 +390,50 @@ export default function SchedulePage() {
     [schedule, routines]
   );
 
-  const getOccurrenceId = useCallback((childKey: string, session: any) => {
-    return `${childKey}_${session.date}_${session.routineId || session.name}_${session.startTime}`;
-  }, []);
-
   const isSessionCompleted = useCallback(
     (session: any) => {
-      const key = getOccurrenceId(childId, session);
+      const key = completionKey(session.date, session.startTime);
       return completedMap[key] === true || session.status === 'completed';
     },
-    [childId, completedMap, getOccurrenceId]
+    [completedMap]
   );
 
-  const toggleSessionCompletion = (session: any) => {
-    const key = getOccurrenceId(childId, session);
-    const updated = { ...completedMap, [key]: !completedMap[key] };
-    saveCompletedMap(updated);
+  const toggleSessionCompletion = async (session: any) => {
+    const key = completionKey(session.date, session.startTime);
+    const next = completedMap[key] !== true;
+    const optimistic = { ...completedMap, [key]: next };
+
+    // Optimistic update, reverted if the server rejects it.
+    saveCompletedMap(optimistic);
+
+    if (childId) {
+      try {
+        await api.post(`/children/${childId}/routines/completions`, {
+          date: session.date,
+          startTime: session.startTime,
+          routineId: session.routineId || null,
+          completed: next,
+        });
+      } catch {
+        // The server is the source of truth — put the checkbox back.
+        saveCompletedMap(completedMap);
+        setMsg(
+          isBn
+            ? 'সম্পন্নের অবস্থা সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।'
+            : 'Could not save the completion. Please try again.'
+        );
+        return;
+      }
+    }
 
     // If toggling on today and this completes all of today's classes
-    if (session.date === todayStr && updated[key]) {
+    if (session.date === todayStr && next) {
       const todaySessions = getSessionsForDate(todayStr);
-      const isNowAllDone = todaySessions.length > 0 && todaySessions.every((s) => {
-        const k = getOccurrenceId(childId, s);
-        return updated[k] === true || s.status === 'completed';
-      });
+      const isNowAllDone =
+        todaySessions.length > 0 &&
+        todaySessions.every(
+          (s) => optimistic[completionKey(s.date, s.startTime)] === true || s.status === 'completed'
+        );
 
       if (isNowAllDone) {
         setMsg(

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { NotificationListSkeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
+import { demoProfileOf } from '@/lib/child-scope';
 import {
   Bell,
   CheckCheck,
@@ -59,13 +60,15 @@ function parseNotification(n: any, childrenList: any[], isBn: boolean): ParsedNo
     const found = childrenList?.find((c: any) => c.id === childId);
     if (found) {
       childName = found.name || found.nickname;
-    } else if (childId === 'demo-child-1') {
-      childName = isBn ? 'রহিম আহমেদ' : 'Rahim Ahmed';
-    } else if (childId === 'demo-child-2') {
-      childName = isBn ? 'তাসনিম ইসলাম' : 'Tasnim Islam';
+    } else {
+      // The demo children's ids moved to UUIDs, so `childId === 'demo-child-1'`
+      // never matched. The name is resolved from the demo profile instead.
+      const demo = childrenList?.find((c: any) => demoProfileOf(c) === 'rahim');
+      if (demo) childName = demo.name || demo.nickname || (isBn ? 'রহিম আহমেদ' : 'Rahim Ahmed');
     }
   } else if (!childName && (n.type === 'quiz_completed' || n.type === 'results_ready')) {
-    childName = isBn ? 'রহিম আহমেদ' : 'Rahim Ahmed';
+    const demo = childrenList?.find((c: any) => demoProfileOf(c) === 'rahim');
+    childName = demo?.name || demo?.nickname || (isBn ? 'রহিম আহমেদ' : 'Rahim Ahmed');
   }
 
   // Localize Rahim Ahmed and Tasnim Islam when in Bengali
@@ -163,13 +166,18 @@ function parseNotification(n: any, childrenList: any[], isBn: boolean): ParsedNo
   };
 }
 
-const getDefaultNotifications = (isBn: boolean) => [
+/**
+ * The demo fixture notifications. They are only ever shown to the demo tenant —
+ * a real account with an empty inbox sees an honest empty state instead of the
+ * demo parent's Rahim/Tasnim/Fahim activity.
+ */
+const getDefaultNotifications = (isBn: boolean, demoChildId: string) => [
   {
     id: 'n1',
     type: 'quiz_completed',
     title: isBn ? 'কুইজ সম্পন্ন হয়েছে' : 'Quiz Completed',
     payloadJson: {
-      childId: 'demo-child-1',
+      childId: demoChildId,
       childName: isBn ? 'রহিম আহমেদ' : 'Rahim Ahmed',
       score: 8,
       maxScore: 10,
@@ -212,6 +220,24 @@ export default function NotificationsPage() {
   const { childrenList } = useAuth();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState('');
+
+  // The fixture notifications belong to the demo tenant. `demoProfile` is
+  // assigned by the server, so a real account can never receive them.
+  const demoChild = (childrenList || []).find((c) => demoProfileOf(c) === 'rahim') || null;
+  const isDemoTenant = !!demoChild;
+
+  /**
+   * The locale is read through a ref rather than as an effect dependency.
+   *
+   * `isBn` used to be a dependency, so switching the UI language re-fetched
+   * `/notifications`. The locale only affects the *copy* of the demo fixture, so
+   * it is read at call time.
+   */
+  const isBnRef = useRef(isBn);
+  useEffect(() => {
+    isBnRef.current = isBn;
+  }, [isBn]);
 
   const loadNotifications = async () => {
     setLoading(true);
@@ -221,10 +247,10 @@ export default function NotificationsPage() {
       if (data && data.length > 0) {
         setList(data);
       } else {
-        setList(getDefaultNotifications(isBn));
+        setList(isDemoTenant && demoChild ? getDefaultNotifications(isBnRef.current, demoChild.id) : []);
       }
     } catch {
-      setList(getDefaultNotifications(isBn));
+      setList(isDemoTenant && demoChild ? getDefaultNotifications(isBnRef.current, demoChild.id) : []);
     } finally {
       setLoading(false);
     }
@@ -232,27 +258,41 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     loadNotifications();
-  }, [isBn]);
+    // `isBn` is deliberately NOT a dependency — it only affects the copy of the
+    // demo fixture. Including it re-fetched `/notifications` on every locale
+    // toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemoTenant, demoChild?.id]);
 
   const handleMark = async (id: string) => {
+    setActionError('');
     try {
       await api.post(`/notifications/${id}/read`);
       setList((prev) =>
         prev.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n))
       );
-    } catch {
-      setList((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n))
+    } catch (err: any) {
+      // The old code marked the notification read locally even when the server
+      // rejected the call, so the unread badge cleared without the server ever
+      // recording it.
+      const serverMsg = err?.response?.data?.error?.message;
+      setActionError(
+        serverMsg ||
+          (isBn ? 'নোটিফিকেশনটি আপডেট করা যায়নি।' : 'Could not update the notification.')
       );
     }
   };
 
   const handleMarkAll = async () => {
+    setActionError('');
     try {
       await api.post('/notifications/read-all');
       setList((prev) => prev.map((n) => ({ ...n, readAt: new Date().toISOString() })));
-    } catch {
-      setList((prev) => prev.map((n) => ({ ...n, readAt: new Date().toISOString() })));
+    } catch (err: any) {
+      const serverMsg = err?.response?.data?.error?.message;
+      setActionError(
+        serverMsg || (isBn ? 'সব নোটিফিকেশন আপডেট করা যায়নি।' : 'Could not mark all notifications as read.')
+      );
     }
   };
 
@@ -307,6 +347,12 @@ export default function NotificationsPage() {
             <span>{isBn ? 'সবগুলো পঠিত করুন' : 'Mark all as read'}</span>
           </Button>
         </div>
+
+        {actionError && (
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs font-semibold">
+            {actionError}
+          </div>
+        )}
 
         {/* Notifications List */}
         {loading ? (

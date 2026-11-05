@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
+import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import {
@@ -36,9 +37,11 @@ export default function ChildQuizHubPage() {
   const { activeChild, user } = useAuth();
   const { isBn } = useI18n();
 
-  const childId = activeChild?.id || (user as any)?.childId || user?.id || 'demo-child-1';
-  const isTasnim = childId === 'demo-child-2' || user?.email?.includes('tasnim') || activeChild?.name?.includes('Tasnim');
-  const isFahim = childId === 'demo-child-3' || user?.email?.includes('fahim') || activeChild?.name?.includes('Fahim');
+  // The child this session acts for, and the demo dataset that applies (if any).
+  // The old fallback chain ended at the hardcoded `'demo-child-1'`, so an account with
+  // no children was sent a request for the demo student and — when that request
+  // failed — was shown the demo quizzes.
+  const { childId, isTasnim, isFahim, isDemoChild } = useChildScope();
   const studentName = activeChild?.name || user?.name || (isFahim ? 'Fahim Hasan' : isTasnim ? 'Tasnim Islam' : 'Rahim Ahmed');
   const studentGrade = activeChild?.grade || (user as any)?.grade || (isFahim ? 'Class 11' : isTasnim ? 'Class 5' : 'Class 8');
 
@@ -46,6 +49,18 @@ export default function ChildQuizHubPage() {
   const [topics, setTopics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
+
+  /**
+   * The locale is read through a ref instead of being an effect dependency.
+   *
+   * `isBn` used to sit in the dependency array, so toggling the UI language
+   * re-fired both dashboard requests. The locale only affects the *copy* of the
+   * demo fallback, so it is read at call time instead.
+   */
+  const isBnRef = useRef(isBn);
+  useEffect(() => {
+    isBnRef.current = isBn;
+  }, [isBn]);
 
   useEffect(() => {
     let isMounted = true;
@@ -55,7 +70,7 @@ export default function ChildQuizHubPage() {
       ? [
           {
             id: 'q-f1',
-            title: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র: নিউটনের গতিসূত্র ও মহাকর্ষ' : 'Physics 1st Paper: Laws of Motion & Gravity',
+            title: isBnRef.current ? 'পদার্থবিজ্ঞান ১ম পত্র: নিউটনের গতিসূত্র ও মহাকর্ষ' : 'Physics 1st Paper: Laws of Motion & Gravity',
             subject: 'Physics 1st Paper',
             status: 'assigned',
             questionCount: 5,
@@ -65,7 +80,7 @@ export default function ChildQuizHubPage() {
           },
           {
             id: 'q-f2',
-            title: isBn ? 'রসায়ন ১ম পত্র: গুণগত রসায়ন ও কোয়ান্টাম সংখ্যা' : 'Chemistry 1st Paper: Quantum Numbers & Orbitals',
+            title: isBnRef.current ? 'রসায়ন ১ম পত্র: গুণগত রসায়ন ও কোয়ান্টাম সংখ্যা' : 'Chemistry 1st Paper: Quantum Numbers & Orbitals',
             subject: 'Chemistry 1st Paper',
             status: 'assigned',
             questionCount: 5,
@@ -75,37 +90,37 @@ export default function ChildQuizHubPage() {
           },
           {
             id: 'q-f3',
-            title: isBn ? 'উচ্চতর গণিত ১ম পত্র: ম্যাট্রিক্স ও নির্ণায়ক' : 'Higher Mathematics: Matrix & Determinants',
+            title: isBnRef.current ? 'উচ্চতর গণিত ১ম পত্র: ম্যাট্রিক্স ও নির্ণায়ক' : 'Higher Mathematics: Matrix & Determinants',
             subject: 'Higher Mathematics',
             status: 'completed',
             questionCount: 5,
             score: 92,
-            completedAt: isBn ? 'গতকাল' : 'Yesterday',
+            completedAt: isBnRef.current ? 'গতকাল' : 'Yesterday',
           },
           {
             id: 'q-f4',
-            title: isBn ? 'আইসিটি: সংখ্যা পদ্ধতি ও বুলিয়ান অ্যালজেব্রা' : 'ICT: Number Systems & Boolean Algebra',
+            title: isBnRef.current ? 'আইসিটি: সংখ্যা পদ্ধতি ও বুলিয়ান অ্যালজেব্রা' : 'ICT: Number Systems & Boolean Algebra',
             subject: 'ICT',
             status: 'completed',
             questionCount: 5,
             score: 96,
-            completedAt: isBn ? '৩ দিন আগে' : '3 days ago',
+            completedAt: isBnRef.current ? '৩ দিন আগে' : '3 days ago',
           },
           {
             id: 'q-f5',
-            title: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র: ভেক্টর ও গতিবিদ্যা' : 'Physics 1st Paper: Vectors & Dynamics',
+            title: isBnRef.current ? 'পদার্থবিজ্ঞান ১ম পত্র: ভেক্টর ও গতিবিদ্যা' : 'Physics 1st Paper: Vectors & Dynamics',
             subject: 'Physics 1st Paper',
             status: 'completed',
             questionCount: 5,
             score: 88,
-            completedAt: isBn ? '৫ দিন আগে' : '5 days ago',
+            completedAt: isBnRef.current ? '৫ দিন আগে' : '5 days ago',
           },
         ]
       : isTasnim
       ? [
           {
             id: 'q-t2',
-            title: isBn ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification',
+            title: isBnRef.current ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification',
             subject: 'General Science',
             status: 'assigned',
             questionCount: 5,
@@ -115,36 +130,36 @@ export default function ChildQuizHubPage() {
           },
           {
             id: 'q-t1',
-            title: isBn ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু কুইজ' : 'Primary Math: Factors & LCM-HCF Quiz',
+            title: isBnRef.current ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু কুইজ' : 'Primary Math: Factors & LCM-HCF Quiz',
             subject: 'Mathematics',
             status: 'completed',
             questionCount: 5,
             score: 95,
-            completedAt: isBn ? 'গতকাল' : 'Yesterday',
+            completedAt: isBnRef.current ? 'গতকাল' : 'Yesterday',
           },
           {
             id: 'q-t3',
-            title: isBn ? 'প্রাথমিক বাংলা: বীরপুরুষ কবিতা ও শব্দার্থ' : 'Primary Bangla: Birpurush Poem & Vocabulary',
+            title: isBnRef.current ? 'প্রাথমিক বাংলা: বীরপুরুষ কবিতা ও শব্দার্থ' : 'Primary Bangla: Birpurush Poem & Vocabulary',
             subject: 'Bangla',
             status: 'completed',
             questionCount: 5,
             score: 90,
-            completedAt: isBn ? '৩ দিন আগে' : '3 days ago',
+            completedAt: isBnRef.current ? '৩ দিন আগে' : '3 days ago',
           },
           {
             id: 'q-t4',
-            title: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়: আমাদের মুক্তিযুদ্ধ ও বীরত্ব' : 'BGS: Our Liberation War',
+            title: isBnRef.current ? 'বাংলাদেশ ও বিশ্বপরিচয়: আমাদের মুক্তিযুদ্ধ ও বীরত্ব' : 'BGS: Our Liberation War',
             subject: 'Bangladesh & Global Studies',
             status: 'completed',
             questionCount: 5,
             score: 92,
-            completedAt: isBn ? '৫ দিন আগে' : '5 days ago',
+            completedAt: isBnRef.current ? '৫ দিন আগে' : '5 days ago',
           },
         ]
       : [
           {
             id: 'q-r2',
-            title: isBn ? 'পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ' : 'Physics: Equations of Motion & Acceleration',
+            title: isBnRef.current ? 'পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ' : 'Physics: Equations of Motion & Acceleration',
             subject: 'General Science',
             status: 'assigned',
             questionCount: 5,
@@ -154,7 +169,7 @@ export default function ChildQuizHubPage() {
           },
           {
             id: 'q-r4',
-            title: isBn ? 'ইংরেজি ১ম পত্র: Right Forms of Verbs & Prepositions' : 'English: Right Forms of Verbs & Prepositions',
+            title: isBnRef.current ? 'ইংরেজি ১ম পত্র: Right Forms of Verbs & Prepositions' : 'English: Right Forms of Verbs & Prepositions',
             subject: 'English 1st Paper',
             status: 'assigned',
             questionCount: 5,
@@ -164,69 +179,69 @@ export default function ChildQuizHubPage() {
           },
           {
             id: 'q-r1',
-            title: isBn ? 'গণিত: বীজগাণিতিক সূত্রাবলী ও প্রয়োগ কুইজ' : 'Class 8 Math: Algebraic Formulae Quiz',
+            title: isBnRef.current ? 'গণিত: বীজগাণিতিক সূত্রাবলী ও প্রয়োগ কুইজ' : 'Class 8 Math: Algebraic Formulae Quiz',
             subject: 'Mathematics',
             status: 'completed',
             questionCount: 5,
             score: 85,
-            completedAt: isBn ? 'গতকাল' : 'Yesterday',
+            completedAt: isBnRef.current ? 'গতকাল' : 'Yesterday',
           },
           {
             id: 'q-r3',
-            title: isBn ? 'সাধারণ বিজ্ঞান: রাসায়নিক বিক্রিয়া ও সমতাকরণ' : 'Science: Chemical Reactions & Balancing',
+            title: isBnRef.current ? 'সাধারণ বিজ্ঞান: রাসায়নিক বিক্রিয়া ও সমতাকরণ' : 'Science: Chemical Reactions & Balancing',
             subject: 'General Science',
             status: 'completed',
             questionCount: 5,
             score: 90,
-            completedAt: isBn ? '৩ দিন আগে' : '3 days ago',
+            completedAt: isBnRef.current ? '৩ দিন আগে' : '3 days ago',
           },
           {
             id: 'q-r5',
-            title: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়: প্রাচীন বাংলার ইতিহাস' : 'BGS: Ancient Bengal History',
+            title: isBnRef.current ? 'বাংলাদেশ ও বিশ্বপরিচয়: প্রাচীন বাংলার ইতিহাস' : 'BGS: Ancient Bengal History',
             subject: 'Bangladesh & Global Studies',
             status: 'completed',
             questionCount: 5,
             score: 88,
-            completedAt: isBn ? '৬ দিন আগে' : '6 days ago',
+            completedAt: isBnRef.current ? '৬ দিন আগে' : '6 days ago',
           },
         ];
 
     const fallbackTopics = isFahim
       ? {
           weakest: [
-            { subject: isBn ? 'উচ্চতর গণিত ১ম পত্র (ম্যাট্রিক্স)' : 'Higher Math (Matrix)', accuracy: 68 },
-            { subject: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র (ভেক্টর গুণন)' : 'Physics 1st (Vectors)', accuracy: 72 },
+            { subject: isBnRef.current ? 'উচ্চতর গণিত ১ম পত্র (ম্যাট্রিক্স)' : 'Higher Math (Matrix)', accuracy: 68 },
+            { subject: isBnRef.current ? 'পদার্থবিজ্ঞান ১ম পত্র (ভেক্টর গুণন)' : 'Physics 1st (Vectors)', accuracy: 72 },
           ],
           strongest: [
-            { subject: isBn ? 'আইসিটি (সংখ্যা পদ্ধতি)' : 'ICT (Number Systems)', accuracy: 96 },
-            { subject: isBn ? 'রসায়ন ১ম পত্র (গুণগত রসায়ন)' : 'Chemistry 1st (Qualitative)', accuracy: 94 },
+            { subject: isBnRef.current ? 'আইসিটি (সংখ্যা পদ্ধতি)' : 'ICT (Number Systems)', accuracy: 96 },
+            { subject: isBnRef.current ? 'রসায়ন ১ম পত্র (গুণগত রসায়ন)' : 'Chemistry 1st (Qualitative)', accuracy: 94 },
           ],
         }
       : isTasnim
       ? {
           weakest: [
-            { subject: isBn ? 'প্রাথমিক বিজ্ঞান (জীবনের জন্য পানি)' : 'Science (Safe Water)', accuracy: 74 },
-            { subject: isBn ? 'প্রাথমিক গণিত (ভগ্নাংশ)' : 'Math (Fractions)', accuracy: 78 },
+            { subject: isBnRef.current ? 'প্রাথমিক বিজ্ঞান (জীবনের জন্য পানি)' : 'Science (Safe Water)', accuracy: 74 },
+            { subject: isBnRef.current ? 'প্রাথমিক গণিত (ভগ্নাংশ)' : 'Math (Fractions)', accuracy: 78 },
           ],
           strongest: [
-            { subject: isBn ? 'প্রাথমিক গণিত (লসাগু ও গসাগু)' : 'Math (LCM & HCF)', accuracy: 95 },
-            { subject: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS (Liberation War)', accuracy: 92 },
+            { subject: isBnRef.current ? 'প্রাথমিক গণিত (লসাগু ও গসাগু)' : 'Math (LCM & HCF)', accuracy: 95 },
+            { subject: isBnRef.current ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS (Liberation War)', accuracy: 92 },
           ],
         }
       : {
           weakest: [
-            { subject: isBn ? 'সাধারণ গণিত (বীজগণিত ৪.১)' : 'Math (Algebra 4.1)', accuracy: 70 },
-            { subject: isBn ? 'ইংরেজি ১ম পত্র (Prepositions)' : 'English (Prepositions)', accuracy: 75 },
+            { subject: isBnRef.current ? 'সাধারণ গণিত (বীজগণিত ৪.১)' : 'Math (Algebra 4.1)', accuracy: 70 },
+            { subject: isBnRef.current ? 'ইংরেজি ১ম পত্র (Prepositions)' : 'English (Prepositions)', accuracy: 75 },
           ],
           strongest: [
-            { subject: isBn ? 'সাধারণ বিজ্ঞান (গতির সূত্র)' : 'Science (Motion Laws)', accuracy: 92 },
-            { subject: isBn ? 'বাংলা ১ম পত্র (কবিতা)' : 'Bangla 1st Paper', accuracy: 88 },
+            { subject: isBnRef.current ? 'সাধারণ বিজ্ঞান (গতির সূত্র)' : 'Science (Motion Laws)', accuracy: 92 },
+            { subject: isBnRef.current ? 'বাংলা ১ম পত্র (কবিতা)' : 'Bangla 1st Paper', accuracy: 88 },
           ],
         };
 
     Promise.all([
-      api.get(`/children/${childId}/quizzes`).catch(() => null),
-      api.get(`/children/${childId}/dashboard/topics`).catch(() => null),
+      childId ? api.get(`/children/${childId}/quizzes`).catch(() => null) : Promise.resolve(null),
+      childId ? api.get(`/children/${childId}/dashboard/topics`).catch(() => null) : Promise.resolve(null),
     ])
       .then(([quizzesRes, topicsRes]) => {
         if (!isMounted) return;
@@ -252,19 +267,20 @@ export default function ChildQuizHubPage() {
           });
           setQuizzes(merged);
         } else {
-          setQuizzes(fallbackQuizzes);
+          // The fallback list is the demo dataset — only for a demo child.
+          setQuizzes(isDemoChild ? fallbackQuizzes : []);
         }
 
         if (topicsRes?.data?.data && (topicsRes.data.data.weakest || topicsRes.data.data.strongest)) {
           setTopics(topicsRes.data.data);
         } else {
-          setTopics(fallbackTopics);
+          setTopics(isDemoChild ? fallbackTopics : null);
         }
       })
       .catch(() => {
         if (!isMounted) return;
-        setQuizzes(fallbackQuizzes);
-        setTopics(fallbackTopics);
+        setQuizzes(isDemoChild ? fallbackQuizzes : []);
+        setTopics(isDemoChild ? fallbackTopics : null);
       })
       .finally(() => {
         if (isMounted) setLoading(false);
@@ -273,7 +289,7 @@ export default function ChildQuizHubPage() {
     return () => {
       isMounted = false;
     };
-  }, [childId, isBn, isTasnim, isFahim]);
+  }, [childId, isTasnim, isFahim, isDemoChild]);
 
   const quizList = Array.isArray(quizzes) ? quizzes : [];
 
@@ -298,11 +314,23 @@ export default function ChildQuizHubPage() {
   const avgScore =
     totalCompleted > 0
       ? Math.round(completedQuizzes.reduce((acc, q) => acc + (q.score || 0), 0) / totalCompleted)
-      : isFahim ? 92 : isTasnim ? 92 : 88;
+      : isDemoChild
+      ? isFahim
+        ? 92
+        : isTasnim
+        ? 92
+        : 88
+      : 0;
   const highestScore =
     totalCompleted > 0
       ? Math.max(...completedQuizzes.map((q) => q.score || 0))
-      : isFahim ? 96 : isTasnim ? 95 : 90;
+      : isDemoChild
+      ? isFahim
+        ? 96
+        : isTasnim
+        ? 95
+        : 90
+      : 0;
 
   return (
     <KidShell>

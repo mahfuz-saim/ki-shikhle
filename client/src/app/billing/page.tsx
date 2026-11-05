@@ -317,10 +317,12 @@ export default function BillingPage() {
   const effectivePlans = plans.length > 0 ? plans : defaultPlans;
   const currentPricing = getPlanPricing(checkoutForm.planCode, checkoutForm.childCount, checkoutForm.billingPeriod);
   const rawPlanCode = sub?.plan?.code || sub?.planCode || subscription?.plan?.code || subscription?.planCode || 'free';
-  const currentPlanCode =
-    rawPlanCode === 'trial' || rawPlanCode === 'starter' || rawPlanCode === 'standard'
-      ? 'free'
-      : rawPlanCode;
+  // A legacy plan code ('trial', 'starter', 'standard') keeps its own identity — the
+  // subscriber should see the plan they bought — but the server tells us which
+  // current plan covers it, via `plan.tier`. The old code rewrote all three to
+  // 'free', which hid a paid five-child 'standard' plan behind a "Free" badge.
+  const currentPlanCode = sub?.plan?.tier || subscription?.plan?.tier || rawPlanCode;
+  const isLegacyPlan = rawPlanCode !== currentPlanCode;
 
   const toBn = (n: number) => {
     if (!isBn) return n.toString();
@@ -393,8 +395,15 @@ export default function BillingPage() {
               <h3 className="text-lg font-bold text-foreground">
                 {currentPlanCode === 'free'
                   ? (isBn ? 'বিনামূল্যে ব্যবহার করছেন (Free Tier)' : 'Free Tier Active (Forever Free)')
-                  : `${sub?.plan?.name?.replace(/Trial/i, 'Free') || currentPlanCode.toUpperCase()} (${isBn ? 'সক্রিয়' : 'Active'})`}
+                  : `${sub?.plan?.name || subscription?.plan?.name || currentPlanCode.toUpperCase()} (${isBn ? 'সক্রিয়' : 'Active'})`}
               </h3>
+              {isLegacyPlan && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isBn
+                    ? `আপনার পুরোনো ${sub?.plan?.name || rawPlanCode} প্ল্যান সক্রিয় আছে — এটি এখন ${currentPlanCode} ফিচারসহ কাজ করে।`
+                    : `Your legacy ${sub?.plan?.name || rawPlanCode} plan is active — it now includes everything in ${currentPlanCode}.`}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground max-w-xl">
                 {isBn
                   ? 'আপনার কোনো স্টাডি লগ বা খাতার নোট কখনো মুছে যাবে না। ৩য় প্যাকেজ (প্রিমিয়াম)-এ রয়েছে স্বয়ংক্রিয় কুইজ সেটআপ ও স্পেসড রিপিটেশন।'

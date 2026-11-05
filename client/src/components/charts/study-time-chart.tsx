@@ -22,6 +22,7 @@ import {
 } from 'recharts';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/lib/i18n-context';
 
 const COLORS = [
   '#4F46E5', // Indigo
@@ -49,6 +50,10 @@ export function StudyTimeChart({
   institutionType?: 'school' | 'college' | 'admission';
   isBn?: boolean;
 }) {
+  // The chart takes `isBn` as a prop, but the *strings* come from the dictionary.
+  // Reading the locale from the context here means the labels follow the user's
+  // chosen locale rather than whatever the parent page happened to pass down.
+  const { t } = useI18n();
   const hasCollegeData = data?.some((d) => (d.college || 0) > 0);
   const showCollege = institutionType === 'college' || hasCollegeData;
   const showSchool = (institutionType === 'school' || data?.some((d) => (d.school || 0) > 0)) && !showCollege;
@@ -115,6 +120,7 @@ export function SubjectDonut({
   data: any[];
   isBn?: boolean;
 }) {
+  const { t } = useI18n();
   const validData = Array.isArray(data)
     ? data.filter((d) => Number(d?.value || d?.count || 0) > 0)
     : [];
@@ -275,6 +281,7 @@ export function MonthlyActivityCalendar({
   data: Record<string, number>;
   isBn?: boolean;
 }) {
+  const { t } = useI18n();
   const [viewDate, setViewDate] = useState(() => new Date());
 
   const year = viewDate.getFullYear();

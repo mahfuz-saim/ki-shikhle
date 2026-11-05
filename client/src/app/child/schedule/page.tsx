@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
+import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
@@ -127,9 +128,12 @@ export default function KidSchedulePage() {
   const institutionType = getInstitutionType(studentGrade);
   const instInfo = getInstitutionInfo(institutionType, isBn);
 
-  const childId = activeChild?.id || (user as any)?.childId || user?.id || 'demo-child-1';
-  const isTasnim = childId === 'demo-child-2' || user?.email?.includes('tasnim') || activeChild?.name?.includes('Tasnim');
-  const isFahim = childId === 'demo-child-3' || user?.email?.includes('fahim') || activeChild?.name?.includes('Fahim') || studentGrade.includes('11') || studentGrade.includes('12') || institutionType === 'college';
+  // The child whose schedule this is, and the demo dataset that applies (if any).
+  const { childId, isTasnim, isFahim, isDemoChild } = useChildScope();
+  // A college-grade student is treated like Fahim for the preset routines, even when
+  // they are not a demo child — the grade is the real signal there.
+  const isCollegeTrack =
+    isFahim || studentGrade.includes('11') || studentGrade.includes('12') || institutionType === 'college';
 
   const [routines, setRoutines] = useState<any[]>([]);
   const [entries, setEntries] = useState<any[]>([]);
@@ -184,7 +188,14 @@ export default function KidSchedulePage() {
   });
 
   // Quick routine presets for easy 1-click routine addition
-  const routinePresets = isFahim
+  //
+  // These are **suggestions**, chosen by the child's grade rather than by their name:
+  // a college-track student gets the college routine, a primary-school student gets
+  // the primary one, everyone else gets the middle-school one. The old code branched
+  // on `isFahim` / `isTasnim` — the two demo children — so every real child was given
+  // the demo student's preset list.
+  const isPrimaryTrack = /Class\s*[45](|$)/.test(studentGrade);
+  const routinePresets = isCollegeTrack
     ? [
         { name: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র' : 'Physics 1st Paper', periodName: '১ম পিরিয়ড', subject: 'Physics 1st Paper', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '08:30', durationMin: 50 },
         { name: isBn ? 'রসায়ন ১ম পত্র' : 'Chemistry 1st Paper', periodName: '২য় পিরিয়ড', subject: 'Chemistry 1st Paper', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '09:20', durationMin: 50 },
@@ -192,7 +203,7 @@ export default function KidSchedulePage() {
         { name: isBn ? 'রসায়ন প্রাইভেট' : 'Chemistry Tuition', periodName: 'প্রাইভেট', subject: 'Chemistry 1st Paper', source: 'tuition', weekdays: [1, 3], startTime: '17:00', durationMin: 60 },
         { name: isBn ? 'উচ্চতর গণিত সেলফ স্টাডি' : 'Higher Math Self-Study', periodName: 'সেলফ স্টাডি', subject: 'Higher Mathematics', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:30', durationMin: 60 },
       ]
-    : isTasnim
+    : isPrimaryTrack
     ? [
         { name: isBn ? 'প্রাথমিক বাংলা' : 'Primary Bangla', periodName: '১ম পিরিয়ড', subject: 'Bangla', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:30', durationMin: 45 },
         { name: isBn ? 'প্রাথমিক ইংরেজি' : 'Primary English', periodName: '২য় পিরিয়ড', subject: 'English', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:15', durationMin: 45 },
@@ -203,13 +214,13 @@ export default function KidSchedulePage() {
     : [
         { name: isBn ? '১ম পিরিয়ড: বাংলা ১ম পত্র' : '1st Period: Bangla 1st', periodName: '১ম পিরিয়ড', subject: 'Bangla 1st Paper', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:00', durationMin: 45 },
         { name: isBn ? '২য় পিরিয়ড: ইংরেজি ১ম পত্র' : '2nd Period: English 1st', periodName: '২য় পিরিয়ড', subject: 'English 1st Paper', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:45', durationMin: 45 },
-        { name: isBn ? 'গণিত প্রাইভেট (রহিম স্যার)' : 'Math Tuition (Rahim Sir)', periodName: 'প্রাইভেট', subject: 'Mathematics', source: 'tuition', weekdays: [0, 2, 5], startTime: '16:00', durationMin: 90 },
+        { name: isBn ? 'গণিত প্রাইভেট' : 'Math Tuition', periodName: 'প্রাইভেট', subject: 'Mathematics', source: 'tuition', weekdays: [0, 2, 5], startTime: '16:00', durationMin: 90 },
         { name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching', periodName: 'কোচিং', subject: 'General Science', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 60 },
         { name: isBn ? 'আইসিটি ও কম্পিউটার ক্লাস' : 'ICT & Computer Class', periodName: '৬ষ্ঠ পিরিয়ড', subject: 'ICT', source: 'school', weekdays: [1, 4], startTime: '15:00', durationMin: 60 },
         { name: isBn ? 'রাতে সেলফ স্টাডি' : 'Night Self-Study', periodName: 'সেলফ স্টাডি', subject: 'Mathematics', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:00', durationMin: 90 },
       ];
 
-  const defaultStudyTimeList = isFahim
+  const defaultStudyTimeList = isCollegeTrack
     ? [
         { date: 'Mon', college: 100, tuition: 75, self_study: 60 },
         { date: 'Tue', college: 100, tuition: 60, self_study: 60 },
@@ -219,7 +230,7 @@ export default function KidSchedulePage() {
         { date: 'Sat', college: 0, tuition: 0, self_study: 90 },
         { date: 'Sun', college: 100, tuition: 75, self_study: 60 },
       ]
-    : isTasnim
+    : isPrimaryTrack
     ? [
         { date: 'Mon', school: 45, tuition: 60, self_study: 45 },
         { date: 'Tue', school: 45, tuition: 50, self_study: 45 },
@@ -240,10 +251,19 @@ export default function KidSchedulePage() {
       ];
 
   const currentStudyTime = (Array.isArray(studyTime) && studyTime.length > 0) ? studyTime : defaultStudyTimeList;
-  const collegeMin = currentStudyTime.reduce((sum, d) => sum + (d?.college || 0), 0) || (isFahim ? 500 : 0);
-  const schoolMin = currentStudyTime.reduce((sum, d) => sum + (d?.school || 0), 0) || (institutionType === 'school' ? (isTasnim ? 220 : 380) : 0);
-  const tuitionMin = currentStudyTime.reduce((sum, d) => sum + (d?.tuition || 0), 0) || (isFahim ? 435 : isTasnim ? 280 : 405);
-  const selfStudyMin = currentStudyTime.reduce((sum, d) => sum + (d?.self_study || 0), 0) || (isFahim ? 450 : isTasnim ? 250 : 340);
+  // The fallback totals are the demo dataset's numbers — they only apply to a demo
+  // child. A real child's totals come from their own logged study time, and stay at
+  // zero when there is none.
+  const collegeMin = currentStudyTime.reduce((sum, d) => sum + (d?.college || 0), 0) || (isDemoChild && isCollegeTrack ? 500 : 0);
+  const schoolMin =
+    currentStudyTime.reduce((sum, d) => sum + (d?.school || 0), 0) ||
+    (isDemoChild && institutionType === 'school' ? (isPrimaryTrack ? 220 : 380) : 0);
+  const tuitionMin =
+    currentStudyTime.reduce((sum, d) => sum + (d?.tuition || 0), 0) ||
+    (isDemoChild ? (isCollegeTrack ? 435 : isPrimaryTrack ? 280 : 405) : 0);
+  const selfStudyMin =
+    currentStudyTime.reduce((sum, d) => sum + (d?.self_study || 0), 0) ||
+    (isDemoChild ? (isCollegeTrack ? 450 : isPrimaryTrack ? 250 : 340) : 0);
 
   const collegeHours = Math.floor(collegeMin / 60);
   const collegeRemMin = collegeMin % 60;
@@ -256,6 +276,13 @@ export default function KidSchedulePage() {
 
   // Load routines, entries, and study-time from backend
   const loadData = async () => {
+    // No child to load for — there is nothing to fetch and nothing to fake.
+    if (!childId) {
+      setRoutines([]);
+      setEntries([]);
+      setStudyTime([]);
+      return;
+    }
     try {
       const [routinesRes, entriesRes] = await Promise.all([
         api.get(`/children/${childId}/routines`).catch(() => ({ data: null })),
@@ -265,8 +292,11 @@ export default function KidSchedulePage() {
       const routineList = unpackList(routinesRes?.data);
       if (routineList.length > 0) {
         setRoutines(routineList);
-      } else {
+      } else if (isDemoChild) {
+        // The default routine is a demo fixture — only shown to a demo child.
         setDefaultRoutines();
+      } else {
+        setRoutines([]);
       }
 
       const entryList = unpackList(entriesRes?.data);
@@ -301,7 +331,8 @@ export default function KidSchedulePage() {
         }
       }
     } catch {
-      setDefaultRoutines();
+      if (isDemoChild) setDefaultRoutines();
+      else setRoutines([]);
       setEntries([]);
     }
 
@@ -313,14 +344,16 @@ export default function KidSchedulePage() {
         if (list.length > 0) {
           setStudyTime(list);
         } else {
-          setStudyTime(defaultStudyTimeList);
+          setStudyTime(isDemoChild ? defaultStudyTimeList : []);
         }
       })
-      .catch(() => setStudyTime(defaultStudyTimeList));
+      .catch(() => setStudyTime(isDemoChild ? defaultStudyTimeList : []));
   };
 
   const setDefaultRoutines = () => {
-    if (isFahim) {
+    // Keyed on the grade track, not on the demo children's names — a real Class 11
+    // student gets the college routine, a real Class 4 student gets the primary one.
+    if (isCollegeTrack) {
       setRoutines([
         {
           id: 'rt-f1',
@@ -419,7 +452,7 @@ export default function KidSchedulePage() {
           durationMin: 60,
         },
       ]);
-    } else if (isTasnim) {
+    } else if (isPrimaryTrack) {
       setRoutines([
         {
           id: 'rt-p1',
@@ -598,8 +631,10 @@ export default function KidSchedulePage() {
 
   useEffect(() => {
     loadData();
+    // `isBn` is intentionally not a dependency — it re-fires every request on a locale
+    // toggle. The locale is read inside the render instead.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [childId, isBn, isTasnim]);
+  }, [childId, isDemoChild, isCollegeTrack, isPrimaryTrack]);
 
   // Speech Recognition initialization
   useEffect(() => {

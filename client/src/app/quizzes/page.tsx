@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CardGridSkeleton } from '@/components/ui/skeleton';
 import { AppShell } from '@/components/layout/app-shell';
-import { useAuth, Child } from '@/components/auth/auth-context';
+import { useAuth } from '@/components/auth/auth-context';
+import { ChildSelector } from '@/components/children/child-selector';
+import { demoProfileOf } from '@/lib/child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import {
@@ -34,35 +36,19 @@ import {
   Info,
 } from 'lucide-react';
 
-const DEFAULT_DEMO_CHILDREN: Child[] = [
-  {
-    id: 'demo-child-1',
-    name: 'Rahim Ahmed',
-    nickname: 'Rahim',
-    grade: 'Class 8',
-    curriculum: 'NCTB',
-    medium: 'Bangla',
-  },
-  {
-    id: 'demo-child-2',
-    name: 'Tasnim Islam',
-    nickname: 'Tasnim',
-    grade: 'Class 5',
-    curriculum: 'NCTB',
-    medium: 'Bangla',
-  },
-  {
-    id: 'demo-child-3',
-    name: 'Fahim Islam',
-    nickname: 'Fahim',
-    grade: 'Class 11',
-    curriculum: 'NCTB',
-    medium: 'Bangla',
-  },
-];
+/**
+ * There is no demo fixture list here, and there must not be one.
+ *
+ * The old `DEFAULT_DEMO_CHILDREN` was used whenever the account had no children — so
+ * a brand-new parent saw three demo students, and the quizzes page fetched
+ * `/children/demo-child-1/quizzes` for a child that belongs to the demo tenant. The
+ * ids were also stale: the demo children are now deterministic UUIDs.
+ *
+ * An empty children list is an empty list. The UI shows an empty state instead.
+ */
 
 interface AutoQuizScheduleConfig {
-  childId: string;
+  childId: string | null;
   enabled: boolean;
   topicStrategy: 'one_day_old' | 'ai_adaptive' | 'recent_notes' | 'all_subjects';
   questionCount: number;
@@ -79,10 +65,17 @@ export default function QuizzesPage() {
   const { activeChild, childrenList } = useAuth();
   const { t, isBn } = useI18n();
 
-  const availableChildren = childrenList && childrenList.length > 0 ? childrenList : DEFAULT_DEMO_CHILDREN;
-  const currentChild = activeChild || availableChildren[0];
-  const childId = currentChild?.id || 'demo-child-1';
-  const childName = currentChild?.name || (childId === 'demo-child-2' ? 'Tasnim Islam' : childId === 'demo-child-3' ? 'Fahim Islam' : 'Rahim Ahmed');
+  // The account's own children. No demo fallback: an empty list is an empty list.
+  const availableChildren = childrenList || [];
+  const currentChild = activeChild || availableChildren[0] || null;
+  const childId = currentChild?.id || null;
+  const childName = currentChild?.name || '';
+
+  // Which demo dataset applies, if any. The server marks the three seeded demo
+  // children with a `demoProfile`; the mock quiz lists below only run for those.
+  const demoProfile = demoProfileOf(currentChild);
+  const isDemoChild = demoProfile !== null;
+  const isTasnim = demoProfile === 'tasnim';
 
   const toBnNum = (n: number | string) => {
     if (!isBn) return String(n);
@@ -118,13 +111,17 @@ export default function QuizzesPage() {
 
   const loadQuizzes = async () => {
     setLoading(true);
-    const isTasnim = childId === 'demo-child-2';
+    if (!childId) {
+      setQuizzes([]);
+      setLoading(false);
+      return;
+    }
     try {
       const res = await api.get(`/children/${childId}/quizzes`);
       const list = res.data?.data || [];
       if (list && list.length > 0) {
         setQuizzes(list);
-      } else {
+      } else if (isDemoChild) {
         setQuizzes(
           isTasnim
             ? [
@@ -206,8 +203,14 @@ export default function QuizzesPage() {
                 },
               ]
         );
+      } else {
+        setQuizzes([]);
       }
     } catch {
+      if (!isDemoChild) {
+        setQuizzes([]);
+        return;
+      }
       setQuizzes(
         isTasnim
           ? [
@@ -272,6 +275,10 @@ export default function QuizzesPage() {
 
   const loadSchedule = async () => {
     setLoadingSchedule(true);
+    if (!childId) {
+      setLoadingSchedule(false);
+      return;
+    }
     try {
       const res = await api.get(`/children/${childId}/quizzes/auto-schedule`);
       if (res.data?.data) {
@@ -287,7 +294,8 @@ export default function QuizzesPage() {
   useEffect(() => {
     loadQuizzes();
     loadSchedule();
-  }, [childId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childId, isDemoChild, isTasnim]);
 
   const handleSaveSchedule = async (overrides?: Partial<AutoQuizScheduleConfig>) => {
     setSavingSchedule(true);
@@ -383,12 +391,20 @@ export default function QuizzesPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Which child these quizzes belong to. The selector also keeps the URL in
+                sync, so `/children/<id>/quizzes/new` targets the same child. */}
+            <ChildSelector
+              label={isBn ? 'শিক্ষার্থী' : 'Student'}
+              className="mr-1"
+            />
+            {childId && (
             <Link href={`/children/${childId}/quizzes/new`}>
               <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
                 <Plus className="w-4 h-4" />
                 <span>{isBn ? 'ম্যানুয়াল কুইজ তৈরি' : 'Manual Quiz Builder'}</span>
               </Button>
             </Link>
+            )}
             <Button
               size="sm"
               onClick={handleRunAutoQuiz}

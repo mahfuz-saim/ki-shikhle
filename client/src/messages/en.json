@@ -57,6 +57,7 @@
     "grade": "Grade / Class",
     "curriculum": "Curriculum",
     "medium": "Medium of Instruction",
+    "version": "Version / Medium of Education",
     "pin": "Security PIN (4-6 digits)",
     "active": "Active Student",
     "selectChild": "Select Child",

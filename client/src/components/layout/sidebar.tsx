@@ -25,13 +25,17 @@ export function Sidebar() {
   const { user, activeChild, childrenList, logout } = useAuth();
   const { t, isBn } = useI18n();
 
-  const activeChildId = activeChild?.id || childrenList[0]?.id || 'demo-child';
+  // No hardcoded fallback id: with no child selected there is no learning-log
+  // route to link to, so the item is hidden rather than pointing at a fake id.
+  const activeChildId = activeChild?.id || childrenList[0]?.id || null;
 
   const navItems = [
     { href: '/dashboard', label: t('nav.dashboard', 'Dashboard'), icon: LayoutDashboard },
     { href: '/children', label: t('nav.children', 'Children'), icon: Users },
     { href: '/schedule', label: t('nav.schedule', 'Routine & Schedule'), icon: Calendar },
-    { href: `/children/${activeChildId}/log`, label: t('nav.logs', 'Learning Logs'), icon: BookOpen },
+    ...(activeChildId
+      ? [{ href: `/children/${activeChildId}/log`, label: t('nav.logs', 'Learning Logs'), icon: BookOpen }]
+      : []),
     { href: '/notes', label: t('nav.notes', 'Student Notes'), icon: FileText },
     { href: '/quizzes', label: t('nav.quizzes', 'AI Quizzes'), icon: Brain },
     { href: '/billing', label: t('nav.billing', 'Billing & Plans'), icon: CreditCard },
@@ -77,7 +81,9 @@ export function Sidebar() {
           } else if (isQuizPath) {
             isActive = item.href === '/quizzes';
           } else if (item.href === '/children') {
-            isActive = pathname === '/children' || pathname.startsWith('/children?');
+            // `usePathname()` never includes the query string, so the old
+            // `startsWith('/children?')` never matched.
+            isActive = pathname === '/children' || pathname.startsWith('/children/');
           } else if (item.href === '/dashboard') {
             isActive = pathname === '/dashboard';
           } else {

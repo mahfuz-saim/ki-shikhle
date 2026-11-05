@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
+import { demoProfileOf } from '@/lib/child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType } from '@/lib/institution';
 import { api } from '@/lib/api';
@@ -49,9 +50,22 @@ export default function DashboardPage() {
   const [topics, setTopics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const childId = activeChild?.id || childrenList[0]?.id || 'demo-child-1';
+  // The child this dashboard is about.
+  //
+  // The old chain ended at the hardcoded `'demo-child-1'`, so a brand-new account with
+  // no children asked the server about the demo student — and, because every panel
+  // below falls back to mock data when a request fails, was shown the demo family's
+  // dashboard. `null` means "no children yet", which is a legitimate empty state.
+  const childId = activeChild?.id || childrenList[0]?.id || null;
   const currentChild = childrenList.find((c) => c.id === childId) || activeChild || childrenList[0];
   const institutionType = getInstitutionType(currentChild?.grade);
+
+  // Which demo dataset applies, if any. The server marks the three seeded demo
+  // children with a `demoProfile`; the mock fallbacks below only run for those.
+  const demoProfile = demoProfileOf(currentChild);
+  const isDemoChild = demoProfile !== null;
+  const isTasnim = demoProfile === 'tasnim';
+  const isFahim = demoProfile === 'fahim';
 
   useEffect(() => {
     if (!childId) return;
@@ -66,13 +80,10 @@ export default function DashboardPage() {
       api.get(`/children/${childId}/dashboard/consistency`),
       api.get(`/children/${childId}/dashboard/topics`),
     ]).then(([sumRes, stRes, subjRes, scrRes, mastRes, consRes, topRes]) => {
-      const isTasnim = childId === 'demo-child-2';
-      const isFahim = childId === 'demo-child-3';
-
       // Summary
       if (sumRes.status === 'fulfilled' && sumRes.value.data?.data && (sumRes.value.data.data.kpis?.totalTime > 0 || sumRes.value.data.data.kpis?.studyDays > 0)) {
         setSummary(sumRes.value.data.data);
-      } else {
+      } else if (isDemoChild) {
         setSummary(
           isFahim
             ? {
@@ -107,6 +118,9 @@ export default function DashboardPage() {
                 ],
               }
         );
+      } else {
+        // A real child with no data yet — an empty state, not the demo's numbers.
+        setSummary(null);
       }
 
       const formatStudyTime = (arr: any[]) =>
@@ -130,7 +144,7 @@ export default function DashboardPage() {
       // Study time
       if (stRes.status === 'fulfilled' && stRes.value.data?.data?.length && stRes.value.data.data.some((x: any) => (x.school || 0) + (x.college || 0) + (x.tuition || 0) + (x.self_study || 0) > 0)) {
         setStudyTime(formatStudyTime(stRes.value.data.data));
-      } else {
+      } else if (isDemoChild) {
         setStudyTime(
           formatStudyTime(
             isFahim
@@ -164,12 +178,14 @@ export default function DashboardPage() {
                 ]
           )
         );
+      } else {
+        setStudyTime([]);
       }
 
       // Subjects
       if (subjRes.status === 'fulfilled' && subjRes.value.data?.data?.length && subjRes.value.data.data.some((x: any) => (x.value || x.count || 0) > 0)) {
         setSubjects(subjRes.value.data.data);
-      } else {
+      } else if (isDemoChild) {
         setSubjects(
           isFahim
             ? [
@@ -198,12 +214,14 @@ export default function DashboardPage() {
                 { subject: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS', value: 4 },
               ]
         );
+      } else {
+        setSubjects([]);
       }
 
       // Scores
       if (scrRes.status === 'fulfilled' && scrRes.value.data?.data?.length && scrRes.value.data.data.some((x: any) => x.score > 0)) {
         setScores(scrRes.value.data.data);
-      } else {
+      } else if (isDemoChild) {
         setScores(
           isFahim
             ? [
@@ -229,12 +247,14 @@ export default function DashboardPage() {
                 { date: 'Nov 01', score: 90 },
               ]
         );
+      } else {
+        setScores([]);
       }
 
       // Mastery
       if (mastRes.status === 'fulfilled' && mastRes.value.data?.data?.length && mastRes.value.data.data.some((x: any) => x.accuracy > 0)) {
         setMastery(mastRes.value.data.data);
-      } else {
+      } else if (isDemoChild) {
         setMastery(
           isFahim
             ? [
@@ -260,24 +280,28 @@ export default function DashboardPage() {
                 { subject: isBn ? 'আইসিটি (স্প্রেডশিট ফর্মুলা)' : 'ICT (Spreadsheet)', accuracy: 75 },
               ]
         );
+      } else {
+        setMastery([]);
       }
 
       // Consistency
       if (consRes.status === 'fulfilled' && consRes.value.data?.data && Object.keys(consRes.value.data.data).length > 0 && Object.values(consRes.value.data.data).some((v: any) => v > 0)) {
         setConsistency(consRes.value.data.data);
-      } else {
+      } else if (isDemoChild) {
         const out: Record<string, number> = {};
         for (let i = 0; i < 180; i++) {
           const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
           out[d] = isFahim ? (i % 7 === 0 ? 1 : 2) : isTasnim ? (i % 2 === 0 ? 2 : i % 5 === 0 ? 0 : 1) : (i % 7 === 0 ? 0 : i % 4 === 0 ? 3 : 2);
         }
         setConsistency(out);
+      } else {
+        setConsistency({});
       }
 
       // Topics
       if (topRes.status === 'fulfilled' && topRes.value.data?.data?.weakest?.length && topRes.value.data.data.weakest.some((x: any) => x.accuracy > 0)) {
         setTopics(topRes.value.data.data);
-      } else {
+      } else if (isDemoChild) {
         setTopics(
           isFahim
             ? {
@@ -312,20 +336,29 @@ export default function DashboardPage() {
                 ],
               }
         );
+      } else {
+        setTopics(null);
       }
       setLoading(false);
     });
-  }, [childId, isBn, institutionType]);
+    // `isBn` is read inside the render instead of being a dependency — it re-fired
+    // all seven requests on every locale toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childId, isDemoChild, isTasnim, isFahim, institutionType]);
 
-  const isCurrentTasnim = childId === 'demo-child-2';
-  const defaultKpis = isCurrentTasnim
-    ? { studyDays: 6, totalTime: 360, quizzes: 6, avgScore: 95, streak: 6 }
-    : { studyDays: 5, totalTime: 420, quizzes: 4, avgScore: 88, streak: 5 };
+  // The KPI defaults are the demo dataset's numbers. A real child with no data shows
+  // zeros, not the demo student's 420 minutes.
+  const defaultKpis = isDemoChild
+    ? isTasnim
+      ? { studyDays: 6, totalTime: 360, quizzes: 6, avgScore: 95, streak: 6 }
+      : { studyDays: 5, totalTime: 420, quizzes: 4, avgScore: 88, streak: 5 }
+    : { studyDays: 0, totalTime: 0, quizzes: 0, avgScore: 0, streak: 0 };
   const kpis = (summary?.kpis?.totalTime || summary?.kpis?.studyDays) ? summary.kpis : defaultKpis;
   const hours = Math.floor(kpis.totalTime / 60);
   const minutes = kpis.totalTime % 60;
 
-  const isCurrentFahim = childId === 'demo-child-3';
+  const isCurrentFahim = isFahim;
+  const isCurrentTasnim = isTasnim;
   const upcomingRoutines = isCurrentFahim
     ? [
         {

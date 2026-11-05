@@ -26,32 +26,13 @@ import {
   FileCheck,
 } from 'lucide-react';
 
-const DEFAULT_DEMO_CHILDREN: Child[] = [
-  {
-    id: 'demo-child-1',
-    name: 'Rahim Ahmed',
-    nickname: 'Rahim',
-    grade: 'Class 8',
-    curriculum: 'NCTB',
-    medium: 'Bangla',
-  },
-  {
-    id: 'demo-child-2',
-    name: 'Tasnim Islam',
-    nickname: 'Tasnim',
-    grade: 'Class 5',
-    curriculum: 'NCTB',
-    medium: 'Bangla',
-  },
-  {
-    id: 'demo-child-3',
-    name: 'Fahim Islam',
-    nickname: 'Fahim',
-    grade: 'Class 11',
-    curriculum: 'NCTB',
-    medium: 'Bangla',
-  },
-];
+/**
+ * No demo fixture list.
+ *
+ * The old `DEFAULT_DEMO_CHILDREN` was used whenever the account had no children, so
+ * the quiz builder fetched and generated for `demo-child-1` — a child belonging to the
+ * demo tenant. The ids were also stale (the demo children are deterministic UUIDs now).
+ */
 
 function getSubjectsForGrade(gradeStr?: string, isBn?: boolean) {
   const g = (gradeStr || '').toLowerCase();
@@ -91,9 +72,20 @@ function QuizBuilderContent() {
   const { activeChild, childrenList } = useAuth();
   const { t, isBn } = useI18n();
 
-  const availableChildren = childrenList && childrenList.length > 0 ? childrenList : DEFAULT_DEMO_CHILDREN;
-  const currentChild = activeChild || availableChildren.find((c) => c.id === (params as any)?.id) || availableChildren[0];
-  const childId = currentChild?.id || (params as any)?.id || 'demo-child-1';
+  // The URL is the source of truth for which child this page is about.
+  //
+  // The old code checked `activeChild` FIRST, so `/children/<id>/quizzes/new` was
+  // inert whenever an active child was set — the quiz was generated for the wrong
+  // child. Now the route segment wins, and the active child is the fallback for a
+  // route without one.
+  const routeChildId = (params as any)?.id as string | undefined;
+  const availableChildren = childrenList || [];
+  const currentChild =
+    (routeChildId ? availableChildren.find((c) => c.id === routeChildId) : null) ||
+    activeChild ||
+    availableChildren[0] ||
+    null;
+  const childId = currentChild?.id || routeChildId || null;
 
   const searchParams = useSearchParams();
   const queryTopic = searchParams.get('topic') || '';
@@ -147,14 +139,18 @@ function QuizBuilderContent() {
   const subjects = getSubjectsForGrade(currentChild?.grade, isBn);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(initialSelectedSubjects);
 
-  // Sync subjects when active child changes from navbar
+  // Sync subjects when the child changes.
+  //
+  // The old dependency list was `[currentChild?.id, isBn]` while the body read
+  // `querySubject` / `queryTopic` — so a subject pre-selected from the Notes page
+  // (which arrives as a query parameter) was overwritten by the grade default.
   useEffect(() => {
     if (currentChild?.grade && !querySubject && !queryTopic) {
       const gradeSubs = getSubjectsForGrade(currentChild.grade, isBn);
       setSelectedSubjects(gradeSubs.slice(0, 2).map((s) => s.id));
       setPreview(null);
     }
-  }, [currentChild?.id, isBn]);
+  }, [currentChild?.id, currentChild?.grade, querySubject, queryTopic]);
 
   // Sync if query parameters change
   useEffect(() => {
@@ -200,8 +196,12 @@ function QuizBuilderContent() {
       setMsg(isBn ? 'কুইজের প্রশ্ন সফলভাবে তৈরি হয়েছে!' : 'AI Quiz generated from lesson digests!');
     } catch {
       // High-quality mock preview tailored to selected child's curriculum
-      const isClass5 = childId === 'demo-child-2' || (currentChild?.grade && currentChild.grade.includes('5'));
-      const isClass11 = childId === 'demo-child-3' || (currentChild?.grade && (currentChild.grade.includes('11') || currentChild.grade.includes('12')));
+      // The mock preview is tailored by the child's **grade**, not by a demo id.
+      const isClass5 = !!(currentChild?.grade && currentChild.grade.includes('5'));
+      const isClass11 = !!(
+        currentChild?.grade &&
+        (currentChild.grade.includes('11') || currentChild.grade.includes('12'))
+      );
 
       setPreview({
         id: 'quiz-' + Date.now(),

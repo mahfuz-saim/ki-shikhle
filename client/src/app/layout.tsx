@@ -1,8 +1,10 @@
 import './globals.css';
+import 'katex/dist/katex.min.css';
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/components/auth/auth-context';
 import { I18nProvider } from '@/lib/i18n-context';
+import { LocaleLang } from '@/components/layout/locale-lang';
 
 export const metadata: Metadata = {
   title: 'Ki Shikhle? - Parent Learning Tracker (কি শিখলে?)',
@@ -13,6 +15,8 @@ export const runtime = 'edge';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
+    // `lang` is corrected on the client by `LocaleLang` — the locale lives in
+    // `localStorage`, which the server cannot read.
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -24,6 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen antialiased bg-background text-foreground font-sans selection:bg-indigo-500/20 selection:text-indigo-600 dark:selection:text-indigo-400">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <I18nProvider>
+            {/* `LocaleLang` reads the locale from `useI18n()`, so it must be
+                rendered *inside* the provider. */}
+            <LocaleLang />
             <AuthProvider>{children}</AuthProvider>
           </I18nProvider>
         </ThemeProvider>

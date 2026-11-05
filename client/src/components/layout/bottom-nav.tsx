@@ -23,7 +23,9 @@ export function BottomNav() {
       {navItems.map((item) => {
         const isActive =
           item.href === '/children'
-            ? pathname === '/children' || pathname.startsWith('/children?')
+            // `usePathname()` never includes the query string, so the old
+            // `startsWith('/children?')` never matched.
+            ? pathname === '/children' || pathname.startsWith('/children/')
             : item.href === '/dashboard'
             ? pathname === '/dashboard'
             : item.href === '/quizzes'

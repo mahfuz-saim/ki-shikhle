@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
+import { demoProfileOf } from '@/lib/child-scope';
+import { ChildSelector } from '@/components/children/child-selector';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import { FormattedMarkdown, stripMarkdown } from '@/components/ui/formatted-markdown';
@@ -32,10 +35,36 @@ import {
 } from 'lucide-react';
 
 export default function NotesPage() {
-  const { activeChild } = useAuth();
-  const { t, isBn } = useI18n();
+  // `useSearchParams` needs a Suspense boundary when the page is prerendered.
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-muted-foreground">Loading notes…</div>}>
+      <NotesPageInner />
+    </Suspense>
+  );
+}
 
-  const childId = activeChild?.id || 'demo-child-1';
+function NotesPageInner() {
+  const { activeChild, childrenList } = useAuth();
+  const { t, isBn } = useI18n();
+  const searchParams = useSearchParams();
+
+  // Which child's notes this page shows.
+  //
+  // The route segment wins: `/children/<id>/notes` redirects here with
+  // `?child=<id>`, and the old stub threw that segment away, so the page always
+  // showed the *active* child regardless of the URL.
+  const routeChildId = searchParams?.get('child') || null;
+  const routeChild = routeChildId
+    ? (childrenList || []).find((c) => c.id === routeChildId) || null
+    : null;
+  // The old fallback was the hardcoded `'demo-child-1'` — an id the server no longer
+  // knows — so a parent with no children was sent a request for the demo student.
+  const childId = routeChild?.id || activeChild?.id || null;
+  // The demo dataset selector, assigned by the server. Only a demo child gets the
+  // seeded fallback notes below.
+  const demoProfile = demoProfileOf(routeChild || activeChild);
+  const isDemoChild = demoProfile !== null;
+  const isTasnim = demoProfile === 'tasnim';
 
   const [notes, setNotes] = useState<any[]>([]);
   const [file, setFile] = useState<File | null>(null);
@@ -47,10 +76,30 @@ export default function NotesPage() {
   const [loadingAi, setLoadingAi] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  // Whether the last message is a failure. A success and a failure must not look the
+  // same to the parent — several of these screens used to report success after a
+  // failed request.
+  const [msgIsError, setMsgIsError] = useState(false);
   const [showUploader, setShowUploader] = useState(false);
   const [selectedNote, setSelectedNote] = useState<any>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [noteInputView, setNoteInputView] = useState<'preview' | 'edit'>('preview');
+  const [loading, setLoading] = useState(true);
+
+  /**
+   * Guards against a state update after the component unmounts.
+   *
+   * The old page fired four requests and wrote to state from each `.then()`
+   * without a guard, so navigating away mid-flight produced React warnings
+   * and could resurrect a stale note list on the next mount.
+   */
+  const isMounted = useRef(true);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   // Preloaded subject options
   const subjects = [
@@ -64,13 +113,19 @@ export default function NotesPage() {
   ];
 
   const loadNotes = async () => {
-    const isTasnim = childId === 'demo-child-2';
+    if (!childId) {
+      setNotes([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     try {
       const res = await api.get(`/children/${childId}/notes`);
+      if (!isMounted.current) return;
       const list = res.data?.data || [];
       if (list && list.length > 0) {
         setNotes(list);
-      } else {
+      } else if (isDemoChild) {
         setNotes(
           isTasnim
             ? [
@@ -86,7 +141,7 @@ export default function NotesPage() {
 - **গুণিতক (Multiple)**: কোনো সংখ্যাকে পূর্ণসংখ্যা দিয়ে গুণ করলে যে ফল পাওয়া যায়।`,
                   ocrConfidence: 0.98,
                   date: new Date().toISOString().slice(0, 10),
-                  fileUrl: '/uploads/sample-math.jpg',
+                  fileUrl: '/uploads/sample-math.png',
                 },
                 {
                   id: 'n-t2',
@@ -116,7 +171,7 @@ export default function NotesPage() {
 - **গতির সমীকরণ**: \\(v = u + at\\), \\(s = ut + \\frac{1}{2}at^2\\), \\(v^2 = u^2 + 2as\\)`,
                   ocrConfidence: 0.98,
                   date: new Date().toISOString().slice(0, 10),
-                  fileUrl: '/uploads/sample-physics.jpg',
+                  fileUrl: '/uploads/sample-physics.png',
                 },
                 {
                   id: 'n2',
@@ -133,15 +188,20 @@ export default function NotesPage() {
                 },
               ]
         );
+      } else {
+        if (isMounted.current) setNotes([]);
       }
     } catch {
-      setNotes([]);
+      if (isMounted.current) setNotes([]);
+    } finally {
+      if (isMounted.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadNotes();
-  }, [childId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childId, isDemoChild, isTasnim]);
 
   // Handle Image Upload directly with Claude Vision AI
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,32 +275,25 @@ export default function NotesPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setMsg(isBn ? 'এআই নোট সফলভাবে সংরক্ষিত হয়েছে এবং কুইজ ডাইজেস্টে যুক্ত হয়েছে' : 'AI study note saved and queued for AI quiz digests!');
+      setMsgIsError(false);
       setTextClean('');
       setAiSummary('');
       setFile(null);
       setImagePreview(null);
       setConfidence(null);
       loadNotes();
-    } catch {
-      // Local addition
-      setNotes((prev) => [
-        {
-          id: 'note-' + Date.now(),
-          subject,
-          textClean,
-          aiSummary: aiSummary || textClean,
-          fileUrl: imagePreview,
-          ocrConfidence: confidence || 0.98,
-          date: new Date().toISOString().slice(0, 10),
-        },
-        ...prev,
-      ]);
-      setMsg(isBn ? 'নোট সংরক্ষিত হয়েছে!' : 'Note saved successfully!');
-      setTextClean('');
-      setAiSummary('');
-      setFile(null);
-      setImagePreview(null);
-      setConfidence(null);
+    } catch (err: any) {
+      // The note was NOT saved. The old code added it to local state and reported
+      // "Note saved successfully!" — so the parent saw a note in the list that the
+      // server had never received, and it vanished on the next reload.
+      const serverMsg = err?.response?.data?.error?.message;
+      setMsg(
+        serverMsg ||
+        (isBn
+          ? 'নোট সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।'
+          : 'Could not save the note. Please try again.')
+      );
+      setMsgIsError(true);
     } finally {
       setSaving(false);
     }
@@ -272,8 +325,13 @@ export default function NotesPage() {
     try {
       await api.delete(`/notes/${id}`);
       loadNotes();
-    } catch {
-      setNotes((prev) => prev.filter((n) => n.id !== id));
+    } catch (err: any) {
+      // The note was not deleted — do not remove it from the list as if it were.
+      const serverMsg = err?.response?.data?.error?.message;
+      setMsg(
+        serverMsg || (isBn ? 'নোট মুছতে পারা যায়নি।' : 'Could not delete the note.')
+      );
+      setMsgIsError(true);
     }
   };
 
@@ -294,7 +352,10 @@ export default function NotesPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link href={notes.length > 0 ? `/children/${childId}/quizzes/new?subject=${encodeURIComponent(notes[0].subject || '')}&topic=${encodeURIComponent((notes[0].aiSummary || notes[0].textClean)?.slice(0, 50) || '')}&title=${encodeURIComponent(`${notes[0].subject || 'Study'} — ${isBn ? 'নোট রিভিশন কুইজ' : 'Notes Revision Quiz'}`)}` : `/children/${childId}/quizzes/new`}>
+            {/* A parent with more than one child needs a way to switch which
+                child's notes this page shows. */}
+            <ChildSelector />
+            <Link href={notes.length > 0 ? `/children/${childId ?? ''}/quizzes/new?subject=${encodeURIComponent(notes[0].subject || '')}&topic=${encodeURIComponent((notes[0].aiSummary || notes[0].textClean)?.slice(0, 50) || '')}&title=${encodeURIComponent(`${notes[0].subject || 'Study'} — ${isBn ? 'নোট রিভিশন কুইজ' : 'Notes Revision Quiz'}`)}` : `/children/${childId ?? ''}/quizzes/new`}>
               <Button size="sm" className="gap-1.5 text-xs h-9 shadow-sm shadow-primary/20">
                 <Brain className="w-3.5 h-3.5" />
                 <span>{isBn ? 'এআই কুইজ তৈরি করুন' : 'Generate AI Quiz from Notes'}</span>
@@ -342,7 +403,13 @@ export default function NotesPage() {
         </div>
 
         {msg && (
-          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between">
+          <div
+            className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-between ${
+              msgIsError
+                ? 'bg-destructive/10 border-destructive/20 text-destructive'
+                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+            }`}
+          >
             <span>{msg}</span>
             <button onClick={() => setMsg('')} className="underline text-[11px]">
               Dismiss
@@ -541,7 +608,17 @@ export default function NotesPage() {
           </CardHeader>
 
           <CardContent>
-            {notes.length > 0 ? (
+            {loading ? (
+              <div className="grid md:grid-cols-2 gap-4">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="p-4 rounded-xl border bg-card space-y-2 animate-pulse">
+                    <div className="h-4 w-1/3 rounded bg-muted" />
+                    <div className="h-3 w-4/5 rounded bg-muted" />
+                    <div className="h-3 w-2/3 rounded bg-muted" />
+                  </div>
+                ))}
+              </div>
+            ) : notes.length > 0 ? (
               <div className="grid md:grid-cols-2 gap-4">
                 {notes.map((n) => (
                   <div

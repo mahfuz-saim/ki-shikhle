@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
+import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType } from '@/lib/institution';
 import { api } from '@/lib/api';
@@ -55,8 +56,10 @@ function KidLogContent() {
   const studentGrade = user?.grade || activeChild?.grade || 'Class 8';
   const institutionType = getInstitutionType(studentGrade);
 
-  const childId = activeChild?.id || 'demo-child-1';
-  const isTasnim = childId === 'demo-child-2' || activeChild?.name?.toLowerCase().includes('tasnim');
+  // The child this log belongs to. The old fallback was the hardcoded
+  // `'demo-child-1'` — an id the server no longer knows — so the log was posted
+  // against a child that does not exist.
+  const { childId, isTasnim } = useChildScope();
 
   // Mode: 'voice' | 'manual'
   const initialMode = searchParams?.get('mode') === 'manual' ? 'manual' : 'voice';
@@ -84,6 +87,7 @@ function KidLogContent() {
   // Submission State
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [savedEntry, setSavedEntry] = useState<any>(null);
 
   const recognitionRef = useRef<any>(null);
@@ -223,6 +227,7 @@ function KidLogContent() {
   const handleApproveAndComplete = async () => {
     if (!structuredPreview) return;
     setSubmitting(true);
+    setSaveError('');
 
     const payload = {
       source: structuredPreview.source || 'tuition',
@@ -240,10 +245,14 @@ function KidLogContent() {
       const res = await api.post(`/children/${childId}/entries`, payload);
       setSavedEntry(res.data?.data || payload);
       setSuccess(true);
-    } catch {
-      // Local fallback
-      setSavedEntry(payload);
-      setSuccess(true);
+    } catch (err: any) {
+      // The old code caught the failure and showed the "saved" screen anyway — the
+      // entry was never stored, but the child was told it was. Surface the error.
+      const serverMsg = err?.response?.data?.error?.message;
+      setSaveError(
+        serverMsg ||
+        (isBn ? 'পড়ার লগ সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।' : 'Could not save your study log. Please try again.')
+      );
     } finally {
       setSubmitting(false);
     }
@@ -254,6 +263,7 @@ function KidLogContent() {
     e.preventDefault();
     if (!topic.trim()) return;
     setSubmitting(true);
+    setSaveError('');
 
     const payload = {
       source,
@@ -268,9 +278,12 @@ function KidLogContent() {
       const res = await api.post(`/children/${childId}/entries`, payload);
       setSavedEntry(res.data?.data || payload);
       setSuccess(true);
-    } catch {
-      setSavedEntry(payload);
-      setSuccess(true);
+    } catch (err: any) {
+      const serverMsg = err?.response?.data?.error?.message;
+      setSaveError(
+        serverMsg ||
+        (isBn ? 'পড়ার লগ সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।' : 'Could not save your study log. Please try again.')
+      );
     } finally {
       setSubmitting(false);
     }
@@ -328,6 +341,12 @@ function KidLogContent() {
         </div>
 
         {/* Celebration Screen after Student Approval */}
+        {saveError && (
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs font-semibold">
+            {saveError}
+          </div>
+        )}
+
         {success ? (
           <Card className="rounded-3xl border-2 border-emerald-500/30 bg-emerald-500/5 p-8 text-center space-y-5 animate-in zoom-in-95 shadow-lg">
             <div className="w-16 h-16 rounded-3xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center text-3xl shadow-md">

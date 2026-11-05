@@ -2,7 +2,7 @@
 
 export const runtime = 'edge';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,10 @@ export default function TakeQuiz() {
   const { isBn } = useI18n();
 
   const quizId = (params as any)?.id as string;
-  const childId = activeChild?.id || 'demo-child';
+  // The child this attempt belongs to. It used to fall back to the literal string
+  // `'demo-child'`, which is not a real id — the server answered 404 and the page
+  // invented an attempt called `att-1`.
+  const childId = activeChild?.id || null;
 
   const [quiz, setQuiz] = useState<any>(null);
   const [attempt, setAttempt] = useState<any>(null);
@@ -38,14 +41,43 @@ export default function TakeQuiz() {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+
+  /**
+   * The attempt is created **once** per quiz.
+   *
+   * The old effect had `isBn` in its dependency list, so switching the UI language
+   * re-ran it and POSTed a brand-new attempt — orphaning the previous one and
+   * resetting the student's progress. The `isBn` flag is read inside the render
+   * instead of being a dependency.
+   */
+  const attemptStartedFor = useRef<string | null>(null);
+
+  /**
+   * The locale is read through a ref rather than as an effect dependency.
+   *
+   * A locale toggle used to re-run the two effects below — re-fetching the quiz
+   * and, in the sibling page, POSTing a brand-new attempt. The locale only
+   * affects the *copy* of an error message, so it is read at call time.
+   */
+  const isBnRef = useRef(isBn);
+  useEffect(() => {
+    isBnRef.current = isBn;
+  }, [isBn]);
 
   useEffect(() => {
+    if (!quizId) return;
+    let isMounted = true;
+
     api
       .get(`/quizzes/${quizId}`)
       .then((r) => {
+        if (!isMounted) return;
         const q = r.data.data;
-        // Strip correct answers for student view
-        if (q.questions) {
+        // Strip correct answers for student view. The server already strips these for a
+        // child actor; this is defence in depth for a parent previewing the page.
+        if (q?.questions) {
           q.questions = q.questions.map((qq: any) => ({
             ...qq,
             correctAnswer: undefined,
@@ -53,48 +85,53 @@ export default function TakeQuiz() {
           }));
         }
         setQuiz(q);
-        if (q.timeLimitMin) setTimeLeft(q.timeLimitMin * 60);
+        if (q?.timeLimitMin) setTimeLeft(q.timeLimitMin * 60);
       })
-      .catch(() => {
-        setQuiz({
-          id: quizId,
-          title: isBn ? 'পদার্থবিজ্ঞান ও নিউটনের সূত্র কুইজ' : 'Physics & Mechanics Chapter Quiz',
-          questions: [
-            {
-              id: 'q1',
-              type: 'mcq',
-              topic: 'Physics: Newton 2nd Law',
-              prompt: isBn
-                ? 'বল (F), ভর (m) এবং ত্বরণ (a) এর সম্পর্ক কোনটি?'
-                : 'What is the relation between Force (F), Mass (m), and Acceleration (a)?',
-              optionsJson: ['F = ma', 'F = m/a', 'F = m + a', 'F = a/m'],
-            },
-            {
-              id: 'q2',
-              type: 'true_false',
-              topic: 'Physics: Newton 3rd Law',
-              prompt: isBn
-                ? 'প্রত্যেক ক্রিয়ার একটি সমান ও বিপরীত প্রতিক্রিয়া বল থাকে।'
-                : 'Every action has an equal and opposite reaction force.',
-              optionsJson: ['True', 'False'],
-            },
-            {
-              id: 'q3',
-              type: 'mcq',
-              topic: 'Physics: Units',
-              prompt: isBn ? 'বলের এসআই (SI) একক কী?' : 'What is the SI unit of force?',
-              optionsJson: ['Joule (জুল)', 'Newton (নিউটন)', 'Pascal (প্যাসকেল)', 'Watt (ওয়াট)'],
-            },
-          ],
-        });
-        setTimeLeft(15 * 60);
+      .catch((err) => {
+        if (!isMounted) return;
+        // A quiz that cannot be loaded is an error, not a reason to invent one.
+        const serverMsg = err?.response?.data?.error?.message;
+        setLoadError(
+          serverMsg ||
+          (isBnRef.current ? 'কুইজটি লোড করা যায়নি।' : 'Could not load this quiz.')
+        );
+        setQuiz(null);
       });
+
+    return () => {
+      isMounted = false;
+    };
+    // `isBn` is intentionally NOT a dependency — it re-runs on every locale toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quizId]);
+
+  useEffect(() => {
+    if (!quizId || !childId) return;
+    if (attemptStartedFor.current === quizId) return;
+    attemptStartedFor.current = quizId;
+    let isMounted = true;
 
     api
       .post(`/quizzes/${quizId}/attempts`, { childId })
-      .then((r) => setAttempt(r.data.data))
-      .catch(() => setAttempt({ id: 'att-1', quizId }));
-  }, [quizId, childId, isBn]);
+      .then((r) => {
+        if (isMounted) setAttempt(r.data.data);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        const serverMsg = err?.response?.data?.error?.message;
+        setSubmitError(
+          serverMsg ||
+          (isBnRef.current ? 'কুইজ শুরু করা যায়নি।' : 'Could not start the attempt.')
+        );
+      });
+
+    return () => {
+      isMounted = false;
+    };
+    // `isBn` is intentionally NOT a dependency — a locale toggle must not
+    // re-create the attempt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quizId, childId]);
 
   // Countdown timer
   useEffect(() => {
@@ -119,32 +156,63 @@ export default function TakeQuiz() {
     }));
     try {
       await api.put(`/attempts/${attempt.id}/answers`, { answers: payload });
-    } catch {}
-    setSaveMsg(isBn ? 'অগ্রগতি সংরক্ষিত হয়েছে!' : 'Progress saved! You can resume anytime.');
+      setSaveMsg(isBn ? 'অগ্রগতি সংরক্ষিত হয়েছে!' : 'Progress saved! You can resume anytime.');
+    } catch {
+      // Do not claim a save that did not happen.
+      setSaveMsg(
+        isBn ? 'অগ্রগতি সংরক্ষণ করা যায়নি।' : 'Could not save your progress. Please try again.'
+      );
+    }
     setTimeout(() => setSaveMsg(''), 3000);
   };
 
   const handleSubmit = async () => {
+    if (submitting) return;
     setSubmitting(true);
+    setSubmitError('');
     const payload = Object.entries(answers).map(([questionId, answer]) => ({
       questionId,
       answer,
     }));
-    const attemptId = attempt?.id || 'att-1';
+    const attemptId = attempt?.id;
+
+    // Without a real attempt there is nothing to submit. The old code fell back to
+    // the literal `'att-1'` and pushed a results page for an attempt that never
+    // existed — which rendered a hardcoded 8/10.
+    if (!attemptId) {
+      setSubmitError(
+        isBn ? 'কুইজ শুরু করা যায়নি। আবার চেষ্টা করুন।' : 'The attempt could not be started. Please try again.'
+      );
+      setSubmitting(false);
+      return;
+    }
 
     try {
       await api.put(`/attempts/${attemptId}/answers`, { answers: payload });
       await api.post(`/attempts/${attemptId}/submit`);
       router.push(`/attempts/${attemptId}/results`);
-    } catch {
-      router.push(`/attempts/${attemptId}/results`);
+    } catch (err: any) {
+      // Navigating to the results page on failure showed a score for work that was
+      // never recorded.
+      const serverMsg = err?.response?.data?.error?.message;
+      setSubmitError(
+        serverMsg ||
+        (isBn ? 'উত্তর জমা দেওয়া যায়নি। আবার চেষ্টা করুন।' : 'Could not submit your answers. Please try again.')
+      );
+      setSubmitting(false);
     }
   };
 
   if (!quiz) {
     return (
       <KidShell>
-        <QuizTakingSkeleton />
+        {loadError ? (
+          <div className="p-4 rounded-2xl border border-destructive/30 bg-destructive/10 text-destructive text-xs font-semibold">
+            {loadError}
+          </div>
+        ) : (
+          <QuizTakingSkeleton />
+        )}
       </KidShell>
     );
   }
@@ -187,6 +255,12 @@ export default function TakeQuiz() {
         {saveMsg && (
           <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold text-center">
             {saveMsg}
+          </div>
+        )}
+
+        {submitError && (
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs font-semibold text-center">
+            {submitError}
           </div>
         )}
 

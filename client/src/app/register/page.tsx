@@ -39,21 +39,23 @@ export default function RegisterPage() {
       }
       router.push('/dashboard');
     } catch (err: any) {
+      // Show the real error. The old fallback created a **fake session** whenever the
+      // request failed — so a duplicate email, a weak password, or an unreachable API
+      // all landed the visitor in the app as "parent-<timestamp>" with a demo token.
+      // The account was never created, so every later request failed while the UI
+      // looked like it had worked.
       const serverMsg = err.response?.data?.error?.message;
       if (serverMsg) {
         setError(serverMsg);
-        setLoading(false);
-        return;
+      } else if (err.request) {
+        setError(
+          isBn
+            ? 'সার্ভারে পৌঁছানো যায়নি। অনুগ্রহ করে ইন্টারনেট সংযোগ পরীক্ষা করুন।'
+            : 'Could not reach the server. Please check your connection and try again.'
+        );
+      } else {
+        setError(isBn ? 'অ্যাকাউন্ট তৈরি করা যায়নি। আবার চেষ্টা করুন।' : 'Could not create the account. Please try again.');
       }
-      // Local fallback in dev mode if backend unreachable
-      login('demo-parent-token', {
-        id: 'parent-' + Date.now(),
-        name: form.name || 'New Parent',
-        email: form.email,
-        role: 'parent',
-        trialEndsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
-      });
-      router.push('/dashboard');
     } finally {
       setLoading(false);
     }
@@ -98,8 +100,11 @@ export default function RegisterPage() {
           <CardContent className="space-y-4 pt-2">
             <form onSubmit={onSubmit} className="space-y-3.5">
               <div>
-                <Label className="text-xs font-semibold">Parent&apos;s Full Name</Label>
+                <Label htmlFor="register-name" className="text-xs font-semibold">
+                  Parent&apos;s Full Name
+                </Label>
                 <Input
+                  id="register-name"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="e.g. Nasrin Sultana"
@@ -109,8 +114,11 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <Label className="text-xs font-semibold">Email Address</Label>
+                <Label htmlFor="register-email" className="text-xs font-semibold">
+                  Email Address
+                </Label>
                 <Input
+                  id="register-email"
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -121,8 +129,11 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <Label className="text-xs font-semibold">Password (min 8 characters)</Label>
+                <Label htmlFor="register-password" className="text-xs font-semibold">
+                  Password (min 8 characters)
+                </Label>
                 <Input
+                  id="register-password"
                   type="password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}

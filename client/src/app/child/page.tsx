@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
+import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
@@ -31,9 +32,13 @@ export default function KidDashboard() {
   const { activeChild, user } = useAuth();
   const { isBn } = useI18n();
 
-  const childId = activeChild?.id || (user as any)?.childId || user?.id || 'demo-child-1';
-  const isTasnim = childId === 'demo-child-2' || user?.email?.includes('tasnim') || activeChild?.name?.includes('Tasnim');
-  const isFahim = childId === 'demo-child-3' || user?.email?.includes('fahim') || activeChild?.name?.includes('Fahim');
+  // The child this session acts for, and which demo dataset (if any) applies.
+  //
+  // The old code fell back to `user?.id` — the **parent's** user id — and then to a
+  // hardcoded `'demo-child-1'`. Both were wrong: a parent session asked the server
+  // about a child that does not exist, and a new account with no children was shown
+  // the demo student's data.
+  const { childId, isTasnim, isFahim, isDemoChild } = useChildScope();
   const studentGrade = user?.grade || activeChild?.grade || (isFahim ? 'Class 11' : isTasnim ? 'Class 5' : 'Class 8');
   const institutionType = getInstitutionType(studentGrade);
   const instInfo = getInstitutionInfo(institutionType, isBn);
@@ -42,187 +47,194 @@ export default function KidDashboard() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [consistency, setConsistency] = useState<Record<string, number>>({});
   const [hasPendingLog, setHasPendingLog] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  /**
+   * The locale is read through a ref instead of being an effect dependency.
+   *
+   * `isBn` used to be in the dependency array, so toggling the UI language
+   * re-fired all four dashboard requests. The locale only affects the *copy* of
+   * the demo fallback, so it is read at call time instead.
+   */
+  const isBnRef = useRef(isBn);
+  useEffect(() => {
+    isBnRef.current = isBn;
+  }, [isBn]);
+
+  /**
+   * Guards against a state update after the component unmounts — the dashboard
+   * fires four requests and each one writes to state.
+   */
+  const isMounted = useRef(true);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
+    // No child to act for — there is nothing to load, and nothing to fake.
+    if (!childId) {
+      setSummary(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+
+    /**
+     * The mock fallback below is for the **demo tenant only**.
+     *
+     * It used to fire for every child, so a brand-new account with no data was shown
+     * the demo student's KPIs. The demo dataset is now opt-in: the server marks the
+     * three seeded children with a `demoProfile`, and only those get mock numbers.
+     */
+    const mockSummary = () =>
+      setSummary({
+        kpis: isFahim
+          ? { studyDays: 6, totalTime: 1560, streak: 7, quizzes: 4, avgScore: 92 }
+          : isTasnim
+          ? { studyDays: 6, totalTime: 1080, streak: 6, quizzes: 6, avgScore: 95 }
+          : { studyDays: 6, totalTime: 1350, streak: 6, quizzes: 5, avgScore: 88 },
+        recent: isFahim
+          ? [
+              { date: new Date().toISOString(), topicsText: 'Physics 1st Paper - Projectile Motion (প্রক্ষেপকের গাণিতিক সমাধান)', source: 'college' },
+              { date: new Date(Date.now() - 3600000 * 3).toISOString(), topicsText: 'Chemistry 1st Paper - Bohr Atomic Model & Quantum Numbers', source: 'college' },
+              { date: new Date(Date.now() - 3600000 * 6).toISOString(), topicsText: 'Physics Coaching - Advanced Trajectory Equations', source: 'tuition' },
+            ]
+          : isTasnim
+          ? [
+              { date: new Date().toISOString(), topicsText: 'Elementary Math - Factors & Multiples (লসাগু ও গসাগু নির্ণয়)', source: 'school' },
+              { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'Primary Science - Safe Drinking Water & Purification Steps', source: 'school' },
+              { date: new Date(Date.now() - 3600000 * 7).toISOString(), topicsText: 'Math Tutor - Word Problems on Bell Intervals', source: 'tuition' },
+            ]
+          : [
+              { date: new Date().toISOString(), topicsText: 'Mathematics - Algebraic Formulae (বর্গের সূত্রাবলী ও প্রয়োগ)', source: 'school' },
+              { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'General Science - 3 Equations of Motion & v-t Graphs', source: 'school' },
+              { date: new Date(Date.now() - 3600000 * 7).toISOString(), topicsText: 'Math Tuition - Value Finding with Rahim Sir', source: 'tuition' },
+            ],
+      });
+
     // 1. Summary & KPIs
     api
       .get(`/children/${childId}/dashboard/summary`)
       .then((r) => {
+        if (!isMounted.current) return;
         if (r.data?.data && (r.data.data.kpis?.totalTime > 0 || r.data.data.kpis?.streak > 0)) {
           setSummary(r.data.data);
+        } else if (isDemoChild) {
+          mockSummary();
         } else {
-          setSummary({
-            kpis: isFahim
-              ? { studyDays: 6, totalTime: 1560, streak: 7, quizzes: 4, avgScore: 92 }
-              : isTasnim
-              ? { studyDays: 6, totalTime: 1080, streak: 6, quizzes: 6, avgScore: 95 }
-              : { studyDays: 6, totalTime: 1350, streak: 6, quizzes: 5, avgScore: 88 },
-            recent: isFahim
-              ? [
-                  { date: new Date().toISOString(), topicsText: 'Physics 1st Paper - Projectile Motion (প্রক্ষেপকের গাণিতিক সমাধান)', source: 'college' },
-                  { date: new Date(Date.now() - 3600000 * 3).toISOString(), topicsText: 'Chemistry 1st Paper - Bohr Atomic Model & Quantum Numbers', source: 'college' },
-                  { date: new Date(Date.now() - 3600000 * 6).toISOString(), topicsText: 'Physics Coaching - Advanced Trajectory Equations', source: 'tuition' },
-                ]
-              : isTasnim
-              ? [
-                  { date: new Date().toISOString(), topicsText: 'Elementary Math - Factors & Multiples (লসাগু ও গসাগু নির্ণয়)', source: 'school' },
-                  { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'Primary Science - Safe Drinking Water & Purification Steps', source: 'school' },
-                  { date: new Date(Date.now() - 3600000 * 7).toISOString(), topicsText: 'Math Tutor - Word Problems on Bell Intervals', source: 'tuition' },
-                ]
-              : [
-                  { date: new Date().toISOString(), topicsText: 'Mathematics - Algebraic Formulae (বর্গের সূত্রাবলী ও প্রয়োগ)', source: 'school' },
-                  { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'General Science - 3 Equations of Motion & v-t Graphs', source: 'school' },
-                  { date: new Date(Date.now() - 3600000 * 7).toISOString(), topicsText: 'Math Tuition - Value Finding with Rahim Sir', source: 'tuition' },
-                ],
-          });
-        }
-      })
-      .catch(() =>
-        setSummary({
-          kpis: isFahim
-            ? { studyDays: 6, totalTime: 1560, streak: 7, quizzes: 4, avgScore: 92 }
-            : isTasnim
-            ? { studyDays: 6, totalTime: 1080, streak: 6, quizzes: 6, avgScore: 95 }
-            : { studyDays: 6, totalTime: 1350, streak: 6, quizzes: 5, avgScore: 88 },
-          recent: isFahim
-            ? [
-                { date: new Date().toISOString(), topicsText: 'Physics 1st Paper - Projectile Motion (প্রক্ষেপকের গাণিতিক সমাধান)', source: 'college' },
-                { date: new Date(Date.now() - 3600000 * 3).toISOString(), topicsText: 'Chemistry 1st Paper - Bohr Atomic Model & Quantum Numbers', source: 'college' },
-              ]
-            : isTasnim
-            ? [
-                { date: new Date().toISOString(), topicsText: 'Elementary Math - Factors & Multiples (লসাগু ও গসাগু নির্ণয়)', source: 'school' },
-                { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'Primary Science - Safe Drinking Water & Purification Steps', source: 'school' },
-              ]
-            : [
-                { date: new Date().toISOString(), topicsText: 'Mathematics - Algebraic Formulae (বর্গের সূত্রাবলী ও প্রয়োগ)', source: 'school' },
-                { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'General Science - 3 Equations of Motion & v-t Graphs', source: 'school' },
-              ],
-        })
-      );
-
-    // 2. Quizzes
-    api
-      .get(`/children/${childId}/quizzes`)
-      .then((r) => {
-        const list = r.data?.data;
-        if (list && list.length > 0) {
-          setQuizzes(list);
-        } else {
-          setQuizzes(
-            isTasnim
-              ? [
-                  {
-                    id: 'q-t2',
-                    title: isBn ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification',
-                    status: 'assigned',
-                    questionCount: 5,
-                    timeLimitMin: 15,
-                    isNew: true,
-                  },
-                  {
-                    id: 'q-t1',
-                    title: isBn ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু কুইজ' : 'Primary Math: Factors & LCM-HCF Quiz',
-                    status: 'completed',
-                    questionCount: 5,
-                    score: 95,
-                  },
-                ]
-              : [
-                  {
-                    id: 'q-r2',
-                    title: isBn ? 'পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ' : 'Physics: Equations of Motion & Acceleration',
-                    status: 'assigned',
-                    questionCount: 5,
-                    timeLimitMin: 15,
-                    isNew: true,
-                  },
-                  {
-                    id: 'q-r1',
-                    title: isBn ? 'গণিত: বীজগাণিতিক সূত্রাবলী ও প্রয়োগ কুইজ' : 'Class 8 Math: Algebraic Formulae Quiz',
-                    status: 'completed',
-                    questionCount: 5,
-                    score: 85,
-                  },
-                  {
-                    id: 'q-r3',
-                    title: isBn ? 'ইংরেজি: Right Forms of Verbs & Prepositions' : 'English: Right Forms of Verbs & Prepositions',
-                    status: 'completed',
-                    questionCount: 5,
-                    score: 80,
-                  },
-                ]
-          );
-        }
-      })
-      .catch(() =>
-        setQuizzes(
-          isTasnim
-            ? [
-                {
-                  id: 'q-t2',
-                  title: isBn ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification',
-                  status: 'assigned',
-                  questionCount: 5,
-                  timeLimitMin: 15,
-                  isNew: true,
-                },
-                {
-                  id: 'q-t1',
-                  title: isBn ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু কুইজ' : 'Primary Math: Factors & LCM-HCF Quiz',
-                  status: 'completed',
-                  questionCount: 5,
-                  score: 95,
-                },
-              ]
-            : [
-                {
-                  id: 'q-r2',
-                  title: isBn ? 'পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ' : 'Physics: Equations of Motion & Acceleration',
-                  status: 'assigned',
-                  questionCount: 5,
-                  timeLimitMin: 15,
-                  isNew: true,
-                },
-                {
-                  id: 'q-r1',
-                  title: isBn ? 'গণিত: বীজগাণিতিক সূত্রাবলী ও প্রয়োগ কুইজ' : 'Class 8 Math: Algebraic Formulae Quiz',
-                  status: 'completed',
-                  questionCount: 5,
-                  score: 85,
-                },
-              ]
-        )
-      );
-
-    // 3. Consistency (for MonthlyActivityCalendar)
-    api
-      .get(`/children/${childId}/dashboard/consistency`)
-      .then((r) => {
-        if (r.data?.data && Object.keys(r.data.data).length > 0) {
-          setConsistency(r.data.data);
-        } else {
-          const out: Record<string, number> = {};
-          for (let i = 0; i < 180; i++) {
-            const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-            out[d] = isTasnim ? (i % 2 === 0 ? 1 : i % 5 === 0 ? 0 : 1) : (i % 7 === 0 ? 0 : i % 4 === 0 ? 2 : 1);
-          }
-          setConsistency(out);
+          // A real child with no data yet: an empty state, not invented numbers.
+          setSummary(r.data?.data ?? null);
         }
       })
       .catch(() => {
-        const out: Record<string, number> = {};
-        for (let i = 0; i < 180; i++) {
-          const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-          out[d] = isTasnim ? (i % 2 === 0 ? 1 : i % 5 === 0 ? 0 : 1) : (i % 7 === 0 ? 0 : i % 4 === 0 ? 2 : 1);
+        if (!isMounted.current) return;
+        if (isDemoChild) mockSummary();
+        else setSummary(null);
+      });
+
+    // 2. Quizzes
+    const mockQuizzes = () =>
+      setQuizzes(
+        isTasnim
+          ? [
+              {
+                id: 'q-t2',
+                title: isBnRef.current ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification',
+                status: 'assigned',
+                questionCount: 5,
+                timeLimitMin: 15,
+                isNew: true,
+              },
+              {
+                id: 'q-t1',
+                title: isBnRef.current ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু কুইজ' : 'Primary Math: Factors & LCM-HCF Quiz',
+                status: 'completed',
+                questionCount: 5,
+                score: 95,
+              },
+            ]
+          : [
+              {
+                id: 'q-r2',
+                title: isBnRef.current ? 'পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ' : 'Physics: Equations of Motion & Acceleration',
+                status: 'assigned',
+                questionCount: 5,
+                timeLimitMin: 15,
+                isNew: true,
+              },
+              {
+                id: 'q-r1',
+                title: isBnRef.current ? 'গণিত: বীজগাণিতিক সূত্রাবলী ও প্রয়োগ কুইজ' : 'Class 8 Math: Algebraic Formulae Quiz',
+                status: 'completed',
+                questionCount: 5,
+                score: 85,
+              },
+              {
+                id: 'q-r3',
+                title: isBnRef.current ? 'ইংরেজি: Right Forms of Verbs & Prepositions' : 'English: Right Forms of Verbs & Prepositions',
+                status: 'completed',
+                questionCount: 5,
+                score: 80,
+              },
+            ]
+      );
+
+    api
+      .get(`/children/${childId}/quizzes`)
+      .then((r) => {
+        if (!isMounted.current) return;
+        const list = r.data?.data;
+        if (list && list.length > 0) {
+          setQuizzes(list);
+        } else if (isDemoChild) {
+          mockQuizzes();
+        } else {
+          // A real child with no quizzes yet — an empty list, not invented quizzes.
+          setQuizzes([]);
         }
-        setConsistency(out);
+      })
+      .catch(() => {
+        if (!isMounted.current) return;
+        if (isDemoChild) mockQuizzes();
+        else setQuizzes([]);
+      });
+
+    // 3. Consistency (for MonthlyActivityCalendar)
+    const mockConsistency = () => {
+      const out: Record<string, number> = {};
+      for (let i = 0; i < 180; i++) {
+        const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+        out[d] = isTasnim ? (i % 2 === 0 ? 1 : i % 5 === 0 ? 0 : 1) : (i % 7 === 0 ? 0 : i % 4 === 0 ? 2 : 1);
+      }
+      setConsistency(out);
+    };
+
+    api
+      .get(`/children/${childId}/dashboard/consistency`)
+      .then((r) => {
+        if (!isMounted.current) return;
+        if (r.data?.data && Object.keys(r.data.data).length > 0) {
+          setConsistency(r.data.data);
+        } else if (isDemoChild) {
+          mockConsistency();
+        } else {
+          setConsistency({});
+        }
+      })
+      .catch(() => {
+        if (!isMounted.current) return;
+        if (isDemoChild) mockConsistency();
+        else setConsistency({});
       });
 
     // 4. Check if today's class logs are pending
     api
       .get(`/children/${childId}/entries`)
       .then((r) => {
+        if (!isMounted.current) return;
         const raw = r.data?.data;
         const list = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
         const todayStr = new Date().toISOString().slice(0, 10);
@@ -236,23 +248,44 @@ export default function KidDashboard() {
         });
         setHasPendingLog(!loggedToday);
       })
-      .catch(() => setHasPendingLog(true));
-  }, [childId, isBn, isTasnim, isFahim]);
+      .catch(() => {
+        if (isMounted.current) setHasPendingLog(true);
+      })
+      .finally(() => {
+        if (isMounted.current) setLoading(false);
+      });
+    // `isBn` is deliberately NOT a dependency — it is read through `isBnRef` at
+    // call time. Including it re-fired all four requests on every locale toggle.
+  }, [childId, isTasnim, isFahim, isDemoChild]);
 
-  const defaultKpis = isFahim
+  // The KPI defaults are the demo dataset's numbers. A real child with no data shows
+  // zeros, not the demo student's 1350 minutes.
+  const demoKpis = isFahim
     ? { studyDays: 6, totalTime: 1560, quizzes: 4, avgScore: 92, streak: 7 }
     : isTasnim
     ? { studyDays: 6, totalTime: 1080, quizzes: 6, avgScore: 95, streak: 6 }
     : { studyDays: 6, totalTime: 1350, quizzes: 5, avgScore: 88, streak: 6 };
-  const kpis = (summary?.kpis?.totalTime || summary?.kpis?.studyDays) ? summary.kpis : defaultKpis;
-  const effectiveTotalMin = kpis.totalTime || (isFahim ? 1560 : 420);
+  const emptyKpis = { studyDays: 0, totalTime: 0, quizzes: 0, avgScore: 0, streak: 0 };
+  const kpis =
+    summary?.kpis?.totalTime || summary?.kpis?.studyDays
+      ? summary.kpis
+      : isDemoChild
+      ? demoKpis
+      : emptyKpis;
+  const effectiveTotalMin = kpis.totalTime || (isDemoChild ? (isFahim ? 1560 : 420) : 0);
   const hours = Math.floor(effectiveTotalMin / 60);
   const minutes = effectiveTotalMin % 60;
 
   const studentName = activeChild?.name || user?.name || (isTasnim ? 'Tasnim Islam' : 'Rahim Ahmed');
   const pendingQuizzes = (Array.isArray(quizzes) ? quizzes : []).filter((q) => q.status === 'assigned' || q.isNew || !q.score);
-  const pendingCount = pendingQuizzes.length || (isTasnim ? 1 : 2);
-  const firstPendingQuiz = pendingQuizzes[0] || (isTasnim ? { title: isBn ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification' } : { title: isBn ? 'পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ' : 'Physics: Equations of Motion & Acceleration' });
+  const pendingCount = pendingQuizzes.length || (isDemoChild ? (isTasnim ? 1 : 2) : 0);
+  const firstPendingQuiz =
+    pendingQuizzes[0] ||
+    (isDemoChild
+      ? isTasnim
+        ? { title: isBn ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification' }
+        : { title: isBn ? 'পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ' : 'Physics: Equations of Motion & Acceleration' }
+      : null);
 
   return (
     <KidShell>
@@ -297,9 +330,13 @@ export default function KidDashboard() {
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed line-clamp-1">
-                    {isBn
-                      ? `সর্বশেষ: "${firstPendingQuiz.title}" — প্রস্তুতি যাচাই করতে কুইজ পেজে যান`
-                      : `Latest: "${firstPendingQuiz.title}" — Click to open Quiz page & test your mastery`}
+                    {firstPendingQuiz
+                      ? isBn
+                        ? `সর্বশেষ: "${firstPendingQuiz.title}" — প্রস্তুতি যাচাই করতে কুইজ পেজে যান`
+                        : `Latest: "${firstPendingQuiz.title}" — Click to open Quiz page & test your mastery`
+                      : isBn
+                      ? 'কুইজ পেজে গিয়ে প্রস্তুতি যাচাই করো'
+                      : 'Open the Quiz page to test your mastery'}
                   </p>
                 </div>
               </div>

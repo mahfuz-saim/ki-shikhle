@@ -27,38 +27,71 @@ export default function Onboarding() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [createdChildId, setCreatedChildId] = useState('');
+  const [error, setError] = useState('');
 
+  // The form starts EMPTY. It used to be prefilled with the demo student's details
+  // (`Rahim Ahmed` / `student@demo.com` / `Password123!`), so a brand-new parent who
+  // clicked straight through created — or appeared to create — a *demo* student.
   const [child, setChild] = useState({
-    name: 'Rahim Ahmed',
-    nickname: 'Rahim',
+    name: '',
+    nickname: '',
     grade: 'Class 8',
     curriculum: 'NCTB',
     medium: 'Bangla',
-    email: 'student@demo.com',
-    password: 'Password123!',
+    email: '',
+    password: '',
   });
 
   const [routine, setRoutine] = useState({
-    name: 'Math Tuition – Rahim Sir',
+    name: '',
     source: 'tuition',
     weekdays: [0, 2, 4],
     startTime: '16:00',
     durationMin: 90,
   });
 
-  const [logTopic, setLogTopic] = useState('Algebra: Quadratic Equations Formula');
+  const [logTopic, setLogTopic] = useState('');
+
+  /**
+   * Turn a failed request into a message the parent can act on.
+   *
+   * The old code swallowed the error and advanced the wizard anyway — so a duplicate
+   * email, a weak password or an unreachable API all ended on the "You're All Set!"
+   * screen with nothing actually created.
+   */
+  function errorMessage(err: any, fallback: string): string {
+    const serverMsg = err?.response?.data?.error?.message;
+    if (serverMsg) return serverMsg;
+    if (err?.request) {
+      return isBn
+        ? 'সার্ভারে পৌঁছানো যায়নি। অনুগ্রহ করে ইন্টারনেট সংযোগ পরীক্ষা করুন।'
+        : 'Could not reach the server. Please check your connection and try again.';
+    }
+    return fallback;
+  }
 
   async function handleAddChild() {
     setLoading(true);
+    setError('');
     try {
       const res = await api.post('/children', child);
-      const cId = res.data?.data?.id || 'child-' + Date.now();
+      const cId = res.data?.data?.id;
+      if (!cId) {
+        setError(
+          isBn ? 'স্টুডেন্ট প্রোফাইল তৈরি হয়নি। আবার চেষ্টা করুন।' : 'The student profile was not created. Please try again.'
+        );
+        return;
+      }
       setCreatedChildId(cId);
       await refreshChildren();
       setStep(2);
-    } catch {
-      setCreatedChildId('demo-child');
-      setStep(2);
+    } catch (err: any) {
+      setError(
+        errorMessage(
+          err,
+          isBn ? 'স্টুডেন্ট প্রোফাইল তৈরি করা যায়নি। আবার চেষ্টা করুন।' : 'Could not create the student profile. Please try again.'
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -66,15 +99,20 @@ export default function Onboarding() {
 
   async function handleAddRoutine() {
     setLoading(true);
-    const cId = createdChildId || 'demo-child';
+    setError('');
     try {
-      await api.post(`/children/${cId}/routines`, {
+      await api.post(`/children/${createdChildId}/routines`, {
         ...routine,
         startsOn: new Date().toISOString().slice(0, 10),
       });
       setStep(3);
-    } catch {
-      setStep(3);
+    } catch (err: any) {
+      setError(
+        errorMessage(
+          err,
+          isBn ? 'রুটিন সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।' : 'Could not save the routine. Please try again.'
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -82,16 +120,21 @@ export default function Onboarding() {
 
   async function handleFirstLog() {
     setLoading(true);
-    const cId = createdChildId || 'demo-child';
+    setError('');
     try {
-      await api.post(`/children/${cId}/entries`, {
+      await api.post(`/children/${createdChildId}/entries`, {
         source: 'tuition',
         topicsText: logTopic,
         date: new Date().toISOString().slice(0, 10),
       });
       setStep(4);
-    } catch {
-      setStep(4);
+    } catch (err: any) {
+      setError(
+        errorMessage(
+          err,
+          isBn ? 'স্টাডি লগ সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।' : 'Could not save the study log. Please try again.'
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -151,7 +194,7 @@ export default function Onboarding() {
                 <Input
                   value={child.name}
                   onChange={(e) => setChild({ ...child, name: e.target.value })}
-                  placeholder="e.g. Rahim Ahmed"
+                  placeholder={isBn ? 'যেমন: রহিম আহমেদ' : 'e.g. Rahim Ahmed'}
                   className="mt-1"
                 />
               </div>
@@ -195,7 +238,7 @@ export default function Onboarding() {
                     type="email"
                     value={child.email}
                     onChange={(e) => setChild({ ...child, email: e.target.value })}
-                    placeholder="student@demo.com"
+                    placeholder="student@example.com"
                     className="mt-1"
                   />
                 </div>
@@ -205,15 +248,17 @@ export default function Onboarding() {
                     type="password"
                     value={child.password}
                     onChange={(e) => setChild({ ...child, password: e.target.value })}
-                    placeholder="Password123!"
+                    placeholder="At least 8 characters"
                     className="mt-1"
                   />
                 </div>
               </div>
 
+              {error && <p className="text-xs text-destructive font-medium">{error}</p>}
+
               <Button
                 onClick={handleAddChild}
-                disabled={loading || !child.name}
+                disabled={loading || !child.name || !child.email || !child.password}
                 className="w-full h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
               >
                 {loading ? 'Creating Profile...' : 'Next: Setup Routine →'}
@@ -262,6 +307,8 @@ export default function Onboarding() {
                 </div>
               </div>
 
+              {error && <p className="text-xs text-destructive font-medium">{error}</p>}
+
               <Button
                 onClick={handleAddRoutine}
                 disabled={loading || !routine.name}
@@ -292,12 +339,14 @@ export default function Onboarding() {
                 />
               </div>
 
+              {error && <p className="text-xs text-destructive font-medium">{error}</p>}
+
               <Button
                 onClick={handleFirstLog}
                 disabled={loading || !logTopic}
                 className="w-full h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
               >
-                {loading ? 'Recording...' : 'Finish Setup 🎉'}
+                {loading ? 'Recording...' : 'Finish Setup'}
               </Button>
             </CardContent>
           </Card>

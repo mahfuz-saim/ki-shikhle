@@ -682,16 +682,20 @@ export default function ChildrenPage() {
 }
 
 function SubjectsManager() {
+  const { isBn } = useI18n();
   const [list, setList] = useState<any[]>([]);
   const [nameEn, setNameEn] = useState('');
   const [nameBn, setNameBn] = useState('');
   const [loading, setLoading] = useState(false);
+  const [addError, setAddError] = useState('');
 
   const load = () => {
     api
       .get('/subjects')
       .then((r) => setList(r.data.data))
       .catch(() =>
+        // The server was unreachable — showing the *default* catalogue is honest
+        // (these are the built-in subjects), so it stays.
         setList([
           { nameEn: 'Mathematics', nameBn: 'গণিত' },
           { nameEn: 'Physics', nameBn: 'পদার্থবিজ্ঞান' },
@@ -714,16 +718,20 @@ function SubjectsManager() {
   async function add() {
     if (!nameEn) return;
     setLoading(true);
+    setAddError('');
     try {
       await api.post('/subjects', { nameEn, nameBn, curriculum: 'NCTB', grade: 'Class 8' });
       setNameEn('');
       setNameBn('');
       load();
-    } catch {
-      // Mock addition
-      setList((prev) => [...prev, { nameEn, nameBn, isCustom: true }]);
-      setNameEn('');
-      setNameBn('');
+    } catch (err: any) {
+      // The old code added the subject to local state on failure, so it appeared
+      // in the list as if it were saved — then vanished on the next reload.
+      const serverMsg = err?.response?.data?.error?.message;
+      setAddError(
+        serverMsg ||
+          (isBn ? 'বিষয় যোগ করা যায়নি। আবার চেষ্টা করুন।' : 'Could not add the subject. Please try again.')
+      );
     } finally {
       setLoading(false);
     }
@@ -749,6 +757,12 @@ function SubjectsManager() {
           Add Subject
         </Button>
       </div>
+
+      {addError && (
+        <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs font-semibold">
+          {addError}
+        </div>
+      )}
 
       {/* Scrollable Subject Box: 6 subjects visible on mobile (3 rows x 2 cols), rest scrollable within box */}
       <div className="max-h-[178px] sm:max-h-[235px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 overscroll-contain">

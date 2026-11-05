@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
+import { demoProfileOf, type DemoProfile } from '@/lib/child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType } from '@/lib/institution';
 import { api } from '@/lib/api';
@@ -33,9 +34,12 @@ import {
   UserCheck,
 } from 'lucide-react';
 
-function getFallbackEntries(childId: string, isBn: boolean) {
-  const isTasnim = childId === 'demo-child-2';
-  const isFahim = childId === 'demo-child-3';
+function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
+  // The demo dataset is selected by the server-assigned `demoProfile`, not by a
+  // hardcoded child id. The ids moved to UUIDs, so `childId === 'demo-child-2'`
+  // never matched anything and every viewer saw Rahim's rows.
+  const isTasnim = profile === 'tasnim';
+  const isFahim = profile === 'fahim';
 
   if (isFahim) {
     return [
@@ -457,8 +461,15 @@ export default function LearningLogPage() {
   const { activeChild, childrenList } = useAuth();
   const { isBn } = useI18n();
 
-  const childId = (params as any)?.id || activeChild?.id || 'demo-child';
-  const currentChild = childrenList.find((c) => c.id === childId) || activeChild;
+  // The route segment wins over the active child, and an account with no child
+  // gets NO child id — the old `'demo-child'` fallback was not a real id, so the
+  // server answered 404 and the page rendered an empty shell.
+  const routeChildId = (params as any)?.id as string | undefined;
+  const childId = routeChildId || activeChild?.id || null;
+  const currentChild =
+    (routeChildId ? childrenList.find((c) => c.id === routeChildId) : null) || activeChild || null;
+  const demoProfile = demoProfileOf(currentChild);
+  const isDemoChild = demoProfile !== null;
   const institutionType = getInstitutionType(currentChild?.grade);
 
   const [entries, setEntries] = useState<any[]>([]);
@@ -473,6 +484,7 @@ export default function LearningLogPage() {
   const [savingAlert, setSavingAlert] = useState(false);
   const [testingAlert, setTestingAlert] = useState(false);
   const [alertSuccessMsg, setAlertSuccessMsg] = useState('');
+  const [alertErrorMsg, setAlertErrorMsg] = useState('');
   const [alertConfig, setAlertConfig] = useState<{
     enabled: boolean;
     time: string;
@@ -480,12 +492,13 @@ export default function LearningLogPage() {
     daysOfWeek: number[];
   }>({
     enabled: true,
-    time: childId === 'demo-child-3' ? '22:00' : childId === 'demo-child-2' ? '20:30' : '21:00',
+    time: demoProfile === 'fahim' ? '22:00' : demoProfile === 'tasnim' ? '20:30' : '21:00',
     channel: 'all',
     daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
   });
 
   const loadAlertConfig = async () => {
+    if (!childId) return;
     try {
       const res = await api.get(`/children/${childId}/unlogged-alert`);
       if (res.data?.data) {
@@ -494,7 +507,7 @@ export default function LearningLogPage() {
     } catch {
       setAlertConfig({
         enabled: true,
-        time: childId === 'demo-child-3' ? '22:00' : childId === 'demo-child-2' ? '20:30' : '21:00',
+        time: demoProfile === 'fahim' ? '22:00' : demoProfile === 'tasnim' ? '20:30' : '21:00',
         channel: 'all',
         daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
       });
@@ -507,8 +520,10 @@ export default function LearningLogPage() {
 
   const handleSaveAlertConfig = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!childId) return;
     setSavingAlert(true);
     setAlertSuccessMsg('');
+    setAlertErrorMsg('');
     try {
       await api.put(`/children/${childId}/unlogged-alert`, alertConfig);
       setAlertSuccessMsg(
@@ -520,23 +535,25 @@ export default function LearningLogPage() {
         setAlertModalOpen(false);
         setAlertSuccessMsg('');
       }, 1500);
-    } catch {
-      setAlertSuccessMsg(
-        isBn
-          ? `${currentChild?.name || 'শিক্ষার্থী'}-এর আনলগড স্টাডি অ্যালার্ট সফলভাবে সংরক্ষিত হয়েছে!`
-          : `Unlogged study alert settings successfully saved for ${currentChild?.name || 'this student'}!`
+    } catch (err: any) {
+      // The old code reported "successfully saved" on failure too, so the parent
+      // believed the alert was configured when the server had rejected it.
+      const serverMsg = err?.response?.data?.error?.message;
+      setAlertErrorMsg(
+        serverMsg ||
+          (isBn
+            ? 'অ্যালার্ট সেটিংস সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।'
+            : 'Could not save the alert settings. Please try again.')
       );
-      setTimeout(() => {
-        setAlertModalOpen(false);
-        setAlertSuccessMsg('');
-      }, 1500);
     } finally {
       setSavingAlert(false);
     }
   };
 
   const handleTriggerTestAlert = async () => {
+    if (!childId) return;
     setTestingAlert(true);
+    setAlertErrorMsg('');
     try {
       await api.post(`/children/${childId}/unlogged-alert/test`);
       setAlertSuccessMsg(
@@ -545,13 +562,14 @@ export default function LearningLogPage() {
           : 'Test notification sent! Check the bell icon above.'
       );
       setTimeout(() => setAlertSuccessMsg(''), 4000);
-    } catch {
-      setAlertSuccessMsg(
-        isBn
-          ? 'পরীক্ষামূলক নোটিফিকেশন পাঠানো হয়েছে! উপরের বেল আইকনে দেখুন।'
-          : 'Test notification sent! Check the bell icon above.'
+    } catch (err: any) {
+      const serverMsg = err?.response?.data?.error?.message;
+      setAlertErrorMsg(
+        serverMsg ||
+          (isBn
+            ? 'পরীক্ষামূলক নোটিফিকেশন পাঠানো যায়নি।'
+            : 'Could not send the test notification.')
       );
-      setTimeout(() => setAlertSuccessMsg(''), 4000);
     } finally {
       setTestingAlert(false);
     }
@@ -560,15 +578,21 @@ export default function LearningLogPage() {
   const loadEntries = async () => {
     setLoading(true);
     try {
+      if (!childId) {
+        setEntries([]);
+        return;
+      }
       const res = await api.get(`/children/${childId}/entries`);
       const list = res.data?.data?.data || res.data?.data || [];
       if (list && list.length > 0) {
         setEntries(list);
       } else {
-        setEntries(getFallbackEntries(childId, isBn));
+        // Only the demo tenant has a curated fixture. A real account with no
+        // entries gets an honest empty list, not someone else's study log.
+        setEntries(isDemoChild ? getFallbackEntries(demoProfile, isBn) : []);
       }
     } catch {
-      setEntries(getFallbackEntries(childId, isBn));
+      setEntries(isDemoChild ? getFallbackEntries(demoProfile, isBn) : []);
     } finally {
       setLoading(false);
     }
@@ -701,8 +725,8 @@ export default function LearningLogPage() {
             <Link
               href={
                 entries.length > 0
-                  ? `/children/${childId}/quizzes/new?topic=${encodeURIComponent(entries[0].topicsText || '')}&subject=${encodeURIComponent(entries[0].subject || entries[0].subjectId || '')}&title=${encodeURIComponent(`${entries[0].topicsText || entries[0].subject} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`)}`
-                  : `/children/${childId}/quizzes/new`
+                  ? `/children/${childId ?? ''}/quizzes/new?topic=${encodeURIComponent(entries[0].topicsText || '')}&subject=${encodeURIComponent(entries[0].subject || entries[0].subjectId || '')}&title=${encodeURIComponent(`${entries[0].topicsText || entries[0].subject} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`)}`
+                  : `/children/${childId ?? ''}/quizzes/new`
               }
             >
               <Button size="sm" className="gap-1.5 text-xs h-9 shadow-sm shadow-primary/20 bg-primary">
@@ -1008,7 +1032,7 @@ export default function LearningLogPage() {
                       )}
 
                       <Link
-                        href={`/children/${childId}/quizzes/new?topic=${encodeURIComponent(e.topicsText || '')}&subject=${encodeURIComponent(e.subject || e.subjectId || '')}&title=${encodeURIComponent(`${e.topicsText || e.subject} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`)}`}
+                        href={`/children/${childId ?? ''}/quizzes/new?topic=${encodeURIComponent(e.topicsText || '')}&subject=${encodeURIComponent(e.subject || e.subjectId || '')}&title=${encodeURIComponent(`${e.topicsText || e.subject} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`)}`}
                       >
                         <Button
                           size="sm"
@@ -1170,6 +1194,13 @@ export default function LearningLogPage() {
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span>{alertSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Error Message Banner */}
+            {alertErrorMsg && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                <span>{alertErrorMsg}</span>
               </div>
             )}
 

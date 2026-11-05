@@ -318,14 +318,59 @@ export function Header() {
   );
 }
 
+/**
+ * A banner showing how many days of the free trial are left.
+ *
+ * This component computed `trialDays` and then returned `null` — it was dead
+ * code that never rendered. It now actually renders, but only when the account
+ * is genuinely on a trial (a `trialEndsAt` in the future). Accounts with an
+ * active subscription, or no trial at all, see nothing.
+ */
 export function TrialBanner() {
-  const { user } = useAuth();
-  const trialEnds = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
-  const trialDays = trialEnds
-    ? Math.max(0, Math.ceil((trialEnds.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 0;
+  const { user, subscription } = useAuth();
+  const { isBn } = useI18n();
 
-  return null;
+  const trialEnds = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  if (!trialEnds || Number.isNaN(trialEnds.getTime())) return null;
+
+  const msRemaining = trialEnds.getTime() - Date.now();
+  if (msRemaining <= 0) return null; // the trial is over
+
+  // A paid subscription supersedes the trial banner.
+  const subStatus = subscription?.status;
+  if (subStatus && subStatus !== 'trialing' && subStatus !== 'trial') return null;
+
+  const trialDays = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
+
+  return (
+    <div className="w-full px-4 sm:px-6 md:px-8 pt-3">
+      <div
+        className={`rounded-2xl border px-4 py-2.5 text-xs font-semibold flex flex-wrap items-center justify-between gap-2 ${
+          trialDays <= 3
+            ? 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'
+            : 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300'
+        }`}
+        role="status"
+      >
+        <span className="flex items-center gap-2">
+          <Sparkles className="w-3.5 h-3.5 shrink-0" />
+          {trialDays <= 3
+            ? isBn
+              ? `ফ্রি ট্রায়াল শেষ হতে ${trialDays} দিন বাকি!`
+              : `Your free trial ends in ${trialDays} day${trialDays === 1 ? '' : 's'}!`
+            : isBn
+              ? `ফ্রি ট্রায়ালে আর ${trialDays} দিন আছে।`
+              : `${trialDays} days left in your free trial.`}
+        </span>
+        <Link
+          href="/billing"
+          className="underline underline-offset-2 hover:no-underline font-bold shrink-0"
+        >
+          {isBn ? 'প্ল্যান আপগ্রেড করুন' : 'Upgrade your plan'}
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 export default Header;

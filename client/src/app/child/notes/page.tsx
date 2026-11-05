@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { CardGridSkeleton } from '@/components/ui/skeleton';
 import { Modal } from '@/components/ui/modal';
 import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
+import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import { FormattedMarkdown, stripMarkdown } from '@/components/ui/formatted-markdown';
@@ -64,8 +65,8 @@ export default function KidNotesPage() {
   const { activeChild, user } = useAuth();
   const { isBn } = useI18n();
 
-  const childId = activeChild?.id || (user as any)?.childId || user?.id || 'demo-child-1';
-  const isTasnim = childId === 'demo-child-2' || user?.email?.includes('tasnim') || activeChild?.name?.includes('Tasnim');
+  // The child whose notes this is, and the demo dataset that applies (if any).
+  const { childId, isTasnim, isDemoChild } = useChildScope();
 
   // Notes state
   const [notes, setNotes] = useState<any[]>([]);
@@ -95,27 +96,50 @@ export default function KidNotesPage() {
   const [activeTabInModal, setActiveTabInModal] = useState<'ai' | 'raw'>('ai');
   const [aiPreviewMode, setAiPreviewMode] = useState<'formatted' | 'edit'>('formatted');
 
+  /**
+   * Guards against a state update after the component unmounts.
+   *
+   * The load request writes to state from `.then()`; without this guard,
+   * navigating away mid-flight produced React warnings and could resurrect a
+   * stale note list on the next mount.
+   */
+  const isMounted = useRef(true);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   // Load notes from backend
   const loadNotes = async () => {
     setLoading(true);
     try {
+      if (!childId) {
+        if (isMounted.current) setNotes([]);
+        return;
+      }
       const res = await api.get(`/children/${childId}/notes`);
+      if (!isMounted.current) return;
       const list = res.data?.data;
       if (list && list.length > 0) {
         setNotes(list);
       } else {
-        setNotes(isTasnim ? fallbackTasnimNotes : fallbackRahimNotes);
+        // The fallback notes are the demo dataset — only for a demo child.
+        setNotes(isDemoChild ? (isTasnim ? fallbackTasnimNotes : fallbackRahimNotes) : []);
       }
     } catch {
-      setNotes(isTasnim ? fallbackTasnimNotes : fallbackRahimNotes);
+      if (isMounted.current) {
+        setNotes(isDemoChild ? (isTasnim ? fallbackTasnimNotes : fallbackRahimNotes) : []);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadNotes();
-  }, [childId, isTasnim]);
+  }, [childId, isTasnim, isDemoChild]);
 
   // Handle direct file upload to Claude Vision AI
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1061,10 +1085,17 @@ export default function KidNotesPage() {
 }
 
 // Fallback seed notes for Rahim (Class 8)
+//
+// These are demo fixtures. The `childId` on each row is the demo tenant's real child
+// id — the demo children were migrated to deterministic UUIDs, so the old
+// `'demo-child-1'` string pointed at nothing. These rows are only ever rendered for
+// the demo child (see `isDemoChild` in `loadNotes`).
+const DEMO_RAHIM_ID = '00000000-0000-4000-8000-000000000101';
+const DEMO_TASNIM_ID = '00000000-0000-4000-8000-000000000102';
 const fallbackRahimNotes = [
   {
     id: 'note-rahim-1',
-    childId: 'demo-child-1',
+    childId: DEMO_RAHIM_ID,
     subject: 'Physics',
     title: 'গতির সমীকরণ ও নিউটনের ২য় সূত্র (Equations of Motion & Force)',
     date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
@@ -1087,7 +1118,7 @@ const fallbackRahimNotes = [
   },
   {
     id: 'note-rahim-2',
-    childId: 'demo-child-1',
+    childId: DEMO_RAHIM_ID,
     subject: 'Mathematics',
     title: 'বীজগণিতীয় সূত্রাবলী ও উৎপাদকে বিশ্লেষণ (Algebraic Formulae)',
     date: new Date(Date.now() - 4 * 86400000).toISOString().slice(0, 10),
@@ -1106,7 +1137,7 @@ const fallbackRahimNotes = [
   },
   {
     id: 'note-rahim-3',
-    childId: 'demo-child-1',
+    childId: DEMO_RAHIM_ID,
     subject: 'Chemistry',
     title: 'পর্যায় সারণি ও মৌলের ইলেকট্রন বিন্যাস (Periodic Table Trends)',
     date: new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10),
@@ -1127,7 +1158,7 @@ const fallbackRahimNotes = [
 const fallbackTasnimNotes = [
   {
     id: 'note-tasnim-1',
-    childId: 'demo-child-2',
+    childId: DEMO_TASNIM_ID,
     subject: 'Elementary Math',
     title: 'গুণনীয়ক, গুণিতক এবং লসাগু ও গসাগু (Factors & Multiples)',
     date: new Date(Date.now() - 1 * 86400000).toISOString().slice(0, 10),
@@ -1144,7 +1175,7 @@ const fallbackTasnimNotes = [
   },
   {
     id: 'note-tasnim-2',
-    childId: 'demo-child-2',
+    childId: DEMO_TASNIM_ID,
     subject: 'Primary Science',
     title: 'নিরাপদ পানি ও বিশুদ্ধকরণ পদ্ধতি (Safe Water & Purification)',
     date: new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10),
@@ -1159,7 +1190,7 @@ const fallbackTasnimNotes = [
   },
   {
     id: 'note-tasnim-3',
-    childId: 'demo-child-2',
+    childId: DEMO_TASNIM_ID,
     subject: 'English',
     title: 'Unit 6: Eat Healthy – Food Pyramid & Balanced Diet',
     date: new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10),
