@@ -9,16 +9,30 @@ import { assertEntityAccess, type Actor } from '../../core/tenancy';
  * so any authenticated user could mark (and therefore read) another tenant's notification.
  */
 
+/**
+ * The account whose notifications the actor may read.
+ *
+ * For a parent this is their own account. For a **child** it is the child's own
+ * login identity — not the parent. `actor.ownerId` is the parent's id for a child
+ * actor, so filtering on it handed the child their parent's inbox: siblings' scores,
+ * trial reminders and billing alerts. The child's own `users` row is the account
+ * their notifications belong to.
+ */
+function notificationAccountId(actor: Actor): string {
+  return actor.role === 'child' ? actor.userId || actor.childId || actor.ownerId : actor.ownerId;
+}
+
 export async function list(actor: Actor) {
+  const accountId = notificationAccountId(actor);
   let items: any[] = [];
   try {
     items = await prisma.notification.findMany({
-      where: { userId: actor.ownerId },
+      where: { userId: accountId },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
   } catch {
-    items = store.notifications.forOwner(actor.ownerId);
+    items = store.notifications.forOwner(accountId);
   }
 
   // Pre-fetch children for lookup
@@ -82,20 +96,22 @@ export async function list(actor: Actor) {
 export async function markRead(actor: Actor, id: string) {
   // Ownership first: a notification id from another tenant must be a 404, not a silent update.
   await assertEntityAccess(actor, { kind: 'notification', id });
+  const accountId = notificationAccountId(actor);
   try {
     return await prisma.notification.update({ where: { id }, data: { readAt: new Date() } });
   } catch {
-    const n = store.notifications.find(actor.ownerId, id);
+    const n = store.notifications.find(accountId, id);
     if (n) n.readAt = new Date();
     return n;
   }
 }
 
 export async function markAllRead(actor: Actor) {
+  const accountId = notificationAccountId(actor);
   try {
-    await prisma.notification.updateMany({ where: { userId: actor.ownerId, readAt: null }, data: { readAt: new Date() } });
+    await prisma.notification.updateMany({ where: { userId: accountId, readAt: null }, data: { readAt: new Date() } });
   } catch {
-    for (const n of store.notifications.forOwner(actor.ownerId)) {
+    for (const n of store.notifications.forOwner(accountId)) {
       if (!n.readAt) n.readAt = new Date();
     }
   }

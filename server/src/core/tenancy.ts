@@ -31,6 +31,8 @@ export type Role = 'parent' | 'child' | 'admin';
 export interface Actor {
   /** The account that OWNS data. For a child actor this is the PARENT's user id. */
   ownerId: string;
+  /** The actor's OWN login identity (`users.id`). For a child this is the child's own row. */
+  userId: string;
   /** Present only for child actors — the single child this token may act as. */
   childId?: string;
   role: Role;
@@ -77,6 +79,7 @@ export async function resolveActor(input: ActorInput): Promise<Actor> {
         return {
           // The account that OWNS the data is the PARENT, even for a child actor.
           ownerId: resolved.parentId,
+          userId: user.id,
           childId: resolved.childId,
           role,
           email: user.email,
@@ -84,7 +87,7 @@ export async function resolveActor(input: ActorInput): Promise<Actor> {
         };
       }
 
-      return { ownerId: user.id, role, email: user.email, degraded: false };
+      return { ownerId: user.id, userId: user.id, role, email: user.email, degraded: false };
     }
 
     // The subject is not a `users` row, but it may be a **child profile** id.
@@ -102,6 +105,7 @@ export async function resolveActor(input: ActorInput): Promise<Actor> {
     if (childRow && !childRow.deletedAt && input.childId && input.childId === childRow.id) {
       return {
         ownerId: childRow.parentId,
+        userId: childRow.id,
         childId: childRow.id,
         role: 'child',
         email: childRow.email ?? undefined,
@@ -122,6 +126,7 @@ export async function resolveActor(input: ActorInput): Promise<Actor> {
     if (memChild && !memChild.deletedAt && input.childId && input.childId === memChild.id) {
       return {
         ownerId: memChild.ownerId,
+        userId: memChild.id,
         childId: memChild.id,
         role: 'child',
         email: memChild.email ?? undefined,
@@ -138,6 +143,7 @@ export async function resolveActor(input: ActorInput): Promise<Actor> {
     const resolved = await resolveChildIdentity(mem.id, mem.email, input.childId);
     return {
       ownerId: resolved.parentId,
+      userId: mem.id,
       childId: resolved.childId,
       role,
       email: mem.email,
@@ -145,7 +151,7 @@ export async function resolveActor(input: ActorInput): Promise<Actor> {
     };
   }
 
-  return { ownerId: mem.id, role, email: mem.email, degraded: true };
+  return { ownerId: mem.id, userId: mem.id, role, email: mem.email, degraded: true };
 }
 
 interface ChildIdentity {
@@ -271,6 +277,7 @@ export type EntityKind =
   | 'routine'
   | 'exception'
   | 'quiz'
+  | 'question'
   | 'attempt'
   | 'subject'
   | 'notification';
@@ -295,9 +302,13 @@ export async function assertEntityAccess(actor: Actor, entity: EntityRef): Promi
   }
 
   if (kind === 'notification') {
-    // Notifications are owned by the account, not by a child.
+    // Notifications are owned by the **account** that received them. For a parent that
+    // is their own account; for a child it is the child's own login identity. Using
+    // `actor.ownerId` here would let a child read the parent's inbox, because a child
+    // actor's `ownerId` is the parent's id.
     const ownerId = await resolveNotificationOwner(id);
-    if (!ownerId || ownerId !== actor.ownerId) throw notFound('Notification not found');
+    const accountId = actor.role === 'child' ? actor.userId || actor.ownerId : actor.ownerId;
+    if (!ownerId || ownerId !== accountId) throw notFound('Notification not found');
     return;
   }
 
@@ -343,6 +354,14 @@ async function resolveOwningChild(kind: EntityKind, id: string): Promise<string 
         const row = await prisma.quiz.findUnique({ where: { id }, select: { childId: true } });
         return row?.childId;
       }
+      case 'question': {
+        // A question hangs off a quiz, which hangs off a child.
+        const row = await prisma.quizQuestion.findUnique({
+          where: { id },
+          select: { quiz: { select: { childId: true } } },
+        });
+        return row?.quiz?.childId;
+      }
       case 'attempt': {
         const row = await prisma.quizAttempt.findUnique({ where: { id }, select: { childId: true } });
         return row?.childId;
@@ -363,6 +382,14 @@ async function resolveOwningChild(kind: EntityKind, id: string): Promise<string 
         return undefined;
       case 'quiz':
         return store.quizzes.findAny(id)?.childId;
+      case 'question': {
+        // A question hangs off a quiz, which hangs off a child.
+        for (const q of store.quizzes.listAll()) {
+          const f = (q.questions || []).find((x: any) => x.id === id);
+          if (f) return q.childId;
+        }
+        return undefined;
+      }
       case 'attempt':
         return store.attempts.findAny(id)?.childId;
       default:

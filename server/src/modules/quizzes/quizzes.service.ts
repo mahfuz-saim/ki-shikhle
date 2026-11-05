@@ -834,7 +834,16 @@ export async function submitAttempt(actor: Actor, attemptId: string) {
   }
 }
 
+/**
+ * Flag a question as bad.
+ *
+ * There was **no ownership check at all** here: the update matched on the question id
+ * alone, so any authenticated caller could flag a question in any tenant — including
+ * one belonging to a child they have never seen. The question is resolved to its
+ * owning child first, so the check is the same one every other entity gets.
+ */
 export async function reportQuestion(actor: Actor, questionId: string) {
+  await assertEntityAccess(actor, { kind: 'question', id: questionId });
   try { await prisma.quizQuestion.update({ where:{id:questionId}, data:{ reported:true}}); }
   catch { const q=findQuestion(actor, questionId); if(q) q.reported=true; }
   return { message:'Reported for review' };

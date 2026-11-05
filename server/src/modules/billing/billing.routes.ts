@@ -18,7 +18,16 @@ export const publicRouter = Router();
 publicRouter.get('/plans', ctrl.plans);
 
 const router = Router();
-router.use(auth());
+
+/**
+ * Billing is the **parent's** account, not the child's.
+ *
+ * `auth()` with no role gate let a child token through, and `getInvoices` reads
+ * `actor.ownerId` — which for a child actor is the **parent's** id. So a child could
+ * read the family's invoices, subscription and plan. Every route on this router is
+ * parent-only.
+ */
+router.use(auth('parent'));
 router.get('/subscription', ctrl.subscription);
 router.post('/demo-checkout', validate(checkoutSchema), ctrl.checkout);
 router.post('/cancel', ctrl.cancel);
