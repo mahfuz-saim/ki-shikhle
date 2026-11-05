@@ -9,11 +9,17 @@
  */
 import app from './app';
 import { runAllJobs } from './jobs/jobs';
+import { withRequestPrisma } from './db/client';
+
+type Ctx = { waitUntil(p: Promise<unknown>): void; passThroughOnException?(): void };
 
 export default {
-  fetch: app.fetch,
-  async scheduled(_event: unknown, _env: unknown, ctx?: { waitUntil(p: Promise<unknown>): void }) {
-    const work = runAllJobs();
+  // Each request gets its own Prisma client: Workers forbid sharing DB sockets across requests.
+  fetch(request: Request, env: unknown, ctx: Ctx) {
+    return withRequestPrisma(() => Promise.resolve(app.fetch(request, env as any, ctx as any)), ctx);
+  },
+  async scheduled(_event: unknown, _env: unknown, ctx?: Ctx) {
+    const work = withRequestPrisma(() => runAllJobs(), ctx);
     if (ctx?.waitUntil) ctx.waitUntil(work);
     else await work;
   },
