@@ -1,4 +1,5 @@
 import { prisma } from '../../db/client';
+import { assertClassLogDate } from '../../utils/class-log-date';
 import { notFound, forbidden, badRequest } from '../../utils/errors';
 import { callAI } from '../../services/ai';
 import { store, seedDemoRows, registerDemoFixture, DEMO_PARENT_ID } from '../../core/store';
@@ -660,7 +661,7 @@ export async function listEntries(actor: Actor, childId: string, query: { from?:
       // child's `passwordHash` and `pinHash`, because `updateEntry` snapshotted a
       // row loaded with `include: { child: true }`. Shipping them meant every
       // `GET /children/:id/entries` carried credential hashes to the browser.
-      prisma.learningEntry.findMany({ where, orderBy: { date: 'desc' }, skip: (page - 1) * limit, take: limit }),
+      prisma.learningEntry.findMany({ where, include: { linkedNotes: true }, orderBy: { date: 'desc' }, skip: (page - 1) * limit, take: limit }),
       prisma.learningEntry.count({ where }),
     ]);
     return { data, total, page, limit };
@@ -669,20 +670,64 @@ export async function listEntries(actor: Actor, childId: string, query: { from?:
     const effectiveFrom = clampFrom(query.from);
     if (effectiveFrom) filtered = filtered.filter((e: any) => new Date(e.date) >= new Date(effectiveFrom));
     if (query.to) filtered = filtered.filter((e: any) => e.date <= query.to!);
-    return { data: filtered, total: filtered.length, page: 1, limit: 20 };
+    return { data: filtered.map((entry: any) => ({ ...entry,
+      linkedNotes: store.notes.forChild(actor.ownerId, childId).filter((note) => note.entryId === entry.id),
+    })), total: filtered.length, page: 1, limit: 20 };
   }
+}
+
+/** One stable library note per log; editing the log never creates duplicate notes. */
+async function syncClassNote(db: any, entry: any) {
+  const id = `class-note-${entry.id}`;
+  const text = (entry.notes || '').trim();
+  if (!text) {
+    await db.note.deleteMany({ where: { id, entryId: entry.id } });
+    return;
+  }
+  const subject = entry.subject || entry.subjectName || 'Class';
+  const content = {
+    childId: entry.childId, entryId: entry.id, subject,
+    title: `${subject} — ${new Date(entry.date).toISOString().slice(0, 10)}`,
+    date: entry.date, textClean: text, aiSummary: null, status: 'class_log',
+  };
+  await db.note.upsert({ where: { id }, create: { id, ...content }, update: content });
+}
+
+function syncMemoryClassNote(actor: Actor, entry: any) {
+  const id = `class-note-${entry.id}`;
+  const text = (entry.notes || '').trim();
+  const existing = store.notes.find(actor.ownerId, id);
+  if (!text) {
+    if (existing) store.notes.remove(id);
+  } else {
+    const subject = entry.subject || entry.subjectName || 'Class';
+    const content = {
+      id, ownerId: actor.ownerId, childId: entry.childId, entryId: entry.id, subject,
+      title: `${subject} — ${new Date(entry.date).toISOString().slice(0, 10)}`,
+      date: entry.date, textClean: text, aiSummary: null, status: 'class_log', updatedAt: new Date().toISOString(),
+    };
+    if (existing) Object.assign(existing, content);
+    else store.notes.add({ ...content, createdAt: new Date().toISOString() });
+  }
+  entry.linkedNotes = store.notes.forChild(actor.ownerId, entry.childId).filter((note) => note.entryId === entry.id);
 }
 
 export async function createEntry(actor: Actor, childId: string, data: any) {
   await assertChildAccess(actor, childId);
+  assertClassLogDate(data.date);
   const payload = { childId, ...data, date: new Date(data.date) };
   try {
-    const entry = await prisma.learningEntry.create({ data: payload });
+    const entry = await prisma.$transaction(async (db: any) => {
+      const saved = await db.learningEntry.create({ data: payload });
+      await syncClassNote(db, saved);
+      return db.learningEntry.findUnique({ where: { id: saved.id }, include: { linkedNotes: true } });
+    });
     // queue digest job (cheap model)
     queueDigest(entry.id, childId, data.topicsText);
     return entry;
   } catch {
     const entry = { id: 'entry-' + Date.now(), ...payload, ownerId: actor.ownerId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), verifiedByParent: false };
+    syncMemoryClassNote(actor, entry);
     store.entries.add(entry as any);
     queueDigest(entry.id, childId, data.topicsText);
     return entry;
@@ -692,6 +737,7 @@ export async function createEntry(actor: Actor, childId: string, data: any) {
 export async function updateEntry(actor: Actor, entryId: string, data: any, changedBy: string) {
   // Ownership is asserted BEFORE the database is touched, so a DB error can never skip it.
   await assertEntityAccess(actor, { kind: 'entry', id: entryId });
+  if (data.date !== undefined) assertClassLogDate(data.date);
 
   let entry: any;
   try {
@@ -700,28 +746,45 @@ export async function updateEntry(actor: Actor, entryId: string, data: any, chan
     // snapshot (and from there into every entries response).
     entry = await prisma.learningEntry.findUnique({ where: { id: entryId }, include: { child: { select: { id: true, name: true, grade: true } } } });
     if (!entry) throw notFound('Entry not found');
+    assertClassLogDate(entry.date);
     // 48h edit window for child role
     if (changedBy === 'child' && Date.now() - new Date(entry.createdAt).getTime() > 48 * 3600000) throw forbidden('Edit window expired (48h)');
 
     // save revision
     await prisma.entryRevision.create({ data: { entryId, snapshotJson: entry as any, changedBy } }).catch(()=>{});
-    const updated = await prisma.learningEntry.update({ where: { id: entryId }, data });
-    return updated;
+    return await prisma.$transaction(async (db: any) => {
+      const updated = await db.learningEntry.update({ where: { id: entryId }, data });
+      await syncClassNote(db, updated);
+      return db.learningEntry.findUnique({ where: { id: entryId }, include: { linkedNotes: true } });
+    });
   } catch (e: any) {
     if (e.statusCode) throw e;
     const row = store.entries.find(actor.ownerId, entryId);
     if (!row) throw notFound('Entry not found');
+    assertClassLogDate(row.date);
+    if (changedBy === 'child' && Date.now() - new Date(row.createdAt).getTime() > 48 * 3600000) throw forbidden('Edit window expired (48h)');
     const snapshot = { ...row };
     memRevisions.push({ id: 'rev-' + Date.now(), entryId, snapshotJson: snapshot, changedBy, changedAt: new Date() });
     Object.assign(row, data, { updatedAt: new Date().toISOString() });
+    syncMemoryClassNote(actor, row);
     return row;
   }
 }
 
 export async function deleteEntry(actor: Actor, entryId: string) {
   await assertEntityAccess(actor, { kind: 'entry', id: entryId });
-  try { await prisma.learningEntry.delete({ where: { id: entryId } }); }
-  catch { store.entries.remove(entryId); }
+  try {
+    await prisma.$transaction(async (db: any) => {
+      // Keep library notes if the class log is removed, without a dangling FK.
+      await db.note.updateMany({ where: { entryId }, data: { entryId: null, status: 'active' } });
+      await db.learningEntry.delete({ where: { id: entryId } });
+    });
+  } catch {
+    for (const note of store.notes.forOwner(actor.ownerId)) {
+      if (note.entryId === entryId) Object.assign(note, { entryId: null, status: 'active' });
+    }
+    store.entries.remove(entryId);
+  }
   return { message: 'Deleted' };
 }
 

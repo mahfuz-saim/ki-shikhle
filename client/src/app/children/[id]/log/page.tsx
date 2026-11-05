@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
+import { ClassLogNotes } from '@/components/children/class-log-notes';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { demoProfileOf, type DemoProfile } from '@/lib/child-scope';
@@ -931,6 +932,8 @@ export default function LearningLogPage() {
                       {e.topicsText}
                     </p>
                   </div>
+
+                  <ClassLogNotes entry={e} isBn={isBn} />
 
                   {/* Footer Row: Confidence, Verification & Actions */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">

@@ -1,4 +1,6 @@
 import { prisma } from '../../db/client';
+import { updateEntry } from '../entries/entries.service';
+import { assertClassLogDate } from '../../utils/class-log-date';
 import { storage } from '../../services/storage';
 import { callAI, estimateCost, generateSubjectNote, AIImage } from '../../services/ai';
 import { sha256Hex } from '../../utils/crypto';
@@ -348,6 +350,14 @@ ${rawText ? `Student Context / Notes:\n${rawText}` : 'Please examine the uploade
 
 export async function createNote(actor: Actor, childId: string, file: any, body: any) {
   await assertChildAccess(actor, childId);
+  if (body.entryId) {
+    await assertEntityAccess(actor, { kind: 'entry', id: body.entryId });
+    let entry: any;
+    try { entry = await prisma.learningEntry.findUnique({ where: { id: body.entryId } }); }
+    catch { entry = store.entries.find(actor.ownerId, body.entryId); }
+    if (!entry || entry.childId !== childId) throw badRequest('The class log does not belong to this child');
+    assertClassLogDate(entry.date);
+  }
   let fileUrl: string | undefined;
   let textClean = body.textClean || body.text || '';
   const ocrConfidence: number | undefined = body.ocrConfidence ? parseFloat(body.ocrConfidence) : 0.95;
@@ -444,6 +454,11 @@ export async function listNotes(actor: Actor, childId: string) {
 export async function updateNote(actor: Actor, noteId: string, data: any) {
   await assertEntityAccess(actor, { kind: 'note', id: noteId });
   const note: any = await findNote(actor, noteId);
+  if (note.status === 'class_log' && note.entryId && typeof data.textClean === 'string') {
+    await updateEntry(actor, note.entryId, { notes: data.textClean }, actor.role);
+    if (!data.textClean.trim()) return { ...note, textClean: '', status: 'deleted' };
+    return findNote(actor, noteId);
+  }
   const textHash = data.textClean ? hashText(data.textClean) : note.textHash;
   const payload = { ...data, textHash };
   try {
@@ -457,6 +472,10 @@ export async function updateNote(actor: Actor, noteId: string, data: any) {
 export async function deleteNote(actor: Actor, noteId: string) {
   await assertEntityAccess(actor, { kind: 'note', id: noteId });
   const note: any = await findNote(actor, noteId);
+  if (note.status === 'class_log' && note.entryId) {
+    await updateEntry(actor, note.entryId, { notes: '' }, actor.role);
+    return { message: 'Deleted' };
+  }
   const key = typeof note.fileUrl === 'string' ? note.fileUrl.split('/').pop() : null;
   if (key) await storage.delete(key).catch(() => {});
   try {

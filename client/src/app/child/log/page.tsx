@@ -13,6 +13,7 @@ import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType } from '@/lib/institution';
 import { api } from '@/lib/api';
+import { classLogToday } from '@/lib/class-logs';
 import {
   Sparkles,
   BookOpen,
@@ -231,7 +232,7 @@ function KidLogContent() {
       topicsText: structuredPreview.topicsText || structuredPreview.rawTranscript,
       durationMin: structuredPreview.durationMin || 60,
       confidence: structuredPreview.confidence || 5,
-      date: new Date().toISOString().slice(0, 10),
+      date: classLogToday(),
       notes: `${structuredPreview.keyConcepts?.join(' • ') || ''}${
         structuredPreview.homeworkAssigned ? ` | হোমওয়ার্ক: ${structuredPreview.homeworkAssigned}` : ''
       }`,
@@ -267,7 +268,7 @@ function KidLogContent() {
       topicsText: topic,
       durationMin,
       confidence,
-      date: new Date().toISOString().slice(0, 10),
+      date: classLogToday(),
     };
 
     try {

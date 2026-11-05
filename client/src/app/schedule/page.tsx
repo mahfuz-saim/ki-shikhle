@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
+import { ClassLogNotes } from '@/components/children/class-log-notes';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n, type Translator } from '@/lib/i18n-context';
@@ -957,7 +958,7 @@ export default function SchedulePage() {
                               <p className="whitespace-pre-wrap break-words">{classLog.homeworkAssigned}</p>
                             </div>
                           )}
-                          {classLog.notes && <p className="whitespace-pre-wrap break-words">{classLog.notes}</p>}
+                          <ClassLogNotes entry={classLog} isBn={isBn} />
                           <p className="text-xs text-muted-foreground">
                             {classLog.durationMin ?? 0} {isBn ? 'মিনিট' : 'minutes'}
                             {classLog.confidence != null && ` • ${isBn ? 'আত্মবিশ্বাস' : 'Confidence'}: ${classLog.confidence}/5`}

@@ -627,7 +627,7 @@ export default function KidNotesPage() {
                     <div className="flex items-center gap-1.5 pt-1">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
                         <Sparkles className="w-2.5 h-2.5" />
-                        <span>Claude Vision AI</span>
+                        <span>{note.status === 'class_log' ? (isBn ? 'ক্লাস নোট' : 'Class notes') : 'Claude Vision AI'}</span>
                       </span>
                       {note.fileUrl && (
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -699,7 +699,7 @@ export default function KidNotesPage() {
               </div>
               <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>Claude Vision AI Synthesized</span>
+                <span>{selectedNote.status === 'class_log' ? (isBn ? 'ক্লাস লগ থেকে সংরক্ষিত' : 'Saved from class log') : 'Claude Vision AI Synthesized'}</span>
               </span>
             </div>
 
@@ -750,13 +750,13 @@ export default function KidNotesPage() {
               </Button>
 
               <div className="flex items-center gap-2">
-                <Link href={`/child/log?subject=${encodeURIComponent(selectedNote.subject || '')}`}>
+                <Link href={selectedNote.entryId ? '/child/schedule' : `/child/log?subject=${encodeURIComponent(selectedNote.subject || '')}`}>
                   <Button
                     size="sm"
                     className="h-8 rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
-                    <span>{t('childNotes.text_28')}</span>
+                    <span>{selectedNote.entryId ? (isBn ? 'রুটিন খুলুন' : 'Open routine') : t('childNotes.text_28')}</span>
                   </Button>
                 </Link>
                 <Button

@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
+import { ClassLogNotes } from '@/components/children/class-log-notes';
 import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
-import { schoolDate, loadClassLogs, findClassLog, findLogQuiz } from '@/lib/class-logs';
+import { schoolDate, loadClassLogs, findClassLog, findLogQuiz, isFutureClassDate } from '@/lib/class-logs';
 import { StudyTimeChart } from '@/components/charts/study-time-chart';
 import {
   RefreshCw,
@@ -810,6 +811,7 @@ export default function KidSchedulePage() {
 
   // Open Log Modal for a specific class
   const handleOpenLogModal = (routine: any) => {
+    if (isFutureClassDate(selectedDate)) return;
     const existing = findEntryForRoutine(routine);
     setActiveRoutineForLog(routine);
     setExistingEntryForLog(existing || null);
@@ -836,7 +838,11 @@ export default function KidSchedulePage() {
   // Submit class log
   const handleSaveClassLog = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeRoutineForLog || !logForm.topicsText.trim()) return;
+    if (!activeRoutineForLog || !logForm.topicsText.trim() || loading) return;
+    if (isFutureClassDate(selectedDate)) {
+      setErrorMsg(isBn ? 'ভবিষ্যতের ক্লাস লগ করা যাবে না।' : 'Future classes cannot be logged.');
+      return;
+    }
 
     if (isListening && recognitionRef.current) {
       try {
@@ -859,7 +865,7 @@ export default function KidSchedulePage() {
       topicsText: logForm.topicsText.trim(),
       homeworkAssigned: logForm.homeworkAssigned.trim() || undefined,
       confidence: logForm.confidence,
-      notes: logForm.notes.trim() || undefined,
+      notes: logForm.notes.trim(),
     };
 
     try {
@@ -1387,6 +1393,8 @@ export default function KidSchedulePage() {
                                 </p>
                               </div>
 
+                              <ClassLogNotes entry={loggedEntry} isBn={isBn} />
+
                               {/* Homework Assigned callout */}
                               {loggedEntry.homeworkAssigned && (
                                 <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
@@ -1439,6 +1447,7 @@ export default function KidSchedulePage() {
                               <Button
                                 size="sm"
                                 variant="outline"
+                                disabled={isFutureClassDate(selectedDate)}
                                 onClick={() => handleOpenLogModal(routine)}
                                 className="h-9 px-3 text-xs font-bold rounded-xl border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 gap-1.5 flex-1 md:flex-none w-auto"
                               >
@@ -1458,11 +1467,13 @@ export default function KidSchedulePage() {
                           ) : (
                             <Button
                               size="sm"
+                              disabled={isFutureClassDate(selectedDate)}
+                              title={isFutureClassDate(selectedDate) ? (isBn ? 'নির্ধারিত দিনে লগ করা যাবে' : 'Logging is available on the scheduled date') : undefined}
                               onClick={() => handleOpenLogModal(routine)}
                               className="h-10 px-4 text-xs font-bold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm gap-2 w-full md:w-auto"
                             >
                               <BookOpen className="w-4 h-4" />
-                              <span>{t('childSchedule.text_54')}</span>
+                              <span>{isFutureClassDate(selectedDate) ? (isBn ? 'ভবিষ্যতের ক্লাস' : 'Future class') : t('childSchedule.text_54')}</span>
                               <Mic className="w-3.5 h-3.5 text-rose-300 animate-pulse" />
                             </Button>
                           )}
@@ -1782,6 +1793,20 @@ export default function KidSchedulePage() {
             </div>
           </div>
 
+          {/* Class notes are saved to the library and linked to this class log. */}
+          <div>
+            <Label htmlFor="class-notes" className="text-xs font-bold block mb-1">
+              {isBn ? 'ক্লাস নোট (ঐচ্ছিক)' : 'Class notes (optional)'}
+            </Label>
+            <textarea id="class-notes" value={logForm.notes}
+              onChange={(event) => setLogForm({ ...logForm, notes: event.target.value })}
+              placeholder={isBn ? 'ক্লাসের বিস্তারিত নোট, সূত্র বা উদাহরণ লিখুন…' : 'Write detailed notes, formulas, or examples from this class…'}
+              rows={5} className="w-full px-3 py-2 text-sm rounded-2xl border bg-background focus:outline-none focus:ring-2 focus:ring-primary/40" />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {isBn ? 'এই নোট ক্লাস লগ ও নোটের পাতায় দেখা যাবে।' : 'These notes will appear with this class log and on the Notes page.'}
+            </p>
+          </div>
+
           {/* Homework / Assignment Input */}
           <div>
             <Label className="text-xs font-bold text-foreground block mb-1">
@@ -1853,7 +1878,7 @@ export default function KidSchedulePage() {
             <Button
               type="submit"
               size="sm"
-              disabled={loading || !logForm.topicsText.trim()}
+              disabled={loading || !logForm.topicsText.trim() || isFutureClassDate(selectedDate)}
               className="bg-primary text-primary-foreground font-bold rounded-xl px-4 gap-1.5"
             >
               <Check className="w-4 h-4 stroke-[2.5]" />
