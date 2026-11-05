@@ -222,7 +222,7 @@ model LearningEntry {
 
   child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
   revisions EntryRevision[]
-  notes Note[]
+  linkedNotes Note[]
 
   @@index([childId, date])
   @@map("learning_entries")
