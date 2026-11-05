@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { ClassLogNotes } from '@/components/children/class-log-notes';
+import { UnloggedStudyAlert } from '@/components/children/unlogged-study-alert';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n, type Translator } from '@/lib/i18n-context';
@@ -161,7 +162,7 @@ function getDefaultRoutines(profile: DemoProfile | null, isBn: boolean, t: Trans
 }
 
 export default function SchedulePage() {
-  const { activeChild, setActiveChild, childrenList } = useAuth();
+  const { activeChild, childrenList } = useAuth();
   const { t, isBn } = useI18n();
 
   // No hardcoded fallback id: an account with no children gets no child, and
@@ -483,7 +484,7 @@ export default function SchedulePage() {
   return (
     <AppShell>
       <div className="space-y-6 max-w-6xl mx-auto">
-        {/* Page Title & Child Switcher */}
+        {/* Page Title & Routine Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
           <div>
             <div className="flex items-center gap-2">
@@ -499,25 +500,8 @@ export default function SchedulePage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Child Selector Pills if multiple children exist */}
-            {childrenList && childrenList.length > 1 && (
-              <div className="flex items-center bg-muted/40 p-1 rounded-xl border">
-                {childrenList.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setActiveChild(c)}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      c.id === childId
-                        ? 'bg-primary text-primary-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {c.nickname || c.name.split(' ')[0]}
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {currentChild && <UnloggedStudyAlert key={currentChild.id} currentChild={currentChild} />}
 
             <Button
               onClick={() => {
