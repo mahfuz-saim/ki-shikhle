@@ -68,7 +68,12 @@ export default function DashboardPage() {
   const isFahim = demoProfile === 'fahim';
 
   useEffect(() => {
-    if (!childId) return;
+    let cancelled = false;
+    setSummary(null);
+    if (!childId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     Promise.allSettled([
@@ -80,8 +85,9 @@ export default function DashboardPage() {
       api.get(`/children/${childId}/dashboard/consistency`),
       api.get(`/children/${childId}/dashboard/topics`),
     ]).then(([sumRes, stRes, subjRes, scrRes, mastRes, consRes, topRes]) => {
+      if (cancelled) return;
       // Summary
-      if (sumRes.status === 'fulfilled' && sumRes.value.data?.data && (sumRes.value.data.data.kpis?.totalTime > 0 || sumRes.value.data.data.kpis?.studyDays > 0)) {
+      if (sumRes.status === 'fulfilled' && sumRes.value.data?.data?.kpis) {
         setSummary(sumRes.value.data.data);
       } else if (isDemoChild) {
         setSummary(
@@ -341,19 +347,22 @@ export default function DashboardPage() {
       }
       setLoading(false);
     });
+    return () => {
+      cancelled = true;
+    };
     // `isBn` is read inside the render instead of being a dependency — it re-fired
     // all seven requests on every locale toggle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [childId, isDemoChild, isTasnim, isFahim, institutionType]);
 
-  // The KPI defaults are the demo dataset's numbers. A real child with no data shows
-  // zeros, not the demo student's 420 minutes.
-  const defaultKpis = isDemoChild
-    ? isTasnim
-      ? { studyDays: 6, totalTime: 360, quizzes: 6, avgScore: 95, streak: 6 }
-      : { studyDays: 5, totalTime: 420, quizzes: 4, avgScore: 88, streak: 5 }
-    : { studyDays: 0, totalTime: 0, quizzes: 0, avgScore: 0, streak: 0 };
-  const kpis = (summary?.kpis?.totalTime || summary?.kpis?.studyDays) ? summary.kpis : defaultKpis;
+  // Missing data is zero; do not discard quiz stats when study time is zero.
+  const kpis = {
+    studyDays: summary?.kpis?.studyDays ?? 0,
+    totalTime: summary?.kpis?.totalTime ?? 0,
+    quizzes: summary?.kpis?.quizzes ?? 0,
+    avgScore: summary?.kpis?.avgScore ?? 0,
+    streak: summary?.kpis?.streak ?? 0,
+  };
   const hours = Math.floor(kpis.totalTime / 60);
   const minutes = kpis.totalTime % 60;
 

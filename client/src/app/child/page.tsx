@@ -61,22 +61,13 @@ export default function KidDashboard() {
     isBnRef.current = isBn;
   }, [isBn]);
 
-  /**
-   * Guards against a state update after the component unmounts — the dashboard
-   * fires four requests and each one writes to state.
-   */
-  const isMounted = useRef(true);
   useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
+    let cancelled = false;
+    setSummary(null);
     // No child to act for — there is nothing to load, and nothing to fake.
     if (!childId) {
-      setSummary(null);
+      setQuizzes([]);
+      setConsistency({});
       setLoading(false);
       return;
     }
@@ -119,8 +110,8 @@ export default function KidDashboard() {
     api
       .get(`/children/${childId}/dashboard/summary`)
       .then((r) => {
-        if (!isMounted.current) return;
-        if (r.data?.data && (r.data.data.kpis?.totalTime > 0 || r.data.data.kpis?.streak > 0)) {
+        if (cancelled) return;
+        if (r.data?.data?.kpis) {
           setSummary(r.data.data);
         } else if (isDemoChild) {
           mockSummary();
@@ -130,7 +121,7 @@ export default function KidDashboard() {
         }
       })
       .catch(() => {
-        if (!isMounted.current) return;
+        if (cancelled) return;
         if (isDemoChild) mockSummary();
         else setSummary(null);
       });
@@ -185,7 +176,7 @@ export default function KidDashboard() {
     api
       .get(`/children/${childId}/quizzes`)
       .then((r) => {
-        if (!isMounted.current) return;
+        if (cancelled) return;
         const list = r.data?.data;
         if (list && list.length > 0) {
           setQuizzes(list);
@@ -197,7 +188,7 @@ export default function KidDashboard() {
         }
       })
       .catch(() => {
-        if (!isMounted.current) return;
+        if (cancelled) return;
         if (isDemoChild) mockQuizzes();
         else setQuizzes([]);
       });
@@ -215,7 +206,7 @@ export default function KidDashboard() {
     api
       .get(`/children/${childId}/dashboard/consistency`)
       .then((r) => {
-        if (!isMounted.current) return;
+        if (cancelled) return;
         if (r.data?.data && Object.keys(r.data.data).length > 0) {
           setConsistency(r.data.data);
         } else if (isDemoChild) {
@@ -225,7 +216,7 @@ export default function KidDashboard() {
         }
       })
       .catch(() => {
-        if (!isMounted.current) return;
+        if (cancelled) return;
         if (isDemoChild) mockConsistency();
         else setConsistency({});
       });
@@ -234,7 +225,7 @@ export default function KidDashboard() {
     api
       .get(`/children/${childId}/entries`)
       .then((r) => {
-        if (!isMounted.current) return;
+        if (cancelled) return;
         const raw = r.data?.data;
         const list = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
         const todayStr = new Date().toISOString().slice(0, 10);
@@ -249,32 +240,28 @@ export default function KidDashboard() {
         setHasPendingLog(!loggedToday);
       })
       .catch(() => {
-        if (isMounted.current) setHasPendingLog(true);
+        if (!cancelled) setHasPendingLog(true);
       })
       .finally(() => {
-        if (isMounted.current) setLoading(false);
+        if (!cancelled) setLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
     // `isBn` is deliberately NOT a dependency — it is read through `isBnRef` at
     // call time. Including it re-fired all four requests on every locale toggle.
   }, [childId, isTasnim, isFahim, isDemoChild]);
 
-  // The KPI defaults are the demo dataset's numbers. A real child with no data shows
-  // zeros, not the demo student's 1350 minutes.
-  const demoKpis = isFahim
-    ? { studyDays: 6, totalTime: 1560, quizzes: 4, avgScore: 92, streak: 7 }
-    : isTasnim
-    ? { studyDays: 6, totalTime: 1080, quizzes: 6, avgScore: 95, streak: 6 }
-    : { studyDays: 6, totalTime: 1350, quizzes: 5, avgScore: 88, streak: 6 };
-  const emptyKpis = { studyDays: 0, totalTime: 0, quizzes: 0, avgScore: 0, streak: 0 };
-  const kpis =
-    summary?.kpis?.totalTime || summary?.kpis?.studyDays
-      ? summary.kpis
-      : isDemoChild
-      ? demoKpis
-      : emptyKpis;
-  const effectiveTotalMin = kpis.totalTime || (isDemoChild ? (isFahim ? 1560 : 420) : 0);
-  const hours = Math.floor(effectiveTotalMin / 60);
-  const minutes = effectiveTotalMin % 60;
+  // Preserve legitimate zero values and quiz-only activity; missing KPIs are zero.
+  const kpis = {
+    studyDays: summary?.kpis?.studyDays ?? 0,
+    totalTime: summary?.kpis?.totalTime ?? 0,
+    quizzes: summary?.kpis?.quizzes ?? 0,
+    avgScore: summary?.kpis?.avgScore ?? 0,
+    streak: summary?.kpis?.streak ?? 0,
+  };
+  const hours = Math.floor(kpis.totalTime / 60);
+  const minutes = kpis.totalTime % 60;
 
   const studentName = activeChild?.name || user?.name || (isTasnim ? 'Tasnim Islam' : 'Rahim Ahmed');
   const pendingQuizzes = (Array.isArray(quizzes) ? quizzes : []).filter((q) => q.status === 'assigned' || q.isNew || !q.score);
@@ -397,7 +384,7 @@ export default function KidDashboard() {
                 </div>
               </div>
               <CardTitle className="text-2xl sm:text-3xl font-extrabold mt-1">
-                {isBn ? toBnNum(kpis.studyDays || 5) : (kpis.studyDays || 5)} <span className="text-xs font-normal text-muted-foreground">/ {t('childHome.text_11')}</span>
+                {isBn ? toBnNum(kpis.studyDays) : kpis.studyDays} <span className="text-xs font-normal text-muted-foreground">/ {t('childHome.text_11')}</span>
               </CardTitle>
             </CardHeader>
           </Card>
@@ -432,7 +419,7 @@ export default function KidDashboard() {
                   </div>
                 </div>
                 <CardTitle className="text-2xl sm:text-3xl font-extrabold mt-1">
-                  {isBn ? toBnNum(kpis.quizzes || 4) : (kpis.quizzes || 4)} <span className="text-xs font-normal text-muted-foreground">{t('childHome.text_14')}</span>
+                  {isBn ? toBnNum(kpis.quizzes) : kpis.quizzes} <span className="text-xs font-normal text-muted-foreground">{t('childHome.text_14')}</span>
                 </CardTitle>
               </CardHeader>
             </Card>
@@ -450,7 +437,7 @@ export default function KidDashboard() {
                 </div>
               </div>
               <CardTitle className="text-2xl sm:text-3xl font-extrabold mt-1 text-emerald-600 dark:text-emerald-400">
-                {t('childHome.avg_score', { p0: isBn ? toBnNum(kpis.avgScore || 88) : kpis.avgScore || 88 }, `${kpis.avgScore || 88}%`)}
+                {t('childHome.avg_score', { p0: isBn ? toBnNum(kpis.avgScore) : kpis.avgScore }, `${kpis.avgScore}%`)}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -467,7 +454,7 @@ export default function KidDashboard() {
                 </div>
               </div>
               <CardTitle className="text-2xl sm:text-3xl font-extrabold mt-1 text-rose-500 flex items-center gap-1">
-                <span>{isBn ? toBnNum(kpis.streak || 5) : (kpis.streak || 5)}</span>
+                <span>{isBn ? toBnNum(kpis.streak) : kpis.streak}</span>
                 <span className="text-xs font-normal text-muted-foreground">{t('childHome.text_17')}</span>
               </CardTitle>
             </CardHeader>

@@ -146,35 +146,32 @@ export async function summary(actor: Actor, childId: string) {
   }
 
   try {
-    const [entriesCount, quizzesCount, attempts] = await Promise.all([
-      prisma.learningEntry.count({ where: { childId } }),
-      prisma.quiz.count({ where: { childId } }),
+    const weekAgo = new Date(Date.now() - 7 * dayMs);
+    const [weeklyEntries, attempts, recent, streak] = await Promise.all([
+      prisma.learningEntry.findMany({ where: { childId, date: { gte: weekAgo } } }),
       prisma.quizAttempt.findMany({ where: { childId, submittedAt: { not: null } } }),
+      prisma.learningEntry.findMany({ where: { childId }, orderBy: { date: 'desc' }, take: 5 }),
+      computeStreak(childId),
     ]);
+    const scores: number[] = attempts.map((a: { score: number | null; maxScore: number | null }) =>
+      a.score != null && a.maxScore != null && a.maxScore > 0
+        ? Math.round(a.score / a.maxScore * 100)
+        : 0
+    );
 
-    // If real data exists in database, calculate from it
-    if (entriesCount > 0 || quizzesCount > 0 || attempts.length > 0) {
-      const scores = attempts.map((a: any) => a.score && a.maxScore ? Math.round(a.score / a.maxScore * 100) : 0);
-      const avgScore = scores.length ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : 88;
-      const streak = await computeStreak(childId);
-      const weekAgo = new Date(Date.now() - 7 * 86400000);
-      const weeklyEntries = await prisma.learningEntry.findMany({ where: { childId, date: { gte: weekAgo } } });
-      const studyDays = new Set(weeklyEntries.map((e: any) => e.date.toISOString().slice(0, 10))).size || 5;
-      const totalTime = weeklyEntries.reduce((s: any, e: any) => s + (e.durationMin || 0), 0) || 420;
-
-      const recentDb = await prisma.learningEntry.findMany({ where: { childId }, orderBy: { date: 'desc' }, take: 5 }).catch(() => []);
-
-      return {
-        kpis: {
-          studyDays,
-          totalTime,
-          quizzes: quizzesCount || 4,
-          avgScore,
-          streak: streak || 5,
-        },
-        recent: recentDb.length ? recentDb : [],
-      };
-    }
+    return {
+      kpis: {
+        studyDays: new Set(weeklyEntries.map((e: { date: Date }) => e.date.toISOString().slice(0, 10))).size,
+        totalTime: weeklyEntries.reduce((sum: number, e: { durationMin: number | null }) => sum + (e.durationMin ?? 0), 0),
+        // Assigned/generated quizzes are not quizzes taken.
+        quizzes: attempts.length,
+        avgScore: scores.length
+          ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+          : 0,
+        streak,
+      },
+      recent,
+    };
   } catch {}
 
   // No data yet — an honest empty dashboard, not a fabricated one.
