@@ -4,26 +4,12 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PublicNavbar } from '@/components/layout/public-navbar';
+import { FeaturesSection, HowItWorksSection } from '@/components/landing/feature-sections';
 import { useI18n } from '@/lib/i18n-context';
-import {
-  BookOpen,
-  BarChart3,
-  Brain,
-  Calendar,
-  Sparkles,
-  Camera,
-  CheckCircle2,
-  ArrowRight,
-  Award,
-  Clock,
-  ShieldCheck,
-  Star,
-  Layers,
-  ChevronRight,
-} from 'lucide-react';
+import { CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function HomePage() {
   const { t, isBn } = useI18n();
@@ -124,167 +110,9 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* CORE FEATURES SECTION */}
-        <section id="features" className="py-16 md:py-24 border-t bg-muted/20 relative">
-          <div className="container max-w-6xl mx-auto px-4 sm:px-6 space-y-12">
-            <div className="text-center space-y-3 max-w-2xl mx-auto">
-              <Badge
-                variant="secondary"
-                className="text-xs px-3 py-1 font-semibold uppercase tracking-wider"
-              >
-                {t('landing.text_7')}
-              </Badge>
-              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-                {t('landing.everything_you_need_to_support_your_child_s_lear')}
-              </h2>
-              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                {t('landing.text_8')}
-              </p>
-            </div>
+        <FeaturesSection />
 
-            {/* 6 Key Features Grid */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Feature 1 */}
-              <Card className="rounded-3xl border bg-card/70 backdrop-blur hover:shadow-xl hover:border-indigo-500/40 transition-all p-6 space-y-3 group">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 group-hover:scale-110 transition-transform flex items-center justify-center font-bold">
-                  <BookOpen className="w-6 h-6" />
-                </div>
-                <CardTitle className="text-lg font-bold text-foreground">
-                  {t('landing.text_9')}
-                </CardTitle>
-                <CardDescription className="text-xs leading-relaxed">
-                  {t('landing.text_10')}
-                </CardDescription>
-              </Card>
-
-              {/* Feature 2 */}
-              <Card className="rounded-3xl border bg-card/70 backdrop-blur hover:shadow-xl hover:border-indigo-500/40 transition-all p-6 space-y-3 group">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 group-hover:scale-110 transition-transform flex items-center justify-center font-bold">
-                  <Brain className="w-6 h-6" />
-                </div>
-                <CardTitle className="text-lg font-bold text-foreground">
-                  {t('landing.text_11')}
-                </CardTitle>
-                <CardDescription className="text-xs leading-relaxed">
-                  {t('landing.text_12')}
-                </CardDescription>
-              </Card>
-
-              {/* Feature 3 */}
-              <Card className="rounded-3xl border bg-card/70 backdrop-blur hover:shadow-xl hover:border-indigo-500/40 transition-all p-6 space-y-3 group">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 group-hover:scale-110 transition-transform flex items-center justify-center font-bold">
-                  <BarChart3 className="w-6 h-6" />
-                </div>
-                <CardTitle className="text-lg font-bold text-foreground">
-                  {t('landing.text_13')}
-                </CardTitle>
-                <CardDescription className="text-xs leading-relaxed">
-                  {t('landing.text_14')}
-                </CardDescription>
-              </Card>
-
-              {/* Feature 4 */}
-              <Card className="rounded-3xl border bg-card/70 backdrop-blur hover:shadow-xl hover:border-indigo-500/40 transition-all p-6 space-y-3 group">
-                <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 group-hover:scale-110 transition-transform flex items-center justify-center font-bold">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <CardTitle className="text-lg font-bold text-foreground">
-                  {t('landing.text_15')}
-                </CardTitle>
-                <CardDescription className="text-xs leading-relaxed">
-                  {t('landing.text_16')}
-                </CardDescription>
-              </Card>
-
-              {/* Feature 5 */}
-              <Card className="rounded-3xl border bg-card/70 backdrop-blur hover:shadow-xl hover:border-indigo-500/40 transition-all p-6 space-y-3 group">
-                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 group-hover:scale-110 transition-transform flex items-center justify-center font-bold">
-                  <Camera className="w-6 h-6" />
-                </div>
-                <CardTitle className="text-lg font-bold text-foreground">
-                  {t('landing.text_6')}
-                </CardTitle>
-                <CardDescription className="text-xs leading-relaxed">
-                  {t('landing.text_17')}
-                </CardDescription>
-              </Card>
-
-              {/* Feature 6 */}
-              <Card className="rounded-3xl border bg-card/70 backdrop-blur hover:shadow-xl hover:border-indigo-500/40 transition-all p-6 space-y-3 group">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 group-hover:scale-110 transition-transform flex items-center justify-center font-bold">
-                  <Calendar className="w-6 h-6" />
-                </div>
-                <CardTitle className="text-lg font-bold text-foreground">
-                  {t('landing.text_18')}
-                </CardTitle>
-                <CardDescription className="text-xs leading-relaxed">
-                  {t('landing.text_19')}
-                </CardDescription>
-              </Card>
-            </div>
-          </div>
-        </section>
-
-        {/* HOW IT WORKS SECTION */}
-        <section id="how-it-works" className="py-16 md:py-24 border-t">
-          <div className="container max-w-6xl mx-auto px-4 sm:px-6 space-y-12">
-            <div className="text-center space-y-3 max-w-2xl mx-auto">
-              <Badge
-                variant="secondary"
-                className="text-xs px-3 py-1 font-semibold uppercase tracking-wider"
-              >
-                {t('landing.text_20')}
-              </Badge>
-              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-                {t('landing.text_21')}
-              </h2>
-              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                {t('landing.text_22')}
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-6 relative">
-              {/* Step 1 */}
-              <div className="rounded-3xl border p-6 bg-card/60 backdrop-blur space-y-4 relative">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-sm shadow-md shadow-indigo-600/30">
-                  1
-                </div>
-                <h3 className="text-base font-bold text-foreground">
-                  {t('landing.text_23')}
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {t('landing.text_24')}
-                </p>
-              </div>
-
-              {/* Step 2 */}
-              <div className="rounded-3xl border p-6 bg-card/60 backdrop-blur space-y-4 relative">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white font-extrabold flex items-center justify-center text-sm shadow-md shadow-amber-500/30">
-                  2
-                </div>
-                <h3 className="text-base font-bold text-foreground">
-                  {t('landing.text_25')}
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {t('landing.text_26')}
-                </p>
-              </div>
-
-              {/* Step 3 */}
-              <div className="rounded-3xl border p-6 bg-card/60 backdrop-blur space-y-4 relative">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white font-extrabold flex items-center justify-center text-sm shadow-md shadow-emerald-600/30">
-                  3
-                </div>
-                <h3 className="text-base font-bold text-foreground">
-                  {t('landing.text_27')}
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {t('landing.text_28')}
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
+        <HowItWorksSection />
 
         {/* PRICING SECTION */}
         <section id="pricing" className="py-16 md:py-24 border-t bg-muted/20">

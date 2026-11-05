@@ -1073,28 +1073,6 @@
     "text_4": "No credit card required",
     "text_5": "Dual Parent & Student Portals",
     "text_6": "AI generated Quiz From Notes",
-    "text_7": "Core Platform Features",
-    "text_8": "Designed specifically for busy parents and curious learners to stay aligned without academic friction.",
-    "text_9": "1-Minute Daily Study Logging",
-    "text_10": "Effortlessly record school lectures, private tuition sessions, and self-study topics in under 60 seconds.",
-    "text_11": "AI Quizzes from Real Notes",
-    "text_12": "Snap photos of class notebooks. Smart OCR extracts topics and generates instant revision quizzes with feedback.",
-    "text_13": "30-Second Parent Clarity",
-    "text_14": "See weekly study hours by source, topic strengths and weaknesses, and consistency heatmap in seconds.",
-    "text_15": "Dedicated Student Experience",
-    "text_16": "Distraction-free student portal where children can answer interactive quizzes, track streaks, and build learning habits.",
-    "text_17": "Optimized for Bangla handwriting, English text, and mixed formulas from everyday student notebooks.",
-    "text_18": "Smart Recurring Routine & Alerts",
-    "text_19": "Manage weekly tutor schedules, handle class reschedules gracefully, and stay ahead of upcoming sessions.",
-    "text_20": "How It Works",
-    "text_21": "Simple 3-Step Routine",
-    "text_22": "Requires less than 2 minutes of your daily time while keeping you deeply in touch with learning.",
-    "text_23": "1. Add Schedule & Topics",
-    "text_24": "Set up weekly school & tutor schedules. Quickly log topics covered after each session in 45 seconds.",
-    "text_25": "2. Instant AI Practice Quizzes",
-    "text_26": "Snap a notebook photo or select a logged topic. Student solves 4 quick conceptual questions on their portal.",
-    "text_27": "3. Review Insights & Encourage",
-    "text_28": "Glance at mastery trends on your parent dashboard. Celebrate consistency and identify weak topics early.",
     "text_29": "Transparent Pricing",
     "text_30": "Fair pricing designed for every family",
     "text_31": "Freemium plans designed for real learning. 3rd Package includes Automatic Quiz Setup System!",
@@ -1139,8 +1117,143 @@
     "text_64": "Choose Pro Family",
     "text_65": "Privacy Policy",
     "text_66": "Terms of Service",
-    "everything_you_need_to_support_your_child_s_lear": "Everything you need to support your child's learning",
-    "bilingual_ocr_notes_reader": "Bilingual OCR & Notes Reader"
+    "bilingual_ocr_notes_reader": "Bilingual OCR & Notes Reader",
+    "features": {
+      "badge": "What Ki Shikhle does",
+      "title": "From today's class to tomorrow's revision",
+      "subtitle": "Students record what they learned and snap their notebooks. AI turns that into study notes and revision quizzes. Parents see exactly what was covered and how well it stuck.",
+      "students": {
+        "title": "For students",
+        "subtitle": "Their own login, built around their class routine.",
+        "log": {
+          "title": "Log each class in a minute",
+          "desc": "Pick the class from today's routine, then add topics, homework and how confident they feel. Voice input works where the browser supports it."
+        },
+        "notes": {
+          "title": "Notebook photo → AI study note",
+          "desc": "Snap a notebook page or the board. AI organizes it into a clean study note with proper formulas, and the student can edit it before saving."
+        },
+        "library": {
+          "title": "A notebook library that stays organized",
+          "desc": "Every note stays linked to its class and subject, so revision material is always one tap away."
+        },
+        "quiz": {
+          "title": "Quizzes from their own lessons",
+          "desc": "Assigned quizzes come with a timer and instant submission, plus a history of past attempts."
+        },
+        "dashboard": {
+          "title": "A dashboard that shows what to revise",
+          "desc": "Topics to revise, stronger areas and a monthly study-consistency calendar."
+        }
+      },
+      "parents": {
+        "title": "For parents",
+        "subtitle": "A clear picture without checking every notebook.",
+        "visibility": {
+          "title": "See every class, not just exam marks",
+          "desc": "Topics covered, homework, notes and confidence for each class, for each child."
+        },
+        "autoQuiz": {
+          "title": "One-tap revision quiz",
+          "desc": "By default, 20 MCQs from yesterday's classes and notes, with every logged topic covered."
+        },
+        "scores": {
+          "title": "Real scores, fairly graded",
+          "desc": "Answers are checked against the answer key by the app, not by AI, and you see the actual score out of the actual total."
+        },
+        "insights": {
+          "title": "Progress at a glance",
+          "desc": "Study consistency, quiz performance and subject-level strengths and weak spots."
+        },
+        "alerts": {
+          "title": "Alerts when study isn't logged",
+          "desc": "Get notified when study goes unlogged, with alert settings you control."
+        },
+        "children": {
+          "title": "Every child, one account",
+          "desc": "Switch between children from the navbar. Each child gets their own student login."
+        }
+      },
+      "bilingual": {
+        "title": "Built for Bangla and English learners",
+        "desc": "Use the app in Bangla or English. Quiz language follows the student's medium and subject, not the app language: for Bangla-medium students, English questions stay in English and other subjects come in Bangla.",
+        "chip1": "NCTB subjects",
+        "chip2": "Handwritten notebooks",
+        "chip3": "School, tuition & self-study"
+      },
+      "ai": {
+        "title": "AI that helps, with you in control",
+        "desc": "AI organizes notes and drafts quiz questions from what was actually taught. Notes can be edited before saving, and scoring is done by the app, never by AI. AI can make mistakes, so give important questions a quick look.",
+        "chip1": "Editable notes",
+        "chip2": "No AI grading",
+        "chip3": "Every topic covered"
+      }
+    },
+    "howItWorks": {
+      "badge": "How it works",
+      "title": "One daily loop, five simple steps",
+      "subtitle": "A few minutes a day for the student, about a minute for the parent.",
+      "stepLabel": "Step {n}",
+      "roles": {
+        "student": "Student",
+        "parent": "Parent",
+        "ai": "AI",
+        "app": "App"
+      },
+      "steps": {
+        "record": {
+          "title": "Record the class",
+          "desc": "After school or tuition, the student picks the class from their routine and notes the topics, homework and confidence."
+        },
+        "capture": {
+          "title": "Snap the notebook",
+          "desc": "A photo of the notebook or board becomes a structured study note, linked to that class."
+        },
+        "quiz": {
+          "title": "Generate a revision quiz",
+          "desc": "In one tap, the parent creates a quiz from yesterday's classes and notes and assigns it."
+        },
+        "practice": {
+          "title": "Practise and submit",
+          "desc": "The student answers on their own portal with a timer, and submits when done."
+        },
+        "review": {
+          "title": "Review and encourage",
+          "desc": "See the real score, which topics need another look, and how consistent the week has been."
+        }
+      },
+      "mock": {
+        "className": "Physics · Class 8",
+        "classTime": "10:00 AM · School",
+        "topic1": "Newton's laws",
+        "topic2": "Friction",
+        "homework": "Homework: Exercise 3.2",
+        "confidence": "Confidence",
+        "photo": "Notebook photo",
+        "aiNote": "AI study note",
+        "noteTitle": "Newton's second law",
+        "noteLine": "Force = mass × acceleration",
+        "quizTitle": "Yesterday's revision",
+        "quizMeta": "20 MCQ · 4 topics covered",
+        "generate": "Generate quiz",
+        "question": "What is the SI unit of force?",
+        "option1": "Newton",
+        "option2": "Joule",
+        "option3": "Watt",
+        "option4": "Pascal",
+        "timer": "12:30 left",
+        "submit": "Submit",
+        "score": "Score",
+        "scoreValue": "17 / 20",
+        "needsReview": "Needs another look: Friction",
+        "thisWeek": "This week",
+        "progress": "3 / 20"
+      },
+      "cta": {
+        "title": "Start with your child's next class",
+        "desc": "Set up the routine once. From then on, every class becomes notes, revision and progress you can see."
+      }
+    }
   },
   "pricing": {
     "free": "Free Tier",
