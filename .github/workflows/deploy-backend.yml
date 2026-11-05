@@ -32,7 +32,7 @@ jobs:
       - name: Generate Workers Prisma Client
         run: |
           cd server
-          npx prisma generate --no-engine
+          npx prisma generate
 
       - name: Apply Database Migrations to Neon
         env:
