@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { demoProfileOf } from '@/lib/child-scope';
@@ -25,7 +24,6 @@ import {
   Award,
   Flame,
   AlertTriangle,
-  ArrowRight,
   Plus,
   BookOpen,
   Sparkles,
@@ -94,34 +92,13 @@ export default function DashboardPage() {
           isFahim
             ? {
                 kpis: { studyDays: 6, totalTime: 1560, quizzes: 4, avgScore: 92, streak: 7 },
-                recent: [
-                  { date: new Date().toISOString(), topicsText: 'Physics 1st Paper - Projectile Motion (প্রক্ষেপকের গাণিতিক সমাধান)', source: 'college' },
-                  { date: new Date(Date.now() - 3600000 * 3).toISOString(), topicsText: 'Chemistry 1st Paper - Bohr Atomic Model & Quantum Numbers', source: 'college' },
-                  { date: new Date(Date.now() - 3600000 * 6).toISOString(), topicsText: 'Physics Coaching - Advanced Trajectory Equations', source: 'tuition' },
-                  { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'Higher Math - Matrix Multiplication & Inverse Matrix', source: 'college' },
-                  { date: new Date(Date.now() - 86400000 * 2).toISOString(), topicsText: 'ICT - Binary, Octal & Hexadecimal Conversions', source: 'college' },
-                ],
               }
             : isTasnim
             ? {
                 kpis: { studyDays: 6, totalTime: 1080, quizzes: 6, avgScore: 95, streak: 6 },
-                recent: [
-                  { date: new Date().toISOString(), topicsText: 'Elementary Math - Factors & Multiples (লসাগু ও গসাগু নির্ণয়)', source: 'school' },
-                  { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'Primary Science - Safe Drinking Water & Purification Steps', source: 'school' },
-                  { date: new Date(Date.now() - 3600000 * 7).toISOString(), topicsText: 'Math Tutor - Word Problems on Bell Intervals', source: 'tuition' },
-                  { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'English - Food Pyramid & Healthy Eating Vocabulary', source: 'school' },
-                  { date: new Date(Date.now() - 86400000 * 2).toISOString(), topicsText: 'BGS - 25th March Crackdown & Liberation War History', source: 'school' },
-                ],
               }
             : {
                 kpis: { studyDays: 6, totalTime: 1350, quizzes: 5, avgScore: 88, streak: 6 },
-                recent: [
-                  { date: new Date().toISOString(), topicsText: 'Mathematics - Algebraic Formulae (বর্গের সূত্রাবলী ও প্রয়োগ)', source: 'school' },
-                  { date: new Date(Date.now() - 3600000 * 4).toISOString(), topicsText: 'General Science - 3 Equations of Motion & v-t Graphs', source: 'school' },
-                  { date: new Date(Date.now() - 3600000 * 7).toISOString(), topicsText: 'Math Tuition - Value Finding with Rahim Sir', source: 'tuition' },
-                  { date: new Date(Date.now() - 86400000).toISOString(), topicsText: 'ICT - Microsoft Excel Spreadsheet Formulas', source: 'school' },
-                  { date: new Date(Date.now() - 86400000 * 2).toISOString(), topicsText: 'Bangla 1st Paper - "Bongobhumir Proti" Poem Comprehension', source: 'school' },
-                ],
               }
         );
       } else {
@@ -365,69 +342,6 @@ export default function DashboardPage() {
   };
   const hours = Math.floor(kpis.totalTime / 60);
   const minutes = kpis.totalTime % 60;
-
-  const isCurrentFahim = isFahim;
-  const isCurrentTasnim = isTasnim;
-  const upcomingRoutines = isCurrentFahim
-    ? [
-        {
-          name: t('dashboard.text_39'),
-          time: t('dashboard.text_40'),
-          source: 'tuition',
-        },
-        {
-          name: t('dashboard.text_41'),
-          time: t('dashboard.text_42'),
-          source: 'tuition',
-        },
-        {
-          name: t('dashboard.text_43'),
-          time: t('dashboard.text_44'),
-          source: 'self_study',
-        },
-      ]
-    : isCurrentTasnim
-    ? [
-        {
-          name: t('dashboard.text_45'),
-          time: t('dashboard.text_46'),
-          source: 'tuition',
-        },
-        {
-          name: t('dashboard.text_47'),
-          time: t('dashboard.text_48'),
-          source: 'tuition',
-        },
-      ]
-    : [
-        {
-          name: t('dashboard.text_49'),
-          time: t('dashboard.text_46'),
-          source: 'tuition',
-        },
-        {
-          name: t('dashboard.text_50'),
-          time: t('dashboard.text_48'),
-          source: 'tuition',
-        },
-      ];
-
-  const next7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    const dayIndex = d.getDay();
-    const hasRoutine = isCurrentTasnim
-      ? [0, 2, 4].includes(dayIndex)
-      : [0, 2, 5].includes(dayIndex);
-    return {
-      date: d,
-      dayNum: d.getDate(),
-      dayNameEn: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayIndex],
-      dayNameBn: ['রবি', 'সোম', 'মঙ্গল', 'বুধ', 'বৃহ', 'শুক্র', 'শনি'][dayIndex],
-      isToday: i === 0,
-      hasRoutine,
-    };
-  });
 
   return (
     <AppShell>
@@ -678,158 +592,6 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Schedule & Recent Activity Timeline */}
-        <div className="grid md:grid-cols-2 gap-6 min-w-0">
-          {/* Missed & Upcoming 7-Day Schedule */}
-          <Card className="rounded-2xl border shadow-sm min-w-0 flex flex-col justify-between">
-            <CardHeader className="p-4 sm:p-6 pb-3">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <CardTitle className="text-base font-bold">
-                  {t('dashboard.upcomingSchedule', 'Upcoming 7-Day Schedule')}
-                </CardTitle>
-                <Link
-                  href="/schedule"
-                  className="text-xs text-primary hover:underline font-medium shrink-0"
-                >
-                  {t('dashboard.view_calendar', 'View Calendar')} →
-                </Link>
-              </div>
-              <CardDescription className="text-xs">
-                {t('dashboard.text_69')}
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="p-4 sm:p-6 pt-0 space-y-3 min-w-0">
-              {/* 7-Day Schedule Strip */}
-              <div className="grid grid-cols-7 gap-1 sm:gap-1.5 pt-0.5 pb-1 min-w-0">
-                {next7Days.map((d, i) => (
-                  <div
-                    key={i}
-                    className={`flex flex-col items-center justify-between py-1.5 px-0.5 rounded-xl border text-center transition-all ${
-                      d.isToday
-                        ? 'bg-primary/10 border-primary/40 text-primary font-bold shadow-xs ring-1 ring-primary/30'
-                        : d.hasRoutine
-                        ? 'bg-muted/40 border-border/60 text-foreground'
-                        : 'bg-muted/10 border-transparent text-muted-foreground/60'
-                    }`}
-                  >
-                    <span className="text-[10px] sm:text-[11px] font-medium leading-none">
-                      {isBn ? d.dayNameBn : d.dayNameEn}
-                    </span>
-                    <span className="text-xs sm:text-sm font-bold leading-tight mt-1">
-                      {isBn ? toBnNum(d.dayNum) : d.dayNum}
-                    </span>
-                    <div className="h-1.5 flex items-center justify-center mt-0.5">
-                      {d.hasRoutine && (
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            d.isToday ? 'bg-primary' : 'bg-indigo-500'
-                          }`}
-                        />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Upcoming Routines */}
-              <div className="space-y-2">
-                {upcomingRoutines.map((routine, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-2 sm:p-2.5 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-colors text-xs gap-2 min-w-0"
-                  >
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
-                      <span className="font-medium text-foreground truncate">{routine.name}</span>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] sm:text-[11px] font-semibold shrink-0 text-muted-foreground bg-background/50 px-2 py-0.5"
-                    >
-                      <Clock className="w-3 h-3 mr-1 opacity-70" />
-                      <span>{routine.time}</span>
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity Feed */}
-          <Card className="rounded-2xl border shadow-sm min-w-0 flex flex-col justify-between">
-            <CardHeader className="p-4 sm:p-6 pb-3">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <CardTitle className="text-base font-bold">
-                  {t('dashboard.recentActivity', 'Recent Activity Feed')}
-                </CardTitle>
-                <Link
-                  href={`/children/${childId}/log`}
-                  className="text-xs text-primary hover:underline font-medium shrink-0"
-                >
-                  {t('dashboard.text_70')} →
-                </Link>
-              </div>
-              <CardDescription className="text-xs">
-                {t('dashboard.text_71')}
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="p-4 sm:p-6 pt-0 min-w-0">
-              <div className="space-y-2.5 max-h-[265px] overflow-y-auto pr-0.5 min-w-0">
-                {summary?.recent && summary.recent.length > 0 ? (
-                  summary.recent.slice(0, 4).map((r: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between gap-2.5 p-2 sm:p-2.5 rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors min-w-0"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 text-xs font-bold">
-                          <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium text-foreground truncate">
-                            {r.topicsText || r.topic}
-                          </p>
-                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
-                            <span className="capitalize font-semibold text-primary/80">
-                              {r.source === 'tuition'
-                                ? t('dashboard.text_72')
-                                : r.source === 'school'
-                                ? t('dashboard.text_73')
-                                : t('dashboard.text_74')}
-                            </span>
-                            <span>•</span>
-                            <span>
-                              {isBn
-                                ? toBnNum(new Date(r.date).toLocaleDateString())
-                                : new Date(r.date).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <Link href={`/children/${childId}/log`}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
-                        >
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </Button>
-                      </Link>
-                    </div>
-                  ))
-                ) : (
-                  <div className="py-8 text-center text-xs text-muted-foreground">
-                    {t('dashboard.text_75')}
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
