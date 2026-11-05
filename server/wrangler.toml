@@ -9,6 +9,16 @@ compatibility_date = "2026-09-01"
 # nodejs_compat_populate_process_env: fills process.env from [vars] and secrets
 compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env"]
 
+# ---- Placement ---------------------------------------------------------------
+# Run the Worker next to the Neon database (AWS ap-southeast-1 / Singapore) instead of
+# whichever edge location received the request. Two reasons:
+#  1. Anthropic rejects requests from unsupported locations with
+#     403 "Request not allowed"; without this, AI calls failed depending on which
+#     Cloudflare data center happened to run the request.
+#  2. Every DB query is a round trip to Singapore — running there makes them fast.
+[placement]
+region = "aws:ap-southeast-1"
+
 # ---- Non-secret config -------------------------------------------------------
 [vars]
 NODE_ENV = "production"
