@@ -24,6 +24,7 @@ import {
   BookOpen,
   CheckCircle2,
   FileCheck,
+  AlertCircle,
 } from 'lucide-react';
 
 /**
@@ -140,6 +141,7 @@ function QuizBuilderContent() {
   const [assigning, setAssigning] = useState(false);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [error, setError] = useState('');
 
   const subjects = getSubjectsForGrade(currentChild?.grade, isBn, t);
@@ -341,19 +343,11 @@ function QuizBuilderContent() {
         ...preview,
         questions: preview.questions.map((q: any) => (q.id === qid ? newQ : q)),
       });
-    } catch {
-      // Mock regenerate
-      setPreview({
-        ...preview,
-        questions: preview.questions.map((q: any) =>
-          q.id === qid
-            ? {
-                ...q,
-                prompt: q.prompt + ' (Regenerated alternative with fresh parameters)',
-              }
-            : q
-        ),
-      });
+    } catch (e: any) {
+      // The question was NOT regenerated. Appending "Regenerated alternative with
+      // fresh parameters" to the prompt pretended it was, and the parent would
+      // assign a quiz containing a nonsense question.
+      setErrorMsg(e?.response?.data?.error?.message || 'The question could not be regenerated.');
     } finally {
       setRegeneratingId(null);
     }
@@ -377,13 +371,11 @@ function QuizBuilderContent() {
       setTimeout(() => {
         router.push('/quizzes');
       }, 1000);
-    } catch {
-      setMsg(
-        t('quizNew.quiz_assigned_to', { p0: isBn ? currentChild?.name || 'শিক্ষার্থী' : currentChild?.name || 'child' }, `Quiz assigned to ${currentChild?.name || 'child'}!`)
-      );
-      setTimeout(() => {
-        router.push('/quizzes');
-      }, 1000);
+    } catch (e: any) {
+      // The quiz was NOT assigned. Reporting success and navigating away hid the
+      // failure completely — the parent went to the quiz list and found nothing
+      // there, with no explanation.
+      setErrorMsg(e?.response?.data?.error?.message || 'The quiz could not be assigned.');
     } finally {
       setAssigning(false);
     }
@@ -406,7 +398,17 @@ function QuizBuilderContent() {
           <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between">
             <span>{msg}</span>
             <button onClick={() => setMsg('')} className="underline text-[11px]">
-              Dismiss
+              {t('common.dismiss')}
+            </button>
+          </div>
+        )}
+
+        {/* Error Alert — a failed request is never shown in the success banner. */}
+        {errorMsg && (
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center justify-between">
+            <span>{errorMsg}</span>
+            <button onClick={() => setErrorMsg('')} className="underline text-[11px]">
+              {t('common.dismiss')}
             </button>
           </div>
         )}

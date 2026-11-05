@@ -32,6 +32,7 @@ import {
   Sparkles,
   ArrowRight,
   UserCheck,
+  AlertCircle,
 } from 'lucide-react';
 
 /**
@@ -421,6 +422,7 @@ export default function LearningLogPage() {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -547,11 +549,11 @@ export default function LearningLogPage() {
         prev.map((e) => (e.id === id ? { ...e, verifiedByParent: true } : e))
       );
       setMsg(t('childLog.text_46'));
-    } catch {
-      setEntries((prev) =>
-        prev.map((e) => (e.id === id ? { ...e, verifiedByParent: true } : e))
-      );
-      setMsg(t('childLog.text_46'));
+    } catch (e: any) {
+      // The entry was NOT verified. The old code marked it verified anyway and
+      // showed the success message, so the parent's verification count included
+      // entries the server had never accepted.
+      setErrorMsg(e?.response?.data?.error?.message || 'The entry could not be verified.');
     }
   };
 
@@ -681,7 +683,20 @@ export default function LearningLogPage() {
               <span>{msg}</span>
             </div>
             <button onClick={() => setMsg('')} className="underline text-[11px] opacity-80 hover:opacity-100">
-              Dismiss
+              {t('common.dismiss')}
+            </button>
+          </div>
+        )}
+
+        {/* Error Alert — a failed request is never shown in the success banner. */}
+        {errorMsg && (
+          <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs font-semibold flex items-center justify-between animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+            <button onClick={() => setErrorMsg('')} className="underline text-[11px] opacity-80 hover:opacity-100">
+              {t('common.dismiss')}
             </button>
           </div>
         )}

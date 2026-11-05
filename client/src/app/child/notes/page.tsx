@@ -35,6 +35,7 @@ import {
   Clock,
   ImageIcon,
   ChevronDown,
+  AlertCircle,
 } from 'lucide-react';
 
 function toBnNum(num: number | string): string {
@@ -75,6 +76,7 @@ export default function KidNotesPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [successToast, setSuccessToast] = useState('');
+  const [errorToast, setErrorToast] = useState('');
 
   // Filters & Sorting state
   const [searchQuery, setSearchQuery] = useState('');
@@ -289,17 +291,11 @@ export default function KidNotesPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      const saved = res.data?.data || {
-        id: 'note-' + Date.now(),
-        subject,
-        date: assignDate,
-        title: noteTitle,
-        fileUrl: imagePreview,
-        textClean: rawText || `[AI Vision Note: ${noteTitle}]`,
-        aiSummary: aiNoteContent,
-        ocrConfidence: confidence || 0.98,
-        createdAt: new Date().toISOString(),
-      };
+      // The server's row is the note. If the response body is empty there is no
+      // note to show, and inventing one locally produced a note that looked saved
+      // and was not.
+      const saved = res.data?.data;
+      if (!saved) throw new Error('The server did not return the saved note');
 
       setNotes((prev) => [saved, ...prev]);
       setUploadModalOpen(false);
@@ -313,22 +309,11 @@ export default function KidNotesPage() {
       setAiNoteContent('');
       setTitle('');
       setConfidence(null);
-    } catch {
-      const saved = {
-        id: 'note-' + Date.now(),
-        subject,
-        date: assignDate,
-        title: noteTitle,
-        fileUrl: imagePreview,
-        textClean: rawText || `[AI Vision Note: ${noteTitle}]`,
-        aiSummary: aiNoteContent,
-        ocrConfidence: confidence || 0.98,
-        createdAt: new Date().toISOString(),
-      };
-      setNotes((prev) => [saved, ...prev]);
-      setUploadModalOpen(false);
-      setSuccessToast(t('childNotes.text_2'));
-      setTimeout(() => setSuccessToast(''), 4000);
+    } catch (e: any) {
+      // The note was NOT saved. The old code invented a local note, closed the
+      // modal and showed "AI study note saved!" — the user then had a note in the
+      // list that existed nowhere on the server, and lost it on the next reload.
+      setErrorToast(e?.response?.data?.error?.message || 'The note could not be saved.');
     } finally {
       setSavingNote(false);
     }
@@ -343,9 +328,10 @@ export default function KidNotesPage() {
       if (selectedNote?.id === noteId) setDetailModalOpen(false);
       setSuccessToast(t('childNotes.text_4'));
       setTimeout(() => setSuccessToast(''), 3000);
-    } catch {
-      setNotes((prev) => prev.filter((n) => n.id !== noteId));
-      if (selectedNote?.id === noteId) setDetailModalOpen(false);
+    } catch (e: any) {
+      // Removing it from the list after a failed delete made a note disappear from
+      // the screen while still existing on the server.
+      setErrorToast(e?.response?.data?.error?.message || 'The note could not be deleted.');
     }
   };
 
@@ -456,6 +442,21 @@ export default function KidNotesPage() {
           <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 flex items-center gap-2 text-xs font-semibold animate-in fade-in">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
             <span>{successToast}</span>
+          </div>
+        )}
+
+        {/* Error Toast — a failed request is never reported as a success. */}
+        {errorToast && (
+          <div className="p-3.5 rounded-2xl bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-2 text-xs font-semibold animate-in fade-in">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorToast}</span>
+            <button
+              type="button"
+              onClick={() => setErrorToast('')}
+              className="ml-auto underline underline-offset-2 shrink-0"
+            >
+              {t('common.close')}
+            </button>
           </div>
         )}
 

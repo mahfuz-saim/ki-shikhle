@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/components/auth/auth-context';
+import { useRouteGuard } from '@/components/auth/route-guard';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import {
@@ -23,6 +24,13 @@ export default function Onboarding() {
   const router = useRouter();
   const { refreshChildren } = useAuth();
   const { t, isBn } = useI18n();
+
+  // This wizard creates children, which is a parent-only action. Without the guard a
+  // signed-out visitor could walk the whole flow and get a 401 on the first step,
+  // and a child could try it too.
+  const { allowed: guardAllowed, resolving: guardResolving } = useRouteGuard({
+    allow: ['parent', 'admin'],
+  });
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -136,6 +144,16 @@ export default function Onboarding() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (guardResolving || !guardAllowed) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-sm text-muted-foreground font-medium">
+          {t('common.loading', 'Loading...')}
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -989,12 +989,29 @@ export default function QuizzesPage() {
                   {/* Actions */}
                   <div className="pt-2 border-t flex items-center gap-2">
                     {isCompleted ? (
-                      <Link href={`/attempts/${q.attemptId || 'att-1'}/results`} className="w-full">
-                        <Button variant="outline" size="sm" className="w-full text-xs h-8 gap-1.5">
+                      // The server now attaches the child's most recent attempt to
+                      // each quiz. The old fallback was the literal id 'att-1', which
+                      // is not a real attempt — every real quiz's results page errored.
+                      // If somehow there is still no attempt id, do not link to
+                      // `/attempts/undefined/results`.
+                      q.attemptId ? (
+                        <Link href={`/attempts/${q.attemptId}/results`} className="w-full">
+                          <Button variant="outline" size="sm" className="w-full text-xs h-8 gap-1.5">
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>{t('quizzes.text_69')}</span>
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled
+                          className="w-full text-xs h-8 gap-1.5"
+                        >
                           <Eye className="w-3.5 h-3.5" />
                           <span>{t('quizzes.text_69')}</span>
                         </Button>
-                      </Link>
+                      )
                     ) : (
                       <div className="flex items-center gap-2 w-full">
                         <Link href={`/quizzes/${q.id}`} className="flex-1">

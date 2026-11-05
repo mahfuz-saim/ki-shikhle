@@ -299,7 +299,8 @@
     "text_27": "Formatted",
     "text_28": "Close",
     "text_29": "Delete",
-    "physics_chapter_3_force_motion_newton_s_second_l": "Physics Chapter 3: Force & Motion. Newton's Second Law: Force equals mass times acceleration (F = ma). Net force accelerates an object."
+    "physics_chapter_3_force_motion_newton_s_second_l": "Physics Chapter 3: Force & Motion. Newton's Second Law: Force equals mass times acceleration (F = ma). Net force accelerates an object.",
+    "subject_name": "Subject name"
   },
   "quiz": {
     "title": "AI Quizzes",
@@ -393,7 +394,9 @@
     "back": "Back",
     "creating": "Creating...",
     "saving": "Saving...",
-    "loading_quiz": "Loading quiz..."
+    "loading_quiz": "Loading quiz...",
+    "close": "Close",
+    "dismiss": "Dismiss"
   },
   "results": {
     "text": "Could not load the results. Please try again.",
@@ -1373,5 +1376,11 @@
     "college_classes_heading": "Today's College Classes & Schedule",
     "school_classes_heading": "Today's School Classes & Schedule",
     "admission_classes_heading": "Today's Admission Routine & Tests"
+  },
+  "childMode": {
+    "enter": "Open child portal",
+    "exit": "Back to parent account",
+    "pin_placeholder": "PIN (if set)",
+    "enter_failed": "Could not enter child mode"
   }
 }

@@ -13,6 +13,8 @@ import {
   ChevronDown,
   User as UserIcon,
   LogOut,
+  KeyRound,
+  LogIn,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
@@ -20,11 +22,44 @@ import { Button } from '@/components/ui/button';
 
 export function Header() {
   const { theme, setTheme } = useTheme();
-  const { user, activeChild, setActiveChild, childrenList, logout, subscription } = useAuth();
+  const { user, activeChild, setActiveChild, childrenList, logout, subscription, enterChildMode, exitChildMode, isChildMode } = useAuth();
   const { locale, toggleLocale, t, isBn } = useI18n();
 
   const [childDropdownOpen, setChildDropdownOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  /**
+   * Entering the child portal.
+   *
+   * `enterChildMode` calls the real `POST /children/:id/enter` and stores the
+   * returned child-scoped token, which is what makes the child portal show the
+   * child's own data rather than the parent's. The PIN prompt only appears for a
+   * child that actually has a PIN set — otherwise the request would be rejected.
+   */
+  const [pinForChildId, setPinForChildId] = useState<string | null>(null);
+  const [pinValue, setPinValue] = useState('');
+  const [childModeError, setChildModeError] = useState('');
+  const [childModeBusy, setChildModeBusy] = useState(false);
+
+  const handleEnterChildMode = async (childId: string) => {
+    setChildModeError('');
+    setChildModeBusy(true);
+    try {
+      const res = await enterChildMode?.(childId, pinValue || undefined);
+      if (res && !res.success) {
+        setChildModeError(res.message || t('childMode.enter_failed', 'Could not enter child mode'));
+        return;
+      }
+      setPinForChildId(null);
+      setPinValue('');
+      setChildDropdownOpen(false);
+      window.location.href = '/child';
+    } catch (e: any) {
+      setChildModeError(e?.response?.data?.error?.message || t('childMode.enter_failed', 'Could not enter child mode'));
+    } finally {
+      setChildModeBusy(false);
+    }
+  };
 
   const childDropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -122,21 +157,64 @@ export function Header() {
                   </p>
                   <div className="space-y-0.5">
                     {childrenList.map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={() => {
-                          setActiveChild(c);
-                          setChildDropdownOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${
-                          activeChild?.id === c.id
-                            ? 'bg-primary text-primary-foreground font-semibold'
-                            : 'hover:bg-muted text-foreground'
-                        }`}
-                      >
-                        <span className="truncate">{c.name}</span>
-                        <span className="text-[10px] opacity-75 shrink-0 ml-1.5">{c.grade}</span>
-                      </button>
+                      <div key={c.id}>
+                        <button
+                          onClick={() => {
+                            setActiveChild(c);
+                            setChildDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${
+                            activeChild?.id === c.id
+                              ? 'bg-primary text-primary-foreground font-semibold'
+                              : 'hover:bg-muted text-foreground'
+                          }`}
+                        >
+                          <span className="truncate">{c.name}</span>
+                          <span className="text-[10px] opacity-75 shrink-0 ml-1.5">{c.grade}</span>
+                        </button>
+
+                        {/* Enter the child's own portal for this student. */}
+                        <button
+                          onClick={() => {
+                            setPinForChildId(pinForChildId === c.id ? null : c.id);
+                            setPinValue('');
+                            setChildModeError('');
+                          }}
+                          className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] text-primary hover:bg-primary/10 transition-colors font-medium"
+                        >
+                          <LogIn className="w-3 h-3 shrink-0" />
+                          {t('childMode.enter', 'Open child portal')}
+                        </button>
+
+                        {pinForChildId === c.id && (
+                          <div className="px-2.5 pb-2 pt-1 space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <KeyRound className="w-3 h-3 shrink-0 text-muted-foreground" />
+                              <input
+                                type="password"
+                                inputMode="numeric"
+                                value={pinValue}
+                                onChange={(e) => setPinValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                placeholder={t('childMode.pin_placeholder', 'PIN (if set)')}
+                                className="w-full h-8 border rounded-lg px-2 bg-background text-xs"
+                              />
+                            </div>
+                            {childModeError && (
+                              <p className="text-[11px] text-destructive font-medium">{childModeError}</p>
+                            )}
+                            <Button
+                              onClick={() => handleEnterChildMode(c.id)}
+                              disabled={childModeBusy}
+                              size="sm"
+                              className="w-full h-7 rounded-lg text-[11px] font-bold"
+                            >
+                              {childModeBusy
+                                ? t('common.loading', 'Loading...')
+                                : t('childMode.enter', 'Open child portal')}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                   <div className="border-t my-1 pt-1">
@@ -258,6 +336,20 @@ export function Header() {
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                   {t('nav.subscription_billing', 'Subscription & Billing')}
                 </Link>
+                {/* Leave the child portal without signing the parent out. */}
+                {isChildMode && (
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      exitChildMode?.();
+                      window.location.href = '/dashboard';
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-primary hover:bg-primary/10 transition-colors mt-1 border-t pt-1.5"
+                  >
+                    <LogIn className="w-3.5 h-3.5" />
+                    {t('childMode.exit', 'Back to parent account')}
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setUserMenuOpen(false);

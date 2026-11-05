@@ -98,7 +98,21 @@ api.interceptors.response.use(
       originalRequest?.url?.includes('/auth/refresh') ||
       originalRequest?.url?.includes('/auth/logout');
 
-    if (error.response?.status === 401 && !originalRequest?._retry && !isAuthRoute) {
+    // A child session must never be refreshed with the parent's credentials.
+    //
+    // The refresh endpoint issues a token for whichever account the refresh token
+    // belongs to, and `refreshToken` in localStorage is the **parent's**. So a 401 on
+    // a `/child/*` route used to refresh with the parent's token and replay the request
+    // with the parent's access token — escalating a child session to parent scope, which
+    // can read every sibling's data. A child route simply fails instead.
+    const onChildPath = typeof window !== 'undefined' && isChildPath(window.location.pathname);
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest?._retry &&
+      !isAuthRoute &&
+      !onChildPath
+    ) {
       // If already in the middle of a token refresh, queue this request
       if (isRefreshing) {
         return new Promise<any>((resolve, reject) => {

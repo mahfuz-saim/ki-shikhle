@@ -154,6 +154,7 @@ export default function KidSchedulePage() {
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Currently active class being logged
   const [activeRoutineForLog, setActiveRoutineForLog] = useState<any>(null);
@@ -812,30 +813,20 @@ export default function KidSchedulePage() {
         setSuccessMsg(t('childSchedule.text_23'));
       } else {
         const res = await api.post(`/children/${childId}/entries`, payload);
-        const created = res.data?.data || {
-          id: 'entry-' + Date.now(),
-          childId,
-          ...payload,
-          createdAt: new Date().toISOString(),
-        };
+        // The server's row is the entry. Inventing one locally produced a class log
+        // that looked saved and existed nowhere on the server.
+        const created = res.data?.data;
+        if (!created) throw new Error('The server did not return the saved entry');
         setEntries((prev) => (Array.isArray(prev) ? [created, ...prev] : [created]));
         setSuccessMsg(t('childSchedule.text_24'));
       }
 
       setLogModalOpen(false);
       setTimeout(() => setSuccessMsg(''), 4500);
-    } catch {
-      // Fallback local update
-      const fake = {
-        id: existingEntryForLog?.id || 'entry-' + Date.now(),
-        childId,
-        ...payload,
-        createdAt: new Date().toISOString(),
-      };
-      setEntries((prev) => (Array.isArray(prev) ? [fake, ...prev.filter((x) => x.id !== fake.id)] : [fake]));
-      setLogModalOpen(false);
-      setSuccessMsg(t('childSchedule.text_25'));
-      setTimeout(() => setSuccessMsg(''), 4500);
+    } catch (e: any) {
+      // The class log was NOT saved. The old code invented an entry and reported
+      // success, so the parent saw a class log that the server had never heard of.
+      setErrorMsg(e?.response?.data?.error?.message || 'The class log could not be saved.');
     } finally {
       setLoading(false);
     }
@@ -849,7 +840,8 @@ export default function KidSchedulePage() {
 
     try {
       const res = await api.post(`/children/${childId}/routines`, routineForm);
-      const created = res.data?.data || { id: 'r-' + Date.now(), ...routineForm };
+      const created = res.data?.data;
+      if (!created) throw new Error('The server did not return the created routine');
       setRoutines((prev) => (Array.isArray(prev) ? [created, ...prev] : [created]));
       setCreateModalOpen(false);
       setSuccessMsg(t('childSchedule.text_26'));
@@ -866,12 +858,10 @@ export default function KidSchedulePage() {
         durationMin: 45,
         startsOn: new Date().toISOString().slice(0, 10),
       });
-    } catch {
-      const fallback = { id: 'r-' + Date.now(), ...routineForm };
-      setRoutines((prev) => (Array.isArray(prev) ? [fallback, ...prev] : [fallback]));
-      setCreateModalOpen(false);
-      setSuccessMsg(t('childSchedule.text_27'));
-      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (e: any) {
+      // The routine was NOT created. Adding a local copy and reporting success meant
+      // a class that appeared in the timetable but was never scheduled.
+      setErrorMsg(e?.response?.data?.error?.message || 'The routine could not be created.');
     } finally {
       setLoading(false);
     }
@@ -886,8 +876,10 @@ export default function KidSchedulePage() {
       setRoutines((prev) => (Array.isArray(prev) ? prev.filter((r) => r.id !== id) : []));
       setSuccessMsg(t('childSchedule.text_29'));
       setTimeout(() => setSuccessMsg(''), 3000);
-    } catch {
-      setRoutines((prev) => (Array.isArray(prev) ? prev.filter((r) => r.id !== id) : []));
+    } catch (e: any) {
+      // Removing it from the list after a failed delete hid a routine that still
+      // existed on the server.
+      setErrorMsg(e?.response?.data?.error?.message || 'The routine could not be deleted.');
     }
   };
 
@@ -991,6 +983,21 @@ export default function KidSchedulePage() {
           <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 flex items-center gap-2 text-xs font-semibold animate-in fade-in">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
             <span>{successMsg}</span>
+          </div>
+        )}
+
+        {/* Error Alert — a failed request is never reported as a success. */}
+        {errorMsg && (
+          <div className="p-3.5 rounded-2xl bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-2 text-xs font-semibold animate-in fade-in">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
+            <button
+              type="button"
+              onClick={() => setErrorMsg('')}
+              className="ml-auto underline underline-offset-2 shrink-0"
+            >
+              {t('common.close')}
+            </button>
           </div>
         )}
 

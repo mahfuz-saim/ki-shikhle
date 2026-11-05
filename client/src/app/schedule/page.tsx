@@ -31,6 +31,7 @@ import {
   Check,
   UserCheck,
   ChevronDown,
+  AlertCircle,
 } from 'lucide-react';
 
 const WEEKDAYS = [
@@ -225,6 +226,7 @@ export default function SchedulePage() {
   const [selectedRoutine, setSelectedRoutine] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Form for new routine
   const [form, setForm] = useState({
@@ -520,9 +522,10 @@ export default function SchedulePage() {
         startsOn: todayStr,
       });
       setMsg(t('schedule.text_20'));
-    } catch {
-      setRoutines((prev) => [...prev, { id: 'r-' + Date.now(), ...form }]);
-      setCreateModalOpen(false);
+    } catch (e: any) {
+      // The routine was NOT created. Adding a local copy put a class in the
+      // timetable that the server had never heard of.
+      setErrorMsg(e?.response?.data?.error?.message || 'The routine could not be created.');
     } finally {
       setLoading(false);
     }
@@ -555,8 +558,10 @@ export default function SchedulePage() {
       await loadSchedule();
       setRescheduleModalOpen(false);
       setMsg(t('schedule.text_21'));
-    } catch {
-      setRescheduleModalOpen(false);
+    } catch (e: any) {
+      // The reschedule was NOT recorded. Closing the modal and saying nothing left
+      // the parent believing the class had moved.
+      setErrorMsg(e?.response?.data?.error?.message || 'The class could not be rescheduled.');
     } finally {
       setLoading(false);
     }
@@ -568,8 +573,10 @@ export default function SchedulePage() {
       await api.delete(`/routines/${id}`);
       loadRoutines();
       loadSchedule();
-    } catch {
-      setRoutines((prev) => prev.filter((r) => r.id !== id));
+    } catch (e: any) {
+      // Removing it from the list after a failed delete hid a routine that still
+      // existed on the server.
+      setErrorMsg(e?.response?.data?.error?.message || 'The routine could not be deleted.');
     }
   };
 
@@ -656,7 +663,20 @@ export default function SchedulePage() {
               {msg}
             </span>
             <button onClick={() => setMsg('')} className="underline text-[11px] font-bold">
-              Dismiss
+              {t('common.dismiss')}
+            </button>
+          </div>
+        )}
+
+        {/* Error Banner — a failed request is never shown as a success. */}
+        {errorMsg && (
+          <div className="p-3.5 rounded-2xl bg-destructive/10 border border-destructive/30 text-destructive text-xs font-semibold flex items-center justify-between shadow-xs">
+            <span className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {errorMsg}
+            </span>
+            <button onClick={() => setErrorMsg('')} className="underline text-[11px] font-bold">
+              {t('common.dismiss')}
             </button>
           </div>
         )}

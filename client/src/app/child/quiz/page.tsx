@@ -42,7 +42,7 @@ export default function ChildQuizHubPage() {
   // no children was sent a request for the demo student and — when that request
   // failed — was shown the demo quizzes.
   const { childId, isTasnim, isFahim, isDemoChild } = useChildScope();
-  const studentName = activeChild?.name || user?.name || (isFahim ? 'Fahim Hasan' : isTasnim ? 'Tasnim Islam' : 'Rahim Ahmed');
+  const studentName = activeChild?.name || user?.name || (isFahim ? 'Fahim Islam' : isTasnim ? 'Tasnim Islam' : 'Rahim Ahmed');
   const studentGrade = activeChild?.grade || (user as any)?.grade || (isFahim ? 'Class 11' : isTasnim ? 'Class 5' : 'Class 8');
 
   const [quizzes, setQuizzes] = useState<any[]>([]);

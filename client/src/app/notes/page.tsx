@@ -101,16 +101,42 @@ function NotesPageInner() {
     };
   }, []);
 
-  // Preloaded subject options
-  const subjects = [
-    { id: 'math', name: t('notes.mathematics') },
-    { id: 'phys', name: t('notes.physics') },
-    { id: 'chem', name: t('notes.chemistry') },
-    { id: 'bio', name: t('notes.biology') },
-    { id: 'eng', name: t('notes.english') },
-    { id: 'bn', name: t('notes.bangla') },
-    { id: 'ict', name: t('notes.ict') },
-  ];
+  /**
+   * The subjects the note can be filed under.
+   *
+   * This used to be a hardcoded seven-item list. A custom subject the parent
+   * created — or any subject seeded for their child's grade — could never be
+   * chosen, and the ids in the list ('math', 'phys') were not subject ids at
+   * all. The list now comes from `GET /subjects/children/:id/subjects`, which
+   * is owner-scoped and includes the child's assigned subjects.
+   */
+  const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    if (!childId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get(`/subjects/children/${childId}/subjects`);
+        if (cancelled) return;
+        const list = (res.data?.data || []).map((s: any) => ({
+          id: String(s.id),
+          name: isBn ? s.nameBn || s.nameEn : s.nameEn || s.nameBn,
+        }));
+        setSubjects(list);
+        // Keep the current selection only if it is still a real subject.
+        if (list.length > 0) {
+          setSubject((prev) => (list.some((s: { id: string; name: string }) => s.name === prev) ? prev : list[0].name));
+        }
+      } catch {
+        // Leave the list empty; the select falls back to free text below.
+        if (!cancelled) setSubjects([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [childId, isBn]);
 
   const loadNotes = async () => {
     if (!childId) {
@@ -303,8 +329,12 @@ function NotesPageInner() {
         }
       }
       setMsg(t('notes.text_5'));
-    } catch {
-      // fallback
+    } catch (err: any) {
+      // The note was NOT improved. The success message used to fire after the
+      // try block, so it showed even when the request had failed — the parent was
+      // told the note was refined when nothing had changed.
+      setMsg(err?.response?.data?.error?.message || 'The note could not be improved.');
+      setMsgIsError(true);
     } finally {
       setLoadingAi(false);
     }
@@ -483,17 +513,28 @@ function NotesPageInner() {
                 <div className="space-y-3">
                   <div>
                     <Label className="text-xs font-semibold">{t('notes.text_18')}</Label>
-                    <select
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
-                    >
-                      {subjects.map((s) => (
-                        <option key={s.id} value={s.name}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
+                    {subjects.length > 0 ? (
+                      <select
+                        value={subject}
+                        onChange={(e) => setSubject(e.target.value)}
+                        className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
+                      >
+                        {subjects.map((s) => (
+                          <option key={s.id} value={s.name}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      // No subjects are configured for this child yet — offer a free-text
+                      // field rather than an empty dropdown with nothing to pick.
+                      <input
+                        value={subject}
+                        onChange={(e) => setSubject(e.target.value)}
+                        placeholder={t('notes.subject_name', 'Subject name')}
+                        className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
+                      />
+                    )}
                   </div>
 
                   <div>
