@@ -725,7 +725,8 @@ export async function createEntry(actor: Actor, childId: string, data: any) {
     // queue digest job (cheap model)
     queueDigest(entry.id, childId, data.topicsText);
     return entry;
-  } catch {
+  } catch (e: any) {
+    console.error('[createEntry] DB write failed, using in-memory fallback:', e?.code || '', e?.message || e);
     const entry = { id: 'entry-' + Date.now(), ...payload, ownerId: actor.ownerId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), verifiedByParent: false };
     syncMemoryClassNote(actor, entry);
     store.entries.add(entry as any);

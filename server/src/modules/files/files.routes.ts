@@ -23,24 +23,49 @@ const MIME: Record<string, string> = {
   '.pdf': 'application/pdf',
 };
 
+/** Sanitise the key and check the caller may read the note that owns this file. */
+async function authorizeFileKey(req: Request): Promise<string> {
+  const key = String(req.params.key || '').replace(/[^a-zA-Z0-9._-]/g, '');
+  if (!key) throw notFound('File not found');
+
+  // Only the child's parent id is needed to decide access. Loading the whole
+  // Child row would pull its `passwordHash` and `pinHash` into memory for no
+  // reason — and into the response if this handler ever starts returning the
+  // note.
+  const note: any = await prisma.note
+    .findFirst({ where: { fileUrl: { endsWith: key } }, include: { child: { select: { id: true, parentId: true } } } })
+    .catch(() => null);
+  if (!note) throw notFound('File not found');
+
+  const user = req.user!;
+  const isOwnerParent = note.child?.parentId === user.userId;
+  const isTheChild = user.childId && note.childId === user.childId;
+  if (!isOwnerParent && !isTheChild) throw forbidden('Not yours');
+  return key;
+}
+
+/**
+ * Resolve a viewable URL for a file.
+ *
+ * `<img>` tags cannot send the Bearer token, so the client calls this endpoint through
+ * the authenticated API and uses the returned short-lived presigned (or public) URL as
+ * the image source. `url` is null for the local-disk driver — the client then fetches
+ * the bytes from `/files/:key` with its token instead.
+ */
+router.get('/files/:key/url', auth(), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const key = await authorizeFileKey(req);
+    const url = await storage.getReadUrl(key).catch(() => null);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.json({ success: true, data: { url: url || null }, error: null });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.get('/files/:key', auth(), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const key = String(req.params.key || '').replace(/[^a-zA-Z0-9._-]/g, '');
-    if (!key) throw notFound('File not found');
-
-    // Only the child's parent id is needed to decide access. Loading the whole
-    // Child row would pull its `passwordHash` and `pinHash` into memory for no
-    // reason — and into the response if this handler ever starts returning the
-    // note.
-    const note: any = await prisma.note
-      .findFirst({ where: { fileUrl: { endsWith: key } }, include: { child: { select: { id: true, parentId: true } } } })
-      .catch(() => null);
-    if (!note) throw notFound('File not found');
-
-    const user = req.user!;
-    const isOwnerParent = note.child?.parentId === user.userId;
-    const isTheChild = user.childId && note.childId === user.childId;
-    if (!isOwnerParent && !isTheChild) throw forbidden('Not yours');
+    const key = await authorizeFileKey(req);
 
     const ext = key.slice(key.lastIndexOf('.')).toLowerCase();
     const contentType = MIME[ext] || 'application/octet-stream';

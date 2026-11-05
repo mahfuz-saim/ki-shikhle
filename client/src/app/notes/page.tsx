@@ -1,5 +1,6 @@
 'use client';
 
+import { NoteImage } from '@/components/ui/note-image';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -728,8 +729,8 @@ function NotesPageInner() {
                     <span>{t('notes.text_26')}</span>
                   </span>
                   <div className="max-h-56 overflow-hidden rounded-xl border bg-background">
-                    <img
-                      src={selectedNote.fileUrl}
+                    <NoteImage
+                      fileUrl={selectedNote.fileUrl}
                       alt={selectedNote.title || 'Note image'}
                       className="w-full h-auto object-contain max-h-56 mx-auto"
                     />

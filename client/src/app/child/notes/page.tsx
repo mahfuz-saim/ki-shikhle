@@ -1,5 +1,6 @@
 'use client';
 
+import { NoteImage } from '@/components/ui/note-image';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -711,8 +712,8 @@ export default function KidNotesPage() {
                   <span>{t('childNotes.text_25')}</span>
                 </span>
                 <div className="max-h-56 overflow-hidden rounded-xl border bg-background">
-                  <img
-                    src={selectedNote.fileUrl}
+                  <NoteImage
+                    fileUrl={selectedNote.fileUrl}
                     alt={selectedNote.title || 'Note image'}
                     className="w-full h-auto object-contain max-h-56 mx-auto"
                   />

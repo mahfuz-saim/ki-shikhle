@@ -2,6 +2,7 @@
 
 import { ChevronRight } from 'lucide-react';
 import { FormattedMarkdown } from '@/components/ui/formatted-markdown';
+import { openNoteFile } from '@/components/ui/note-image';
 
 /** Render the same saved notes in the child and parent class-log views. */
 export function ClassLogNotes({ entry, isBn, collapsible = false }: { entry: any; isBn: boolean; collapsible?: boolean }) {
@@ -16,9 +17,9 @@ export function ClassLogNotes({ entry, isBn, collapsible = false }: { entry: any
       {note.title && <p className="text-xs font-semibold">{note.title}</p>}
       <FormattedMarkdown content={note.aiSummary || note.textClean || ''} />
       {note.fileUrl && (
-        <a href={note.fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">
+        <button type="button" onClick={() => openNoteFile(note.fileUrl)} className="text-xs text-primary underline">
           {isBn ? 'সংযুক্ত নোট খুলুন' : 'Open attached note'}
-        </a>
+        </button>
       )}
     </div>
   ));
