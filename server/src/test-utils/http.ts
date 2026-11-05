@@ -40,6 +40,28 @@ export async function createTenant(label = 'tenant'): Promise<Tenant> {
 
   const passwordHash = await hashPassword(password);
 
+  // Fail loudly if the database is unreachable.
+  //
+  // Every service falls back to the in-memory store when Prisma rejects, and the
+  // in-memory store does not contain the tenant that `createTenant` is about to
+  // write. So a dead database turned a 404-isolation test into a 401 (the token
+  // could not resolve to an account) — a failure that looks like an auth bug and
+  // sends you hunting in the wrong file. It also made a whole suite take an hour,
+  // because each Prisma call waited out its connect timeout.
+  //
+  // A missing database is an environment problem, not a test failure, so it is
+  // reported as such.
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch (e: any) {
+    throw new Error(
+      `The test database is unreachable (${(e as Error).message}). ` +
+        `Start Postgres and run \`npm run db:migrate && npm run db:seed\`, then re-run the tests. ` +
+        `Without a database these suites cannot pass — the API falls back to the in-memory store, ` +
+        `which does not contain the tenants the tests create.`
+    );
+  }
+
   const parent = await prisma.user.create({
     data: { name: `Test ${label}`, email: parentEmail, passwordHash, role: 'parent' },
     select: { id: true },
