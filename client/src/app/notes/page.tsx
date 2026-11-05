@@ -12,7 +12,6 @@ import { Modal } from '@/components/ui/modal';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { demoProfileOf } from '@/lib/child-scope';
-import { ChildSelector } from '@/components/children/child-selector';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import { FormattedMarkdown, stripMarkdown } from '@/components/ui/formatted-markdown';
@@ -370,9 +369,6 @@ function NotesPageInner() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* A parent with more than one child needs a way to switch which
-                child's notes this page shows. */}
-            <ChildSelector />
             <Link href={notes.length > 0 ? `/children/${childId ?? ''}/quizzes/new?subject=${encodeURIComponent(notes[0].subject || '')}&topic=${encodeURIComponent((notes[0].aiSummary || notes[0].textClean)?.slice(0, 50) || '')}&title=${encodeURIComponent(`${notes[0].subject || 'Study'} — ${t('notes.text_9')}`)}` : `/children/${childId ?? ''}/quizzes/new`}>
               <Button size="sm" className="gap-1.5 text-xs h-9 shadow-sm shadow-primary/20">
                 <Brain className="w-3.5 h-3.5" />
