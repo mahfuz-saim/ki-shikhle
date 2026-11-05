@@ -28,3 +28,11 @@ export function findClassLog(entries: any[], routineId: string, date: string): a
   if (!routineId) return undefined;
   return entries.find((entry) => entry.routineId === routineId && String(entry.date).slice(0, 10) === date);
 }
+
+/** The persisted entry IDs link a quiz to one log, not every log of that subject. */
+export function findLogQuiz(quizzes: any[], entryId?: string, assignedOnly = true): any | undefined {
+  if (!entryId) return undefined;
+  return quizzes.find((quiz) => Array.isArray(quiz.scopeJson?.entryIds)
+    && quiz.scopeJson.entryIds.includes(entryId)
+    && (!assignedOnly || quiz.status === 'assigned' || quiz.status === 'completed'));
+}

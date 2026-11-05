@@ -488,7 +488,7 @@ export async function generateQuiz(actor: Actor, childId: string, input: any, cr
   const settings = { numQuestions: Number(input.numQuestions||10), difficulty: input.difficulty||'mixed', types: input.types||['mcq','true_false'], language: input.language||'en', timeLimitMin: input.timeLimitMin };
 
   // Cache check (short window 5 min)
-  const cacheKey = hashRequest(actor.ownerId, childId, digestText, settings);
+  const cacheKey = hashRequest(actor.ownerId, childId, JSON.stringify(input.entryIds || []) + digestText, settings);
   const cached = quizCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
     console.log('[Quiz Cache] hit', cacheKey.slice(0,8));
@@ -503,6 +503,7 @@ export async function generateQuiz(actor: Actor, childId: string, input: any, cr
 
   const start = Date.now();
   let result = await callAI({ system, user, model: 'fast', maxTokens: 3000, responseFormat: 'json', feature: 'quiz' });
+  if (input.scope === 'entries' && result.mocked) throw badRequest('AI quiz generation is unavailable. No quiz was assigned. Please try again.');
   let parsed: any;
   try {
     // extract JSON even if wrapped
@@ -518,6 +519,7 @@ export async function generateQuiz(actor: Actor, childId: string, input: any, cr
       const rawParsed = JSON.parse(jsonMatch ? jsonMatch[0] : result.content);
       parsed = quizOutputSchema.parse(normalizeQuizJson(rawParsed));
     } catch (e2) {
+      if (input.scope === 'entries') throw badRequest('Could not generate questions for this class log. Please try again.');
       const studyContext = await collectChildStudyContext(actor, childId, 'all_subjects', input.subjectIds);
       const fallbackQuestions = generateProperCurriculumQuestions(studyContext, {
         questionCount: settings.numQuestions,
@@ -547,6 +549,7 @@ export async function generateQuiz(actor: Actor, childId: string, input: any, cr
   // every bank, and matches on whole prompts rather than bare topic words, so a
   // genuinely generated question that merely mentions quadratics is not thrown away.
   if (looksLikeMockQuiz(result.content)) {
+    if (input.scope === 'entries') throw badRequest('AI quiz generation is unavailable. No quiz was assigned. Please try again.');
     const studyContext = await collectChildStudyContext(actor, childId, 'all_subjects', input.subjectIds);
     const properQuestions = generateProperCurriculumQuestions(studyContext, {
       questionCount: settings.numQuestions,
@@ -573,7 +576,7 @@ export async function generateQuiz(actor: Actor, childId: string, input: any, cr
   const latency = Date.now() - start;
   const cost = estimateCost(result.inputTokens, result.outputTokens, result.model);
 
-  const scopeJson = { digests: digests.map((d:any)=> d.id), scope: input.scope, from: input.from, to: input.to, subjects: input.subjectIds||input.subject };
+  const scopeJson = { digests: digests.map((d:any)=> d.id), entryIds: input.entryIds || [], scope: input.scope, from: input.from, to: input.to, subjects: input.subjectIds||input.subject };
   const settingsJson = settings;
 
   let quiz: any;
@@ -630,7 +633,7 @@ export async function listQuizzes(actor: Actor, childId: string) {
       if (!latestByQuiz.has(a.quizId)) latestByQuiz.set(a.quizId, a);
     }
 
-    return all.map((q: any) => {
+    return all.filter((q: any) => actor.role !== 'child' || q.status !== 'draft').map((q: any) => {
       const attempt = latestByQuiz.get(q.id);
       const enriched = attempt
         ? {
@@ -652,7 +655,7 @@ export async function listQuizzes(actor: Actor, childId: string) {
     for (const a of store.attempts.forChild(actor.ownerId, childId)) {
       if (!latestByQuiz.has(a.quizId)) latestByQuiz.set(a.quizId, a);
     }
-    return all.map((q: any) => {
+    return all.filter((q: any) => actor.role !== 'child' || q.status !== 'draft').map((q: any) => {
       const attempt = latestByQuiz.get(q.id);
       const enriched = attempt
         ? {
@@ -854,6 +857,26 @@ function findQuestion(actor: Actor, id:string){
 }
 
 async function collectDigests(actor: Actor, childId: string, input: any) {
+  // Entry-scoped quizzes must use exactly the selected child's logs, never other
+  // subjects, broad digest history, or the demo fallback.
+  if (input.scope === 'entries') {
+    const ids: string[] = Array.from(new Set<string>(input.entryIds || []));
+    if (!ids.length) throw badRequest('Select at least one class log');
+    const entries = await Promise.all(ids.map(async (id) => {
+      await assertEntityAccess(actor, { kind: 'entry', id });
+      let entry: any;
+      try { entry = await prisma.learningEntry.findUnique({ where: { id } }); }
+      catch { entry = store.entries.find(actor.ownerId, id); }
+      if (!entry || entry.childId !== childId) throw notFound('Class log not found for this child');
+      return entry;
+    }));
+    return entries.map((entry) => ({
+      id: `d-entry-${entry.id}`,
+      subjectId: entry.subject || entry.subjectName || 'General',
+      digestJson: { topics: [entry.topicsText], key_facts: [entry.topicsText] },
+      textHash: sha256Hex(entry.topicsText || entry.id),
+    }));
+  }
   try {
     const where: any = { childId };
     if (input.from) where.date = { gte: new Date(input.from) };

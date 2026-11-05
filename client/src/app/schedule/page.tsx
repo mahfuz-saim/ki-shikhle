@@ -12,13 +12,12 @@ import { useAuth } from '@/components/auth/auth-context';
 import { useI18n, type Translator } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
-import { loadClassLogs, findClassLog } from '@/lib/class-logs';
+import { loadClassLogs, findClassLog, findLogQuiz } from '@/lib/class-logs';
 import { demoProfileOf, type DemoProfile } from '@/lib/child-scope';
 import {
   Calendar as CalendarIcon,
   Clock,
   Plus,
-  RefreshCw,
   Trash2,
   CalendarCheck,
   ChevronLeft,
@@ -208,8 +207,9 @@ export default function SchedulePage() {
 
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
-  const [selectedRoutine, setSelectedRoutine] = useState<any>(null);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [assigningLog, setAssigningLog] = useState<string | null>(null);
+  const quizRequestBusy = useRef(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -222,13 +222,6 @@ export default function SchedulePage() {
     startTime: '16:00',
     durationMin: 90,
     startsOn: todayStr,
-  });
-
-  // Form for reschedule
-  const [rescheduleForm, setRescheduleForm] = useState({
-    originalDate: todayStr,
-    newDate: tomorrowStr,
-    newStartTime: '16:00',
   });
 
   // Load routines from API
@@ -257,8 +250,9 @@ export default function SchedulePage() {
 
   // Load computed schedule from API
   const loadSchedule = useCallback(async () => {
-    const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 14).toISOString().slice(0, 10);
-    const to = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 28).toISOString().slice(0, 10);
+    const dates = getWeekDates(weekOffset, today);
+    const from = formatDateKey(dates[0]);
+    const to = formatDateKey(dates[6]);
 
     if (!childId) {
       setSchedule(null);
@@ -266,7 +260,7 @@ export default function SchedulePage() {
     }
     try {
       const r = await api.get(`/children/${childId}/schedule?from=${from}&to=${to}`);
-      if (r.data?.data?.occurrences?.length) {
+      if (Array.isArray(r.data?.data?.occurrences)) {
         setSchedule(r.data.data);
       } else {
         setSchedule(null);
@@ -274,7 +268,7 @@ export default function SchedulePage() {
     } catch {
       setSchedule(null);
     }
-  }, [childId, today]);
+  }, [childId, today, weekOffset]);
 
   useEffect(() => {
     loadRoutines();
@@ -291,14 +285,22 @@ export default function SchedulePage() {
     let cancelled = false;
     let requestId = 0;
     setClassLogs([]);
+    setQuizzes([]);
     if (!childId) return;
     const from = formatDateKey(weekDates[0]);
     const to = formatDateKey(weekDates[6]);
     const refreshLogs = async () => {
       const currentRequest = ++requestId;
       try {
-        const logs = await loadClassLogs(childId, from, to);
-        if (!cancelled && currentRequest === requestId) setClassLogs(logs);
+        const [logs, quizResponse, scheduleResponse] = await Promise.all([
+          loadClassLogs(childId, from, to), api.get(`/children/${childId}/quizzes`),
+          api.get(`/children/${childId}/schedule`, { params: { from, to } }),
+        ]);
+        if (!cancelled && currentRequest === requestId) {
+          setClassLogs(logs);
+          setQuizzes(quizResponse.data?.data || []);
+          setSchedule(scheduleResponse.data?.data || null);
+        }
       } catch {
         if (!cancelled && currentRequest === requestId) {
           setErrorMsg(tRef.current('schedule.logs_load_failed', 'Could not load class logs. Please refresh.'));
@@ -324,11 +326,9 @@ export default function SchedulePage() {
   const getSessionsForDate = useCallback(
     (dateKey: string) => {
       // 1. Check if server returned computed occurrences for this date
-      if (schedule?.occurrences?.length) {
+      if (Array.isArray(schedule?.occurrences)) {
         const serverMatches = schedule.occurrences.filter((o: any) => o.date === dateKey);
-        if (serverMatches.length > 0) {
-          return [...serverMatches].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
-        }
+        return [...serverMatches].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
       }
 
       // 2. Compute directly from active routines
@@ -411,39 +411,36 @@ export default function SchedulePage() {
     }
   };
 
-  const openRescheduleModal = (session: any) => {
-    setSelectedRoutine(session);
-    setRescheduleForm({
-      originalDate: session.date || todayStr,
-      newDate: tomorrowStr,
-      newStartTime: session.startTime || '16:00',
-    });
-    setRescheduleModalOpen(true);
-  };
-
-  const handleRescheduleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedRoutine) return;
-    setLoading(true);
+  const handleAssignLogQuiz = async (entry: any, session: any) => {
+    if (!childId || quizRequestBusy.current) return;
+    quizRequestBusy.current = true;
+    setAssigningLog(entry.id);
+    setErrorMsg('');
     try {
-      const routineId = selectedRoutine.routineId || selectedRoutine.id;
-      if (routineId) {
-        await api.post(`/routines/${routineId}/exceptions`, {
-          originalDate: rescheduleForm.originalDate,
-          type: 'rescheduled',
-          newDate: rescheduleForm.newDate,
-          newStartTime: rescheduleForm.newStartTime,
+      // Refresh first, and reuse a draft if an earlier assignment request failed.
+      const current = await api.get(`/children/${childId}/quizzes`);
+      let quiz = findLogQuiz(current.data?.data || [], entry.id, false);
+      if (!quiz) {
+        const generated = await api.post(`/children/${childId}/quizzes/generate`, {
+          scope: 'entries', entryIds: [entry.id], numQuestions: 5,
+          difficulty: 'mixed', types: ['mcq', 'true_false'],
+          language: isBn ? 'bn' : 'en',
+          title: `${session.subject || session.name} — ${session.date}`,
         });
+        quiz = generated.data?.data;
       }
-      await loadSchedule();
-      setRescheduleModalOpen(false);
-      setMsg(t('schedule.text_21'));
-    } catch (e: any) {
-      // The reschedule was NOT recorded. Closing the modal and saying nothing left
-      // the parent believing the class had moved.
-      setErrorMsg(e?.response?.data?.error?.message || 'The class could not be rescheduled.');
+      if (!quiz?.id) throw new Error('No quiz was generated');
+      if (quiz.status !== 'assigned' && quiz.status !== 'completed') {
+        const assigned = await api.post(`/quizzes/${quiz.id}/assign`);
+        quiz = { ...quiz, ...assigned.data?.data, status: 'assigned' };
+      }
+      setQuizzes((previous) => [quiz, ...previous.filter((q) => q.id !== quiz.id)]);
+      setMsg(isBn ? 'কুইজ তৈরি করে সন্তানকে দেওয়া হয়েছে।' : 'Quiz generated and assigned to this child.');
+    } catch (error: any) {
+      setErrorMsg(error?.response?.data?.error?.message || error.message || 'Could not generate and assign quiz.');
     } finally {
-      setLoading(false);
+      quizRequestBusy.current = false;
+      setAssigningLog(null);
     }
   };
 
@@ -934,16 +931,17 @@ export default function SchedulePage() {
                           {isCompleted ? (isBn ? 'সম্পন্ন' : 'Completed') : (isBn ? 'লগ অপেক্ষমাণ' : 'Awaiting log')}
                         </Badge>
 
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openRescheduleModal(session)}
-                          className="text-xs h-9 px-3 rounded-xl gap-1 text-muted-foreground hover:text-foreground"
-                          title={t('schedule.text_41')}
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">{t('schedule.text_42')}</span>
-                        </Button>
+
+                        {classLog && (
+                          <Button size="sm" disabled={!!assigningLog || !!findLogQuiz(quizzes, classLog.id)}
+                            onClick={() => handleAssignLogQuiz(classLog, session)}
+                            className="text-xs h-9 rounded-xl gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            {assigningLog === classLog.id ? (isBn ? 'তৈরি হচ্ছে…' : 'Generating…')
+                              : findLogQuiz(quizzes, classLog.id) ? (isBn ? 'কুইজ দেওয়া হয়েছে' : 'Quiz assigned')
+                              : (isBn ? 'কুইজ তৈরি ও প্রদান' : 'Generate & assign quiz')}
+                          </Button>
+                        )}
                       </div>
                     </div>
                     {classLog && (
@@ -1045,15 +1043,7 @@ export default function SchedulePage() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openRescheduleModal(r)}
-                      className="text-xs h-8 gap-1 border-primary/30 text-primary hover:bg-primary/5 rounded-xl"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>{t('schedule.text_42')}</span>
-                    </Button>
+
                     <Button
                       size="sm"
                       variant="ghost"
@@ -1188,65 +1178,6 @@ export default function SchedulePage() {
         </form>
       </Modal>
 
-      {/* ========================================================= */}
-      {/* RESCHEDULE MODAL                                          */}
-      {/* ========================================================= */}
-      <Modal
-        isOpen={rescheduleModalOpen}
-        onClose={() => setRescheduleModalOpen(false)}
-        title={t('schedule.reschedule', 'Reschedule Session')}
-        description={`Move a specific class of "${selectedRoutine?.name}" to a different date or time.`}
-        maxWidth="sm"
-      >
-        <form onSubmit={handleRescheduleSubmit} className="space-y-4 pt-1">
-          <div>
-            <Label className="text-xs font-semibold">Original Scheduled Date</Label>
-            <Input
-              type="date"
-              value={rescheduleForm.originalDate}
-              onChange={(e) => setRescheduleForm({ ...rescheduleForm, originalDate: e.target.value })}
-              required
-              className="mt-1 rounded-xl"
-            />
-          </div>
-
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs font-semibold">New Date</Label>
-              <Input
-                type="date"
-                value={rescheduleForm.newDate}
-                onChange={(e) => setRescheduleForm({ ...rescheduleForm, newDate: e.target.value })}
-                required
-                className="mt-1 rounded-xl"
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-semibold">New Time</Label>
-              <Input
-                type="time"
-                value={rescheduleForm.newStartTime}
-                onChange={(e) => setRescheduleForm({ ...rescheduleForm, newStartTime: e.target.value })}
-                required
-                className="mt-1 rounded-xl"
-              />
-            </div>
-          </div>
-
-          <p className="text-[11px] text-muted-foreground">
-            The session will appear on your child&apos;s schedule for the newly selected date.
-          </p>
-
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" size="sm" onClick={() => setRescheduleModalOpen(false)} className="rounded-xl">
-              {t('common.cancel', 'Cancel')}
-            </Button>
-            <Button type="submit" size="sm" disabled={loading} className="rounded-xl font-bold">
-              {loading ? 'Rescheduling...' : 'Confirm Reschedule'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </AppShell>
   );
 }

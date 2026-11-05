@@ -1,5 +1,5 @@
 import { prisma } from '../../db/client';
-import { notFound, forbidden } from '../../utils/errors';
+import { notFound, forbidden, badRequest } from '../../utils/errors';
 import { store, seedDemoRows, registerDemoFixture } from '../../core/store';
 import { DEMO_ROUTINES } from '../../core/demo-data';
 import { assertChildAccess, assertEntityAccess, type Actor } from '../../core/tenancy';
@@ -16,8 +16,6 @@ const demoRoutineFixtures: any[] = DEMO_ROUTINES.map((r) => ({
   startsOn: r.startsOn,
   createdAt: new Date().toISOString(),
 }));
-
-const memExceptions: any[] = [];
 
 /**
  * Register the demo routines into the owner-partitioned store.
@@ -96,9 +94,18 @@ export async function deleteRoutine(actor: Actor, routineId: string) {
 export async function addException(actor: Actor, routineId: string, data: any) {
   await assertEntityAccess(actor, { kind: 'routine', id: routineId });
   const routine = await findRoutine(actor, routineId);
+  // Class logs identify one routine per day. Do not merge two of its sessions
+  // onto a day where a different occurrence of that routine already exists.
+  if (data.type === 'rescheduled' && data.newDate && data.newDate !== data.originalDate) {
+    const target = await getSchedule(actor, routine.childId, data.newDate, data.newDate);
+    const conflict = target.occurrences.some((occurrence: any) =>
+      occurrence.routineId === routineId && occurrence.status !== 'rescheduled'
+      && occurrence.originalDate !== data.originalDate
+    );
+    if (conflict) throw badRequest('This routine already has a class on that date. Please choose another date.');
+  }
   const payload = {
     routineId,
-    childId: routine.childId,
     originalDate: new Date(data.originalDate),
     type: data.type,
     newDate: data.newDate ? new Date(data.newDate) : null,
@@ -106,10 +113,16 @@ export async function addException(actor: Actor, routineId: string, data: any) {
     note: data.note,
   };
   try {
-    return await prisma.routineException.create({ data: payload });
+    return await prisma.routineException.upsert({
+      where: { routineId_originalDate: { routineId, originalDate: payload.originalDate } },
+      create: payload,
+      update: { type: payload.type, newDate: payload.newDate, newStartTime: payload.newStartTime, note: payload.note },
+    });
   } catch {
-    const e = { id: 'exc-' + Date.now(), ...payload, ownerId: actor.ownerId };
-    memExceptions.push(e);
+    const e = { id: 'exc-' + Date.now(), ...payload, childId: routine.childId, ownerId: actor.ownerId };
+    const existing = store.exceptions.forChild(actor.ownerId, routine.childId)
+      .find((row: any) => row.routineId === routineId && new Date(row.originalDate).toISOString().slice(0, 10) === payload.originalDate.toISOString().slice(0, 10));
+    if (existing) store.exceptions.remove(existing.id);
     store.exceptions.add(e as any);
     return e;
   }
@@ -168,6 +181,7 @@ export async function getSchedule(actor: Actor, childId: string, from: string, t
             teacher: r.teacher,
             room: r.room,
             subjectId: r.subjectId,
+            subject: r.subject,
             source: r.source,
             date: key,
             startTime: r.startTime,
@@ -177,29 +191,6 @@ export async function getSchedule(actor: Actor, childId: string, from: string, t
             newDate: exc.newDate ? toKey(new Date(exc.newDate)) : null,
             newStartTime: exc.newStartTime,
           });
-          // also create new occurrence on newDate if within range
-          if (exc.newDate) {
-            const ndKey = toKey(new Date(exc.newDate));
-            if (new Date(ndKey) >= fromDate && new Date(ndKey) <= toDate) {
-              const already = occurrences.some((o: any) => o.date === ndKey && o.routineId === r.id);
-              if (!already) {
-                occurrences.push({
-                  routineId: r.id,
-                  name: r.name,
-                  periodName: r.periodName,
-                  teacher: r.teacher,
-                  room: r.room,
-                  subjectId: r.subjectId,
-                  source: r.source,
-                  date: ndKey,
-                  startTime: exc.newStartTime || r.startTime,
-                  durationMin: r.durationMin,
-                  status: 'extra_from_reschedule',
-                  originalDate: key,
-                });
-              }
-            }
-          }
           continue;
         }
       }
@@ -210,6 +201,7 @@ export async function getSchedule(actor: Actor, childId: string, from: string, t
         teacher: r.teacher,
         room: r.room,
         subjectId: r.subjectId,
+        subject: r.subject,
         source: r.source,
         date: key,
         startTime: r.startTime,
@@ -217,6 +209,22 @@ export async function getSchedule(actor: Actor, childId: string, from: string, t
         status: 'scheduled',
       });
     }
+  }
+  // A moved occurrence belongs to the destination query even if its original day
+  // is outside that query. Generate it independently of the normal weekday loop.
+  for (const exception of exceptions.filter((e: any) => e.type === 'rescheduled' && e.newDate)) {
+    const date = toKey(new Date(exception.newDate));
+    if (date < from || date > to) continue;
+    const routine = routines.find((r: any) => r.id === exception.routineId);
+    if (!routine) continue;
+    occurrences.push({
+      routineId: routine.id, name: routine.name, subject: routine.subject,
+      periodName: routine.periodName, teacher: routine.teacher, room: routine.room,
+      subjectId: routine.subjectId, source: routine.source, date,
+      startTime: exception.newStartTime || routine.startTime,
+      durationMin: routine.durationMin, status: 'extra_from_reschedule',
+      originalDate: toKey(new Date(exception.originalDate)),
+    });
   }
   // handle extra exceptions not tied to weekday
   for (const e of exceptions.filter((x: any) => x.type === 'extra')) {

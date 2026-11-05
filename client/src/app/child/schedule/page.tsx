@@ -14,9 +14,10 @@ import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
-import { schoolDate, loadClassLogs, findClassLog } from '@/lib/class-logs';
+import { schoolDate, loadClassLogs, findClassLog, findLogQuiz } from '@/lib/class-logs';
 import { StudyTimeChart } from '@/components/charts/study-time-chart';
 import {
+  RefreshCw,
   Calendar as CalendarIcon,
   Clock,
   Plus,
@@ -138,6 +139,11 @@ export default function KidSchedulePage() {
 
   const [routines, setRoutines] = useState<any[]>([]);
   const [entries, setEntries] = useState<any[]>([]);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [occurrences, setOccurrences] = useState<any[] | null>(null);
+  const [scheduleRevision, setScheduleRevision] = useState(0);
+  const [rescheduleClass, setRescheduleClass] = useState<any>(null);
+  const [rescheduleForm, setRescheduleForm] = useState({ newDate: '', newStartTime: '' });
   const [studyTime, setStudyTime] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -623,6 +629,69 @@ export default function KidSchedulePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [childId, selectedDate]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setOccurrences(null);
+    if (childId) {
+      api.get(`/children/${childId}/schedule`, { params: { from: selectedDate, to: selectedDate } })
+        .then((response) => {
+          if (!cancelled) setOccurrences(response.data?.data?.occurrences || []);
+        })
+        .catch(() => {
+          if (!cancelled) setErrorMsg(isBn ? 'রুটিন লোড করা যায়নি।' : 'Could not load the updated schedule.');
+        });
+    }
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childId, selectedDate, scheduleRevision, routines]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setQuizzes([]);
+    if (!childId) return;
+    const refresh = async () => {
+      try {
+        const response = await api.get(`/children/${childId}/quizzes`);
+        if (!cancelled) setQuizzes(response.data?.data || []);
+      } catch { /* No quiz action is shown without a confirmed assignment. */ }
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    void refresh();
+    window.addEventListener('focus', refreshWhenVisible);
+    const interval = window.setInterval(refreshWhenVisible, 30000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refreshWhenVisible);
+      window.clearInterval(interval);
+    };
+  }, [childId]);
+
+  const handleReschedule = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!rescheduleClass || loading) return;
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      await api.post(`/routines/${rescheduleClass.id}/exceptions`, {
+        type: 'rescheduled', originalDate: rescheduleClass.originalDate || selectedDate,
+        newDate: rescheduleForm.newDate, newStartTime: rescheduleForm.newStartTime,
+      });
+      const destination = new Date(`${rescheduleForm.newDate}T12:00:00`);
+      setSelectedDate(rescheduleForm.newDate);
+      setSelectedWeekday(destination.getDay());
+      setCategoryFilter('all');
+      setScheduleRevision((revision) => revision + 1);
+      setRescheduleClass(null);
+      setSuccessMsg(isBn ? 'ক্লাসের সময় পরিবর্তন করা হয়েছে।' : 'Class rescheduled.');
+    } catch (error: any) {
+      setErrorMsg(error?.response?.data?.error?.message || 'Could not reschedule the class.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Speech Recognition initialization
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -705,10 +774,15 @@ export default function KidSchedulePage() {
 
   // Filter routines by selected weekday & category
   const routineList = Array.isArray(routines) ? routines : [];
-  const filteredRoutines = routineList
-    .filter((r) => r && r.active !== false && parseWeekdays(r.weekdays).includes(selectedWeekday))
-    .filter((r) => (!r.startsOn || String(r.startsOn).slice(0, 10) <= selectedDate)
+  const dailyRoutines = occurrences === null
+    ? routineList.filter((r) => r && r.active !== false && parseWeekdays(r.weekdays).includes(selectedWeekday)
+      && (!r.startsOn || String(r.startsOn).slice(0, 10) <= selectedDate)
       && (!r.endsOn || String(r.endsOn).slice(0, 10) >= selectedDate))
+    : occurrences.filter((occurrence) => occurrence.status !== 'rescheduled').map((occurrence) => ({
+      ...routineList.find((routine) => routine.id === occurrence.routineId),
+      ...occurrence, id: occurrence.routineId,
+    }));
+  const filteredRoutines = dailyRoutines
     .filter((r) => {
       if (!r) return false;
       if (categoryFilter === 'school') {
@@ -1176,6 +1250,11 @@ export default function KidSchedulePage() {
             </span>
           </div>
 
+          {occurrences?.filter((occurrence) => occurrence.status === 'rescheduled').map((occurrence) => (
+            <div key={`moved-${occurrence.routineId}-${occurrence.date}`} className="p-3 rounded-xl border bg-amber-500/10 text-sm mb-3">
+              {occurrence.name} — {isBn ? 'পরিবর্তিত সময়' : 'Rescheduled to'} {occurrence.newDate} {occurrence.newStartTime}
+            </div>
+          ))}
           {filteredRoutines.length === 0 ? (
             <Card className="rounded-3xl border border-dashed p-8 text-center bg-muted/10">
               <GraduationCap className="w-12 h-12 mx-auto text-muted-foreground/60 mb-3" />
@@ -1213,6 +1292,7 @@ export default function KidSchedulePage() {
               {filteredRoutines.map((routine, idx) => {
                 const loggedEntry = findEntryForRoutine(routine);
                 const isLogged = !!loggedEntry;
+                const assignedQuiz = findLogQuiz(quizzes, loggedEntry?.id);
                 const subjectColor = getSubjectColor(routine.subject || routine.name);
 
                 return (
@@ -1366,18 +1446,14 @@ export default function KidSchedulePage() {
                                 <span>{t('childSchedule.text_52')}</span>
                               </Button>
 
-                              <Link
-                                href="/child/quiz"
-                                className="flex-1 md:flex-none w-auto"
-                              >
-                                <Button
-                                  size="sm"
-                                  className="h-9 px-3 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white gap-1 w-full"
-                                >
-                                  <Sparkles className="w-3.5 h-3.5" />
-                                  <span>{t('childSchedule.text_53')}</span>
-                                </Button>
-                              </Link>
+                              {assignedQuiz && (
+                                <Link href={`/child/quiz/${assignedQuiz.id}`} className="flex-1 md:flex-none w-auto">
+                                  <Button size="sm" className="h-9 px-3 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white gap-1 w-full">
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    <span>{t('childSchedule.text_53')}</span>
+                                  </Button>
+                                </Link>
+                              )}
                             </>
                           ) : (
                             <Button
@@ -1391,6 +1467,16 @@ export default function KidSchedulePage() {
                             </Button>
                           )}
 
+                          {!isLogged && (
+                            <Button size="sm" variant="outline" className="h-9 rounded-xl gap-1.5 text-xs"
+                              onClick={() => {
+                                setRescheduleClass(routine);
+                                setRescheduleForm({ newDate: selectedDate, newStartTime: routine.startTime || '09:00' });
+                              }}>
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              {isBn ? 'সময় পরিবর্তন' : 'Reschedule'}
+                            </Button>
+                          )}
                           <button
                             type="button"
                             onClick={(e) => handleDeleteRoutine(routine.id, e)}
@@ -2087,6 +2173,26 @@ export default function KidSchedulePage() {
             </>
           )}
         </div>
+      </Modal>
+      <Modal isOpen={!!rescheduleClass} onClose={() => setRescheduleClass(null)}
+        title={isBn ? 'ক্লাসের সময় পরিবর্তন' : 'Reschedule class'} maxWidth="sm">
+        <form onSubmit={handleReschedule} className="space-y-4 pt-2">
+          <p className="text-sm font-semibold">{rescheduleClass?.name}</p>
+          <div>
+            <Label>{isBn ? 'নতুন তারিখ' : 'New date'}</Label>
+            <Input type="date" required value={rescheduleForm.newDate}
+              onChange={(event) => setRescheduleForm({ ...rescheduleForm, newDate: event.target.value })} />
+          </div>
+          <div>
+            <Label>{isBn ? 'নতুন সময়' : 'New time'}</Label>
+            <Input type="time" required value={rescheduleForm.newStartTime}
+              onChange={(event) => setRescheduleForm({ ...rescheduleForm, newStartTime: event.target.value })} />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setRescheduleClass(null)}>{t('common.cancel', 'Cancel')}</Button>
+            <Button type="submit" disabled={loading}>{loading ? t('common.saving', 'Saving…') : (isBn ? 'সময় পরিবর্তন করুন' : 'Confirm reschedule')}</Button>
+          </div>
+        </form>
       </Modal>
     </KidShell>
   );
