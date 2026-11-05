@@ -645,14 +645,21 @@ export default function KidSchedulePage() {
         if (SpeechRecognition) {
           const recognition = new SpeechRecognition();
           recognition.continuous = true;
-          recognition.interimResults = true;
+          recognition.interimResults = false;
           recognition.lang = speechLang;
 
+          // A result can be reported repeatedly as recognition updates it.
+          // Only append finalized results, once per index in each session.
+          const appendedResults = new Set<number>();
+          recognition.onstart = () => appendedResults.clear();
           recognition.onresult = (event: any) => {
-            let currentTranscript = '';
+            const transcripts: string[] = [];
             for (let i = event.resultIndex; i < event.results.length; i++) {
-              currentTranscript += event.results[i][0].transcript;
+              if (!event.results[i].isFinal || appendedResults.has(i)) continue;
+              appendedResults.add(i);
+              transcripts.push(event.results[i][0].transcript.trim());
             }
+            const currentTranscript = transcripts.filter(Boolean).join(' ');
             if (currentTranscript) {
               setLogForm((prev) => ({
                 ...prev,
@@ -671,6 +678,16 @@ export default function KidSchedulePage() {
 
           recognitionRef.current = recognition;
           setSpeechSupported(true);
+          setIsListening(false);
+
+          return () => {
+            recognition.onstart = null;
+            recognition.onresult = null;
+            recognition.onerror = null;
+            recognition.onend = null;
+            recognition.abort();
+            recognitionRef.current = null;
+          };
         } else {
           setSpeechSupported(false);
         }

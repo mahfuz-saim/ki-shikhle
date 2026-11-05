@@ -65,7 +65,7 @@ function buildDemoKidNotifications(isTasnim: boolean, isBn: boolean, t: Translat
       message: isBn
         ? (isTasnim ? 'বিকাল ৪:০০ টায় প্রাথমিক গণিত প্রাইভেট শেষ হয়েছে। কী কী শিখেছ তা ১ মিনিটে লিখে ফেলো!' : 'বিকাল ৪:০০ টায় গণিত প্রাইভেট (রহিম স্যার) শেষ হয়েছে। পড়ার লগ দিয়ে স্ট্রিক রক্ষা করো!')
         : (isTasnim ? 'Elementary Math Tuition finished at 4:00 PM. Log your topics to keep your streak!' : 'Math Tuition finished at 4:00 PM. Add your study log to protect your streak!'),
-      link: '/child/log',
+      link: '/child/schedule',
       actionText: t('kidShell.text_5'),
       icon: 'log',
       read: false,
@@ -90,7 +90,7 @@ function buildDemoKidNotifications(isTasnim: boolean, isBn: boolean, t: Translat
 export function KidShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, token, loading, activeChild, setActiveChild, childrenList, logout } = useAuth();
+  const { user, token, loading, activeChild, logout } = useAuth();
   const { locale, toggleLocale, isBn, t } = useI18n();
   const { theme, setTheme } = useTheme();
 
@@ -269,12 +269,6 @@ export function KidShell({ children }: { children: React.ReactNode }) {
       label: t('kidShell.text_12'),
       mobileLabel: t('bottomNav.routine', t('kidShell.text_13')),
       icon: Calendar,
-    },
-    {
-      href: '/child/log',
-      label: t('kidShell.text_14'),
-      mobileLabel: t('bottomNav.log', t('kidShell.text_15')),
-      icon: BookOpen,
     },
     {
       href: '/child/notes',
@@ -584,7 +578,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
               variant="ghost"
               size="sm"
               onClick={toggleLocale}
-              className="hidden sm:flex h-8 px-2.5 rounded-lg text-xs font-semibold items-center gap-1 text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+              className="hidden md:flex h-8 px-2.5 rounded-lg text-xs font-semibold items-center gap-1 text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
               title="Toggle Language"
             >
               <Globe className="h-3.5 w-3.5 text-muted-foreground" />
@@ -596,7 +590,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="hidden sm:flex h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className="hidden md:flex h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               aria-label="Toggle theme"
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
@@ -623,102 +617,20 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                     <p className="text-[11px] text-muted-foreground truncate">{gradeLabel}</p>
                   </div>
 
-                  {isParent && childrenList.length > 1 && (
-                    <div className="py-1 border-b mb-1 space-y-0.5">
-                      <p className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        {t('kidShell.text_29')}
-                      </p>
-                      {childrenList.map((c) => (
-                        <button
-                          type="button"
-                          key={c.id}
-                          onClick={() => {
-                            setActiveChild(c);
-                            setUserMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${
-                            activeChild?.id === c.id
-                              ? 'bg-primary text-primary-foreground font-semibold'
-                              : 'hover:bg-muted text-foreground'
-                          }`}
-                        >
-                          <span className="truncate">{c.name}</span>
-                          <span className="text-[10px] opacity-75 shrink-0 ml-1.5">{c.grade}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  <Link
-                    href="/child"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-destructive hover:bg-destructive/10 transition-colors"
                   >
-                    <LayoutDashboard className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>{t('kidShell.text_11')}</span>
-                  </Link>
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>{t('kidShell.text_22')}</span>
+                  </button>
 
-                  <Link
-                    href="/child/schedule"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>{t('kidShell.text_12')}</span>
-                  </Link>
-
-                  <Link
-                    href="/child/log"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
-                  >
-                    <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>{t('kidShell.text_14')}</span>
-                  </Link>
-
-                  <Link
-                    href="/child/notes"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>{t('kidShell.text_16')}</span>
-                  </Link>
-
-                  <Link
-                    href="/child/quiz"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
-                  >
-                    <Brain className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>{t('kidShell.text_30')}</span>
-                  </Link>
-
-                  {isParent ? (
-                    <Link
-                      href="/dashboard"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-primary hover:bg-primary/10 transition-colors mt-1 border-t pt-1.5 font-medium"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>{t('kidShell.text_20')}</span>
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        logout();
-                      }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-destructive hover:bg-destructive/10 transition-colors mt-1 border-t pt-1.5"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>{t('kidShell.text_22')}</span>
-                    </button>
-                  )}
-
-                  {/* Last two options: Language and Theme */}
-                  <div className="border-t my-1 pt-1 space-y-0.5">
+                  {/* Mobile controls live in the profile menu, not the navbar. */}
+                  <div className="md:hidden border-t my-1 pt-1 space-y-0.5">
                     <button
                       type="button"
                       onClick={() => {
