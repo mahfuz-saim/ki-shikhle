@@ -1,253 +1,341 @@
-# Ki Shikhle? — Parent Learning Tracker
+# Ki Shikhle?
+**The AI Learning Tracker for Families**
 
-Parents see what their children actually learned; children log in under 1 minute; AI quizzes from real notes.
+**Make daily learning visible. Turn classroom notes into meaningful revision.**
 
-## Repo layout — `client/` and `server/` are self-contained
+An AI-assisted platform connecting students’ class routines, notebook photos, revision quizzes, and parents’ understanding of learning progress.
 
-Each app owns **all** of its configuration so it can be deployed to a different platform
-(Vercel/Netlify for the web app, Render/Railway/Fly/VPS for the API) without anything from the repo root.
+[Web App](https://ki-shikhle.vercel.app) · [Getting Started](#getting-started) · [How It Works](#how-it-works) · [Documentation](#documentation)
 
+---
+
+## Why Ki Shikhle?
+
+**“What did you learn today?”**
+
+Parents ask this question every day, but attendance, study hours, and occasional exam marks do not tell the whole story. Students need help revisiting what they learned, while parents need a practical way to understand where encouragement or support is needed.
+
+**Ki Shikhle? (কি শিখলে?)** means “What did you learn?” It brings daily learning records and revision into one connected workflow, designed with Bangladeshi families, handwritten notebooks, school and tuition routines, and NCTB-focused learning in mind.
+
+> Our goal is not to replace teachers. It is to make recorded learning easier to revisit and progress easier for families to discuss.
+
+## How It Works
+
+```text
+Record a class → Upload notebook photos → Review AI study notes
+                                                ↓
+Review progress ← Submit answers ← Take a lesson-based quiz
 ```
+
+1. **Record the lesson.** Students log topics, homework, and confidence against their class routine.
+2. **Capture the notes.** Upload a notebook or board photo, then review and edit the generated study note.
+3. **Connect revision to learning.** Parents generate quizzes from class logs and notes.
+4. **Practise and submit.** Students take assigned quizzes through their own portal.
+5. **Review the result.** Parents see submitted scores, study consistency, and topics that may need another look.
+
+## Features
+
+### For Students
+
+- **Routine-based class logging** for school, tuition, and self-study.
+- **Image-assisted AI notes** with editable previews and mathematical formatting.
+- **Connected notebook library:** notes uploaded with a class stay linked to that lesson.
+- **Assigned quizzes** with timers, answer submission, and collapsible past-quiz history.
+- **Learning dashboard** with revision topics, stronger areas, and a monthly study-consistency calendar.
+- **Voice input** for class topics where browser speech recognition is supported.
+
+### For Parents
+
+- **Separate parent portal** with navbar-based student selection.
+- **Class-level visibility** into recorded topics, homework, notes, and confidence.
+- **AI quiz generation** from the student’s recorded learning.
+- **Yesterday-based revision:** auto-quiz defaults to 20 MCQs from yesterday’s class topics and notes, using the Asia/Dhaka calendar date.
+- **Topic coverage allocation:** every logged topic receives a question allocation. The total increases when necessary to include all topics, up to 100 questions.
+- **Submitted results** showing the actual score and total rather than an assumed denominator.
+- **Progress visualizations** for study consistency, quiz performance, and subject-level insights.
+- **Configurable unlogged-study alerts.**
+
+### Built for Bangla and English Learning
+
+The interface supports Bangla and English. Quiz language follows the student’s medium and subject—not the language selected for the interface.
+
+For **Bangla-version students**:
+
+- English-subject questions are generated in **English**.
+- Other subjects are generated in **Bangla**.
+- Mixed-subject quizzes apply this rule **question by question**.
+
+## Where AI Fits
+
+AI is used to reduce the work between capturing a lesson and revising it:
+
+| Workflow | AI’s role | Application safeguards |
+| --- | --- | --- |
+| Notebook photo → study note | Interpret the image and organize study material | Editable preview before saving |
+| Class logs and notes → quiz | Generate questions using the supplied learning context | Subject and language instructions, output validation |
+| Yesterday’s learning → MCQ revision | Generate questions against an explicit topic allocation | Batched generation, four distinct options, valid answer index, coverage checks |
+| Quiz submission → score | **No LLM grading** | Application code compares answers with the stored answer key |
+
+**AI-generated educational content can be wrong.** Structural validation and coverage checks do not prove factual accuracy. Parents and educators should review questions and explanations when using them for consequential assessment.
+
+## Tech Stack
+
+| Layer | Technologies |
+| --- | --- |
+| Frontend | Next.js 14, React 18, TypeScript |
+| Styling and interface | Tailwind CSS, Lucide icons, light/dark themes |
+| Charts and mathematical content | Recharts, KaTeX |
+| API | Hono with an Express-compatible routing layer; Node.js support |
+| Database | PostgreSQL, Prisma |
+| AI | Anthropic Claude API |
+| Authentication | JWT access/refresh flows, Argon2id password hashing |
+| Validation | Zod |
+| File storage | Local development storage or S3-compatible storage, including Cloudflare R2 |
+| Deployment | Vercel or Cloudflare Pages for the frontend; Cloudflare Workers or a Node.js host for the API |
+| Development tools | Docker Compose, Vitest, Playwright |
+
+## Project Structure
+
+The frontend and backend are independently deployable applications. **Run package commands inside `client/` or `server/`; there is no root package installation.**
+
+```text
 ki-shikhle/
-├── client/                 # Next.js 14 web app — deploy this folder
-│   ├── .env.example        # NEXT_PUBLIC_API_BASE_URL, NEXT_PUBLIC_SITE_URL
-│   ├── .eslintrc.json      # next/core-web-vitals + prettier
-│   ├── .prettierrc / .prettierignore
-│   ├── .gitignore          # env + build ignores for this app
-│   ├── next.config.mjs, postcss.config.js, tailwind.config.ts, tsconfig.json
-│   ├── e2e/                # Playwright (drives the frontend, boots both apps locally)
-│   └── src/
-├── server/                 # Express + Prisma API — deploy this folder
-│   ├── .env.example        # DB, JWT, Anthropic, SMTP, storage, trial
-│   ├── .eslintrc.json      # @typescript-eslint + prettier
-│   ├── .prettierrc / .prettierignore
-│   ├── .gitignore
-│   ├── docker-compose.yml  # local PostgreSQL 16 + Redis (dev only)
-│   ├── tsconfig.json, vitest.config.ts
-│   ├── prisma/             # schema.prisma + seed.ts (run `db:migrate` to create migrations/)
-│   ├── scripts/            # demoSeed.ts
-│   └── src/
-└── docs/                   # PRD, decisions, security, deployment, load-test
+├── client/
+│   ├── src/app/             # Parent and student pages
+│   ├── src/components/      # Shared UI, layouts, charts, and learning components
+│   ├── src/lib/             # API client and frontend utilities
+│   ├── src/messages/        # Bangla and English translations
+│   ├── public/              # Branding and static assets
+│   └── .env.example
+├── server/
+│   ├── src/modules/         # API feature modules
+│   ├── src/services/        # AI, storage, authentication support, and integrations
+│   ├── src/jobs/            # Background jobs and scheduling
+│   ├── src/worker.ts        # Cloudflare Worker entry point
+│   ├── prisma/              # Database schema, migrations, and seed data
+│   ├── scripts/             # Local setup and demo seeding
+│   ├── docker-compose.yml
+│   ├── wrangler.toml
+│   └── .env.example
+└── docs/                    # Product, deployment, security, and architecture notes
 ```
 
-There is **no `package.json` and no `.gitignore` at the root**: `client/` and `server/` are two
-independent apps, each with its own dependencies, scripts, `.gitignore`, `tsconfig`, eslint/prettier
-config and `.env.example`. Install and run each one from its own folder. The root holds only
-`README.md` and `docs/`.
+## Getting Started
 
-Each app's `.gitignore` covers its own env files, `node_modules`, build output, uploads, logs,
-caches and OS/IDE files, so secrets and artifacts stay out of Git with no repo-root rules.
+### Prerequisites
 
-## Quick start (two terminals — no root install)
+- **Node.js 22** recommended, matching the deployment workflow.
+- npm.
+- PostgreSQL, or Docker Compose for the included local database.
+- An Anthropic API key for genuine AI note and quiz generation.
 
-**Terminal 1 — API**
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/mahfuz-saim/ki-shikhle.git
+cd ki-shikhle
+```
+
+### 2. Set Up the API
 
 ```bash
 cd server
-cp .env.example .env           # edit secrets (DATABASE_URL, JWT_*, ANTHROPIC_API_KEY…)
-npm install
-docker compose up -d           # local PostgreSQL 16 + Redis — or point DATABASE_URL at a managed DB
+npm ci
+npm run setup
+docker compose up -d
+```
+
+`npm run setup` creates `server/.env` with fresh random JWT secrets and a password pepper. It does not overwrite an existing `.env`.
+
+**Check `DATABASE_URL` before continuing.** The included Docker Compose configuration creates a database named `kishikhle`; some environment-template defaults use `learntrack`. For the included local Docker database, use:
+
+```dotenv
+DATABASE_URL=postgresql://kishikhle:kishikhle_dev_password@localhost:5432/kishikhle
+```
+
+These credentials are for **local development only**. Configure your own credentials for any hosted environment.
+
+In `server/.env`, also set:
+
+```dotenv
+ANTHROPIC_API_KEY=your_anthropic_api_key
+CLIENT_ORIGIN=http://localhost:3000
+```
+
+Choose AI model IDs available to your Anthropic account through `AI_MODEL_FAST` and `AI_MODEL_SMART`.
+
+Then initialize the database and start the API:
+
+```bash
 npm run db:generate
-npm run db:migrate             # creates prisma/migrations — commit them
-npm run db:seed                # plans + NCTB subjects
-npm run demo:seed              # optional: parent@demo.com / DemoPass1 + demo child
-npm run dev                    # http://localhost:5000/api/v1/health
-```
-
-**Terminal 2 — Web**
-
-```bash
-cd client
-cp .env.example .env.local     # NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api/v1
-npm install
-npm run dev                    # http://localhost:3000
-```
-
-### Production build
-
-```bash
-# server
-cd server && npm ci && npm run build && npm start   # tsc → dist/index.js
-# client
-cd client && npm ci && npm run build && npm start   # .next
-```
-
-## Local development with **no env file at all**
-
-Both apps ship with working defaults, so you can clone and run without configuring anything.
-Anything you leave unset degrades instead of crashing:
-
-| Left unset                  | What happens                                                                                                                       |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `server/.env` (nothing set) | Dev JWT secrets/pepper are used automatically; `DATABASE_URL` defaults to the docker-compose Postgres                              |
-| Postgres not running        | `⚠️ DB connection failed (running without DB)` — the API still serves `/api/v1/health`, and modules fall back to in-memory data    |
-| Prisma client not generated | Same fallback, with a hint to run `npm run db:generate`                                                                            |
-| `ANTHROPIC_API_KEY`         | AI returns deterministic **mock** digests/quizzes/explanations (logged as `AI mock response`) — perfect for UI work, costs nothing |
-| `SMTP_URL`                  | Emails are printed to the server console instead of sent                                                                           |
-| `STORAGE_DRIVER`            | `local` — uploads go to `server/uploads/`                                                                                          |
-| `client/.env.local`         | The client defaults to `http://localhost:5000/api/v1`                                                                              |
-
-Zero-config run (no database, mock AI):
-
-```bash
-cd server && npm install && npm run db:generate && npm run dev   # http://localhost:5000/api/v1/health
-cd client && npm install && npm run dev                          # http://localhost:3000
-```
-
-With a real database (recommended as soon as you touch data):
-
-```bash
-cd server
-npm run setup                 # writes .env with fresh random JWT secrets (never overwrites)
-docker compose up -d          # PostgreSQL 16 + Redis
-npm run db:generate && npm run db:migrate && npm run db:seed
-npm run demo:seed             # parent@demo.com / DemoPass1 + demo child
+npm run db:deploy
+npm run db:seed
 npm run dev
 ```
 
-Add real services only when you need them — edit `server/.env`:
+API health endpoint: **http://localhost:5000/api/v1/health**
+
+For local schema development, use `npm run db:migrate` to create new migrations. Review and commit migration files when changing the schema.
+
+### 3. Start the Frontend
+
+Open another terminal from the repository root:
 
 ```bash
-ANTHROPIC_API_KEY=sk-ant-...      # real AI
-SMTP_URL=smtp://user:pass@host:587
-STORAGE_DRIVER=r2                 # Cloudflare R2 / any S3-compatible bucket
-CRON_SECRET=$(openssl rand -hex 32)
+cd client
+npm ci
+cp .env.example .env.local
+npm run dev
 ```
 
-Health check: `GET /api/v1/health`. The client talks to the API only through
-`NEXT_PUBLIC_API_BASE_URL`; there are no hardcoded URLs.
+Check `client/.env.local`:
 
-See `docs/deployment.md` for platform-specific steps (Vercel/Netlify + Render/Railway/Fly/VPS),
-env tables, migrations on deploy, CORS, backups and scaling.
+```dotenv
+NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api/v1
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
 
-## Env
+Open **http://localhost:3000**.
 
-| App      | Example file          | Key variables                                                                                                                                                                                         |
-| -------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| server   | `server/.env.example` | `DATABASE_URL`, `CLIENT_ORIGIN`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `PASSWORD_PEPPER`, `ANTHROPIC_API_KEY`, `AI_MODEL_FAST/SMART`, `SMTP_URL`, `STORAGE_DRIVER` (`local`\|`s3`), `TRIAL_DAYS` |
-| client   | `client/.env.example` | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SITE_URL` (both optional locally)                                                                                                                            |
-| storage  | `server/.env.example` | `STORAGE_DRIVER=local\|r2\|s3`, `R2_BUCKET`, `R2_ENDPOINT`, `R2_REGION`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_URL`                                                                  |
-| jobs/net | `server/.env.example` | `ENABLE_CRON`, `CRON_SECRET`, `TRUST_PROXY`, `COOKIE_DOMAIN`                                                                                                                                          |
+### Optional: Seed Demo Data
 
-Secrets are never committed: `client/.gitignore` and `server/.gitignore` ignore `.env*` in their own
-folder (with `!.env.example`), so only the example files are tracked.
-
-## Pricing (per child/month, BDT)
-
-| Plan     | Price    | Includes                              |
-| -------- | -------- | ------------------------------------- |
-| Trial    | Free 15d | Full Standard, 2 kids                 |
-| Starter  | ৳149     | 10 quizzes/mo, 3mo history            |
-| Standard | ৳299     | 40 quizzes/mo, explanations, 12mo     |
-| Premium  | ৳499     | 120 quizzes/mo, vision OCR, unlimited |
-
-Sibling 25% off 2nd, 35% off 3rd+. Annual pay 10 get 12. Plans are seeded rows — prices are data, not code.
-
-## API (envelope `{success,data,error}`)
-
-`GET /health` • `POST /auth/*` (register/login/refresh/verify/forgot/reset/change/me/export/delete) •
-`GET/POST /children` + PIN + enter/exit • `GET/POST /subjects` • `GET/POST /children/:id/entries` + verify •
-Routines + exceptions + `GET /children/:id/schedule?from=&to=` • Notes (multipart, Tesseract ben+eng) +
-`POST /notes/:id/ai-ocr` • Quizzes generate/list/get/patch/regenerate/assign/attempts/answers/submit/report •
-Results + explanation • Dashboards summary/study-time/subjects/scores/topics/consistency/overview •
-Billing plans/subscription/demo-checkout/cancel/invoices • Notifications • Admin metrics/ai-usage/users/extend-trial
-
-Every endpoint: zod validation + auth + ownership check at the query level + tests.
-
-## Theme & i18n
-
-Indigo `#4F46E5` primary, amber accent, red only for errors. Dark/light/system via next-themes, CSS variables, no flash.
-`en` + `bn` via next-intl, Noto Sans Bengali + Inter, Asia/Dhaka.
-
-## Security
-
-argon2id + pepper, JWT 15m + rotating refresh (reuse revokes family), rate limits, helmet, CORS allowlist, zod,
-Prisma parameterised queries, upload magic-byte validation, audit logs. See `docs/security.md`.
-
-## Performance & reliability
-
-API p95 <300ms (non-AI), AI async with status polling, idempotency on quiz generation/checkout,
-retries with backoff, indexes on `(child_id, date)`, stateless server, pino logging. See `docs/load-test.md`.
-
-## File storage (note uploads)
-
-Uploads (notebook photos/PDFs) go through one `StorageProvider` interface
-(`server/src/services/storage.ts`):
-
-- `STORAGE_DRIVER=local` (default) — writes to `server/uploads/`. Good for local dev and
-  any host with a persistent disk.
-- `STORAGE_DRIVER=r2` (or `s3`) — any S3-compatible bucket: Cloudflare R2, AWS S3,
-  Backblaze B2, MinIO, DO Spaces. Uses `@aws-sdk/client-s3` (optional dependency, imported
-  lazily) so nothing is loaded when you stay on `local`.
-
-Either way files are **private**: the DB stores `/api/v1/files/<key>`, and that route
-checks the note belongs to your child before streaming the file (local) or redirecting to a
-short-lived presigned URL (R2). There is no public `/uploads` folder.
+From `server/`:
 
 ```bash
-# .env for R2 (create the bucket + API token in the Cloudflare dashboard)
-STORAGE_DRIVER=r2
-R2_BUCKET=kishikhle-notes
-R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
-R2_REGION=auto
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-# R2_PUBLIC_URL=https://cdn.example.com   # only if the bucket is public
+npm run demo:seed
 ```
 
-## Deployment: web on Vercel, API on Cloudflare
+Use demo seeding for an isolated development or demonstration environment. Do not rely on seeded accounts or example credentials for production.
 
-See `docs/deployment.md` for the full walkthrough. The short version:
+## Environment and Secrets
 
-|                | Vercel (client)                                                                 | Cloudflare **Workers** (server)                                                      |
-| -------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Root directory | `client`                                                                        | `server`                                                                             |
-| Build          | `npm install && npm run build`                                                  | `npx prisma generate --no-engine` then `npx wrangler deploy`                         |
-| Start          | (Next.js managed)                                                               | handled by Cloudflare (`src/worker.ts`)                                              |
-| Env            | `NEXT_PUBLIC_API_BASE_URL=https://<worker-host>/api/v1`, `NEXT_PUBLIC_SITE_URL` | `[vars]` in `wrangler.toml` + `wrangler secret put` (see `server/.dev.vars.example`) |
+| Variable | Location | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | Server | PostgreSQL connection |
+| `JWT_ACCESS_SECRET` | Server secret | Access-token signing |
+| `JWT_REFRESH_SECRET` | Server secret | Refresh-token signing |
+| `PASSWORD_PEPPER` | Server secret | Additional secret used during password hashing and verification |
+| `ANTHROPIC_API_KEY` | Server secret | Genuine AI requests |
+| `CLIENT_ORIGIN` | Server | Allowed browser origins; supports a comma-separated list |
+| `STORAGE_DRIVER` | Server | `local`, `s3`, or `r2` |
+| `R2_BUCKET`, `R2_ENDPOINT`, `R2_REGION` | Server | S3-compatible storage configuration |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Server secrets | Storage credentials |
+| `SMTP_URL` | Server secret | Email delivery |
+| `CRON_SECRET` | Server secret | Protection for the HTTP job trigger when configured |
+| `NEXT_PUBLIC_API_BASE_URL` | Client | Browser-accessible API URL, including `/api/v1` |
+| `NEXT_PUBLIC_SITE_URL` | Client | Public frontend URL |
 
-The API runs on Hono with a small Express-compatibility layer, so it also runs on plain Node
-(`cd server && npm run dev`) — Express, `argon2` (native), pino, multer and `node-cron` were
-replaced with Workers-safe equivalents (`hash-wasm`, Web Crypto, R2, Cron Triggers, Prisma driver
-adapter over Hyperdrive). Details in `docs/deployment.md`.
+See each application’s `.env.example` for the complete configuration.
 
-Cross-origin set-up that matters (API and web are on different domains):
+> **Never commit `.env` files, API keys, signing secrets, storage credentials, or your password pepper.** Keep the production pepper stable across deployments: changing it prevents existing password hashes from verifying unless you implement a migration or password-reset process. Variables prefixed with `NEXT_PUBLIC_` are public browser configuration, not secret storage.
 
-- `CLIENT_ORIGIN` — comma-separated list of web origins (production + `*.vercel.app` previews)
-- Refresh cookie is `SameSite=None; Secure` automatically when `NODE_ENV=production`
-- `TRUST_PROXY=true` so `req.ip`/protocol come from Cloudflare's headers
-- Scheduled jobs: keep in-process cron (`ENABLE_CRON=true`) **or** disable it and call
-  `POST /api/v1/jobs/run` with header `x-cron-secret: $CRON_SECRET` from a Cloudflare Cron Trigger
+## Deployment
 
-## Scripts (run from inside each folder)
+### Frontend: Vercel
 
-Server: `dev | build | start | lint | format | typecheck | test | db:generate | db:migrate | db:deploy | db:push | db:seed | db:studio | demo:seed`
-Client: `dev | build | start | lint | format | typecheck`
-Server (Cloudflare): `dev:worker` (wrangler dev) • `deploy` (wrangler deploy) • `cf:tail`
-E2E: `cd client/e2e && npm install && npm test`
+- Set the project root directory to **`client`**.
+- Use the Next.js framework preset and `npm run build`.
+- Configure `NEXT_PUBLIC_API_BASE_URL` with the deployed API URL.
+- Configure `NEXT_PUBLIC_SITE_URL` with the frontend URL.
+- Redeploy after changing public environment values; they are embedded at build time.
+- Add the frontend origin to the API’s `CLIENT_ORIGIN` configuration.
 
-## Phases
+### API: Cloudflare Workers
 
-- [x] 0 Foundations — app folders, health, env examples, per-app gitignore
-- [x] 1 Auth & Accounts — argon2id, JWT, verify/reset, 7d purge
-- [x] 2 Children, Subjects, App Shell — PIN, seeded NCTB, sidebar/bottom nav
-- [x] 3 Learning Log & Routines — entries+revisions, weekday+exceptions, schedule compute, missed
-- [x] 4 Notes & OCR — Tesseract ben+eng, editable preview, hash, AI vision fallback
-- [x] 5 AI Service & Quiz — digest, compact prompts, zod, cache, hidden answers, timer/resume
-- [x] 6 Results & Dashboards — per-topic stats, cached explanation en/bn, Recharts (bar/donut/line/radar/heatmap)
-- [x] 7 Billing — plans, trial 15d, DemoProvider, entitlements, expiry read-only, cron
-- [x] 8 Notifications, Admin, Polish — bell, admin metrics, onboarding, a11y, demo seed
-- [x] 9 Hardening — security, Playwright, load, deployment docs, privacy/terms, per-app config split
+The repository includes a Worker entry point, Hyperdrive configuration, and Wrangler settings.
 
-## Decisions
+Before deploying:
 
-See `docs/decisions.md`.
+1. Configure your own Hyperdrive resource in `server/wrangler.toml`.
+2. Configure the database connection and required application secrets.
+3. Set up R2/S3-compatible storage credentials for image uploads; Workers cannot use local disk storage.
+4. Apply database migrations against the intended production database.
 
-## Git & branching
+Add secrets from an authenticated local checkout:
 
-Work is on `arena/ba64f1fa-ki-shikhle` (tracked session branch); each phase was committed and pushed in order.
-Open a PR from this branch into `main`.
+```bash
+cd server
+npx wrangler secret put JWT_ACCESS_SECRET
+npx wrangler secret put JWT_REFRESH_SECRET
+npx wrangler secret put PASSWORD_PEPPER
+npx wrangler secret put DATABASE_URL
+npx wrangler secret put ANTHROPIC_API_KEY
+```
 
-## License
+Add the required storage secrets and any email or job-trigger credentials for your deployment, then:
 
-Proprietary — demo for Parent Learning Tracker.
+```bash
+npx prisma generate --no-engine
+npm run deploy
+```
+
+**Cloudflare secret tip:** If using the dashboard, choose **Secret**, not a plain-text variable, for sensitive values. Dashboard-only plain-text variables can be removed when Wrangler deploys the `[vars]` configuration from the repository. GitHub Actions secrets are not automatically copied into Worker runtime secrets.
+
+The included GitHub Actions workflow applies database migrations and deploys the API. Set its required GitHub secrets and provision Worker runtime secrets separately. Never copy another deployment’s resource IDs or credentials without configuring your own resources.
+
+### Alternative: Node.js Hosting
+
+The API can also run on a Node.js host:
+
+```bash
+cd server
+npm ci
+npm run build
+npm start
+```
+
+See [Deployment Documentation](docs/deployment.md) for additional guidance.
+
+## Development Commands
+
+Run these from the indicated directory:
+
+| Directory | Command | Purpose |
+| --- | --- | --- |
+| `client/` | `npm run dev` | Start the frontend |
+| `client/` | `npm run build` | Build the frontend |
+| `client/` | `npm run lint` | Run frontend linting |
+| `client/` | `npm run typecheck` | Check frontend TypeScript |
+| `server/` | `npm run dev` | Start the Node.js API in development |
+| `server/` | `npm run dev:worker` | Run the Worker locally |
+| `server/` | `npm run build` | Build the Node.js API |
+| `server/` | `npm run typecheck` | Check backend TypeScript |
+| `server/` | `npm test` | Run the backend test suite |
+| `server/` | `npm run db:studio` | Open Prisma Studio |
+
+## Project Status and Limitations
+
+Ki Shikhle? is an actively developed product. Its core workflow connects class logging, notes, quizzes, submissions, and dashboards, but implementation should not be confused with independently verified learning outcomes.
+
+- Genuine AI features require a configured provider. Mock/degraded development paths are not evidence that a real notebook was read or a real AI quiz was generated; some generation flows deliberately reject mock output.
+- Some alert and auto-quiz configuration currently uses in-memory state. Durable settings, per-student execution timing, and stronger scheduling reliability are improvement priorities.
+- In-memory fallback data is not durable storage. Use PostgreSQL and suitable object storage for real deployments.
+- Topic insights are signals from recorded activity and quiz performance, not a definitive assessment of mastery.
+- Verify your configured models, uploads, authentication, language rules, and complete learning workflow in the deployment you intend to demonstrate or use.
+
+## Roadmap
+
+- [ ] Durable quiz and alert scheduling with better execution visibility.
+- [ ] Clearer source references between generated questions and learning material.
+- [ ] Easier parent/educator review and question-quality reporting.
+- [ ] More robust curriculum and subject-language handling.
+- [ ] Better accessibility, camera-upload UX, and low-bandwidth experiences.
+- [ ] Evaluation with students, parents, and educators using real learning material.
+
+## Documentation
+
+- [Product Requirements](docs/prd.md)
+- [Deployment Guide](docs/deployment.md)
+- [Security Notes](docs/security.md)
+- [Architecture Decisions](docs/decisions.md)
+- [Load Testing Notes](docs/load-test.md)
+
+## Feedback and Contributions
+
+Found a bug or have a suggestion? Open an issue with the relevant portal, steps to reproduce, and expected behavior. Keep private notebook images, student information, passwords, and credentials out of public issues.
+
+For code contributions, keep changes focused, describe the affected workflow, and state which checks you ran. Database changes should include reviewed migrations where required.
+
+---
+
+**Ki Shikhle? — Turn “What did you learn today?” into a useful conversation.**
