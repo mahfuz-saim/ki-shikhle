@@ -1,8 +1,9 @@
+import { generateBalancedAutoQuestions, splitClassTopics, studyDateKey, yesterdaySchoolDate } from './auto-quiz';
 import { prisma } from '../../db/client';
 import { callAI, estimateCost, looksLikeMockQuiz } from '../../services/ai';
 import { getPlanLimits, canGenerateQuiz, resolvePlanCode } from '../../services/entitlements';
 import { z } from 'zod';
-import { sha256Hex } from '../../utils/crypto';
+import { sha256Hex, randomHex } from '../../utils/crypto';
 import { badRequest, forbidden, notFound } from '../../utils/errors';
 import { env } from '../../config/env';
 import { store, seedDemoRows, registerDemoFixture, rekeyDemoChildId, DEMO_PARENT_ID, sanitizeChild } from '../../core/store';
@@ -954,7 +955,7 @@ export const memAutoSchedules: Record<string, AutoQuizScheduleConfig> = {
     childId: 'demo-child-1',
     enabled: true,
     topicStrategy: 'one_day_old',
-    questionCount: 5,
+    questionCount: 20,
     timeStrategy: 'ai_dynamic',
     triggerTime: '19:30',
     daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
@@ -965,7 +966,7 @@ export const memAutoSchedules: Record<string, AutoQuizScheduleConfig> = {
     childId: 'demo-child-2',
     enabled: true,
     topicStrategy: 'one_day_old',
-    questionCount: 5,
+    questionCount: 20,
     timeStrategy: 'ai_dynamic',
     triggerTime: '18:30',
     daysOfWeek: [0, 2, 4],
@@ -976,7 +977,7 @@ export const memAutoSchedules: Record<string, AutoQuizScheduleConfig> = {
     childId: 'demo-child-3',
     enabled: true,
     topicStrategy: 'one_day_old',
-    questionCount: 5,
+    questionCount: 20,
     timeStrategy: 'ai_dynamic',
     triggerTime: '20:00',
     daysOfWeek: [0, 1, 2, 3, 4],
@@ -1642,14 +1643,17 @@ export async function getChildInfo(actor: Actor, childId: string) {
 
 export async function collectChildStudyContext(actor: Actor, childId: string, strategy: string, selectedSubjects?: string[]) {
   const child = await getChildInfo(actor, childId);
+  const yesterday = yesterdaySchoolDate();
+  const yesterdayDate = new Date(`${yesterday}T00:00:00Z`);
+  const yesterdayOnly = strategy === 'one_day_old';
 
   // 1. Fetch entries
   let entries: any[] = [];
   try {
     entries = await prisma.learningEntry.findMany({
-      where: { childId },
+      where: { childId, ...(yesterdayOnly ? { date: yesterdayDate } : {}) },
       orderBy: { date: 'desc' },
-      take: 20,
+      ...(yesterdayOnly ? {} : { take: 20 }),
     });
   } catch {}
   if (!entries || entries.length === 0) {
@@ -1660,9 +1664,12 @@ export async function collectChildStudyContext(actor: Actor, childId: string, st
   let notes: any[] = [];
   try {
     notes = await prisma.note.findMany({
-      where: { childId },
+      where: { childId, ...(yesterdayOnly ? { OR: [
+        { entry: { date: yesterdayDate } },
+        { entryId: null, date: yesterdayDate },
+      ] } : {}) },
       orderBy: { date: 'desc' },
-      take: 10,
+      ...(yesterdayOnly || strategy === 'recent_notes' ? {} : { take: 10 }),
     });
   } catch {}
   if (!notes || notes.length === 0) {
@@ -1705,7 +1712,7 @@ export async function collectChildStudyContext(actor: Actor, childId: string, st
   }
 
   // Filter by subject if specified and not 'All'
-  const filterSubjects = selectedSubjects && selectedSubjects.length > 0 && !selectedSubjects.includes('All')
+  const filterSubjects = !yesterdayOnly && selectedSubjects && selectedSubjects.length > 0 && !selectedSubjects.includes('All')
     ? selectedSubjects.map((s) => s.toLowerCase().trim())
     : null;
 
@@ -1724,20 +1731,13 @@ export async function collectChildStudyContext(actor: Actor, childId: string, st
   let targetEntries = [...entries];
   let targetNotes = [...notes];
   const now = Date.now();
-  const oneDayMs = 86400000;
 
-  if (strategy === 'one_day_old') {
-    // Spaced repetition: look for entries ~1 day old (between 12h and 60h ago)
-    const yesterdayEntries = entries.filter((e: any) => {
-      const d = new Date(e.date || e.createdAt).getTime();
-      const diffDays = (now - d) / oneDayMs;
-      return diffDays >= 0.5 && diffDays <= 2.5;
-    });
-    if (yesterdayEntries.length > 0) {
-      targetEntries = yesterdayEntries;
-    } else {
-      targetEntries = entries.slice(0, 3);
-    }
+  if (yesterdayOnly) {
+    targetEntries = entries.filter((entry: any) => studyDateKey(entry.date) === yesterday);
+    const entryIds = new Set(targetEntries.map((entry: any) => entry.id));
+    targetNotes = notes.filter((note: any) => note.entryId
+      ? entryIds.has(note.entryId)
+      : studyDateKey(note.date) === yesterday);
   } else if (strategy === 'ai_adaptive') {
     const weakEntries = entries.filter((e: any) => {
       if (e.confidence && e.confidence <= 3) return true;
@@ -1750,34 +1750,53 @@ export async function collectChildStudyContext(actor: Actor, childId: string, st
       targetEntries = entries.slice(0, 3);
     }
   } else if (strategy === 'recent_notes') {
-    targetNotes = notes.slice(0, 5);
+    targetEntries = [];
+    targetNotes = notes.filter((note: any) => [note.textClean, note.aiSummary]
+      .some((text) => typeof text === 'string' && text.trim())).slice(0, 5);
   }
 
   // Collect topics list
-  const topicsList: Array<{ subject: string; topicText: string; source: string; date: Date; confidence?: number }> = [];
+  const topicsList: Array<{ subject: string; topicText: string; source: string; date: Date; confidence?: number; context?: string; noteId?: string }> = [];
 
+  const noteContent = (note: any): string => [...new Set([note.textClean, note.aiSummary]
+    .filter((value) => typeof value === 'string' && value.trim()))].join('\n\n');
   for (const e of targetEntries) {
-    topicsList.push({
-      subject: e.subjectName || e.subject || 'General',
-      topicText: e.topicsText || '',
-      source: e.source || 'study',
-      date: new Date(e.date || e.createdAt || now),
-      confidence: e.confidence,
-    });
+    const linkedNotes = targetNotes.filter((note: any) => note.entryId === e.id);
+    const context = [e.topicsText, e.notes, ...linkedNotes.map(noteContent)]
+      .filter(Boolean).join('\n\n');
+    const topicNames = yesterdayOnly
+      ? [...splitClassTopics(e.topicsText || ''), ...(Array.isArray(e.keyConcepts) ? e.keyConcepts.filter((key: unknown) => typeof key === 'string' && key.trim()) : [])]
+      : [e.topicsText || e.subject || 'Class lesson'];
+    if (!topicNames.length && context.trim()) topicNames.push(e.subjectName || e.subject || 'Class lesson');
+    for (const topicText of topicNames) {
+      topicsList.push({ subject: e.subjectName || e.subject || 'General', topicText,
+        context, source: e.source || 'study', date: new Date(e.date || e.createdAt || now), confidence: e.confidence });
+    }
   }
 
   for (const n of targetNotes) {
-    topicsList.push({
-      subject: n.subject || 'General',
-      topicText: `${n.title ? n.title + ': ' : ''}${n.textClean ? n.textClean.slice(0, 200) : ''}`,
-      source: 'note',
-      date: new Date(n.date || n.createdAt || now),
-    });
+    // The linked image/manual note already enriches every topic of its class;
+    // counting it as a new topic would duplicate that lesson's allocation.
+    if (targetEntries.some((entry: any) => entry.id === n.entryId)) continue;
+    const context = noteContent(n);
+    if (!context.trim()) continue;
+    topicsList.push({ subject: n.subject || 'General', topicText: n.title || 'Class note',
+      context, source: 'note', noteId: n.id, date: new Date(n.date || n.createdAt || now) });
+  }
+
+  // Deduplicate repeated logged concepts, but retain all of their note content.
+  const uniqueTopics = new Map<string, typeof topicsList[number]>();
+  for (const topic of topicsList) {
+    const key = topic.noteId ? `note:${topic.noteId}` : `${topic.subject.trim().toLowerCase()}:${topic.topicText.trim().toLowerCase()}`;
+    const existing = uniqueTopics.get(key);
+    if (existing) {
+      if (topic.context && topic.context !== existing.context) existing.context = [existing.context, topic.context].filter(Boolean).join('\n\n');
+    } else uniqueTopics.set(key, topic);
   }
 
   // Primary subject deduction
   const subjectCounts: Record<string, number> = {};
-  for (const t of topicsList) {
+  for (const t of uniqueTopics.values()) {
     const s = t.subject.split('(')[0].trim() || 'General';
     subjectCounts[s] = (subjectCounts[s] || 0) + 1;
   }
@@ -1792,7 +1811,8 @@ export async function collectChildStudyContext(actor: Actor, childId: string, st
 
   return {
     child,
-    topics: topicsList,
+    topics: [...uniqueTopics.values()],
+    studyDate: yesterdayOnly ? yesterday : undefined,
     weakTopics,
     primarySubject,
   };
@@ -1910,7 +1930,7 @@ export async function getAutoQuizSchedule(actor: Actor, childId: string): Promis
     childId,
     enabled: true,
     topicStrategy: 'one_day_old',
-    questionCount: 5,
+    questionCount: 20,
     timeStrategy: 'ai_dynamic',
     triggerTime: '19:00',
     daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
@@ -1923,6 +1943,20 @@ export async function getAutoQuizSchedule(actor: Actor, childId: string): Promis
 
 export async function saveAutoQuizSchedule(actor: Actor, childId: string, config: Partial<AutoQuizScheduleConfig>) {
   await assertChildAccess(actor, childId);
+
+  const parsed = z.object({
+    enabled: z.boolean().optional(),
+    topicStrategy: z.enum(['one_day_old', 'ai_adaptive', 'recent_notes', 'all_subjects']).optional(),
+    questionCount: z.number().int().min(1).max(100).optional(),
+    timeStrategy: z.enum(['ai_dynamic', 'fixed_10', 'fixed_15', 'fixed_20']).optional(),
+    customTimeMinutes: z.number().int().min(1).max(300).optional(),
+    triggerTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+    daysOfWeek: z.array(z.number().int().min(0).max(6)).optional(),
+    subjects: z.array(z.string().trim().min(1)).optional(),
+    difficulty: z.enum(['easy', 'medium', 'hard', 'mixed']).optional(),
+  }).safeParse(config);
+  if (!parsed.success) throw badRequest('Invalid automatic quiz settings.', parsed.error.flatten());
+  config = parsed.data;
 
   if (config.enabled) {
     const planCode = await resolvePlanCode(actor.ownerId);
@@ -1958,71 +1992,24 @@ export async function runAutoQuizSchedule(actor: Actor, childId: string) {
     title = `সমন্বিত মেধা যাচাই কুইজ: সর্বমোট পঠিত অধ্যায় (Comprehensive Revision) — ${studyContext.primarySubject}`;
   }
 
-  let questions: any[] = [];
-  const questionCount = Math.max(1, Number(config.questionCount) || 5);
-  const difficulty = config.difficulty || 'mixed';
-
-  // 3. Attempt dynamic AI generation
-  try {
-    const topicSummary = studyContext.topics.map((t) => `${t.subject}: ${t.topicText}`).slice(0, 6).join('\n');
-    const system = `You are an expert curriculum quiz generator for Bangladesh NCTB curriculum. Generate strictly valid JSON. Format: {"questions":[{"type":"mcq|true_false","prompt":"...","options":["..."],"correct_answer":"...","explanation":"...","topic":"..."}]}`;
-    const user = `Student Grade: ${studyContext.child.grade || 'Class 8'} (NCTB, ${studyContext.child.medium || 'Bangla'} medium).
-Topics studied recently:
-${topicSummary || 'General curriculum'}
-Generate ${questionCount} questions with difficulty='${difficulty}'.
-Language: ${studyContext.child.medium === 'English' ? 'en' : 'bn'}.
-Output strictly valid JSON with questions array.`;
-
-    const aiRes = await callAI({ system, user, model: 'fast', maxTokens: 2500, responseFormat: 'json', feature: 'quiz' });
-    const jsonMatch = aiRes.content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      // The same mock check the manual generator uses: a Bangla mock bank is
-      // just as fake as the English one, and used to be written straight to the
-      // database by the auto-scheduler.
-      if (Array.isArray(parsed.questions) && parsed.questions.length >= questionCount && !looksLikeMockQuiz(aiRes.content)) {
-        questions = parsed.questions.slice(0, questionCount).map((q: any, idx: number) => ({
-          id: `q-auto-ai-${Date.now()}-${idx + 1}`,
-          quizId: '',
-          position: idx,
-          type: q.type || 'mcq',
-          prompt: q.prompt,
-          options: Array.isArray(q.options) ? q.options : [],
-          optionsJson: Array.isArray(q.options) ? q.options : [],
-          correctAnswer: q.correct_answer || q.correctAnswer || (q.options ? q.options[0] : 'Correct'),
-          explanation: q.explanation || 'NCTB Curriculum explanation.',
-          topic: q.topic || studyContext.primarySubject,
-        }));
-      }
-    }
-  } catch {
-    // AI call failed or timed out, will fallback to proper curriculum generator
+  if (!studyContext.topics.length) {
+    throw badRequest(config.topicStrategy === 'one_day_old'
+      ? `No class topics or readable notes were found for yesterday (${studyContext.studyDate}, Asia/Dhaka). Log yesterday's lessons or choose a different source.`
+      : 'No readable study material was found for this source. Add class logs or notes first.');
   }
-
-  // 4. Fallback to proper curriculum generator if AI didn't provide enough questions
-  if (!questions || questions.length < questionCount) {
-    questions = generateProperCurriculumQuestions(studyContext, {
-      questionCount,
-      difficulty,
-      strategy: config.topicStrategy,
-    });
-  }
-
-  // Guarantee exact question count
-  if (questions.length > questionCount) {
-    questions = questions.slice(0, questionCount);
-  }
+  const questions = await generateBalancedAutoQuestions(studyContext.child, studyContext.topics,
+    config.questionCount || 20, config.difficulty || 'mixed');
 
   // 5. Calculate smart dynamic timing
   const timingInfo = calculateSmartTime(questions, studyContext.primarySubject);
   const timeLimitMin =
     config.timeStrategy === 'ai_dynamic'
       ? timingInfo.minutes
-      : config.customTimeMinutes || (config.timeStrategy === 'fixed_10' ? 10 : config.timeStrategy === 'fixed_20' ? 20 : 15);
+      : (config.timeStrategy === 'fixed_10' ? 10 : config.timeStrategy === 'fixed_20' ? 20 : 15);
 
-  const quizId = 'auto-quiz-' + Date.now();
+  const quizId = `auto-quiz-${Date.now()}-${randomHex(4)}`;
   questions.forEach((q, idx) => {
-    q.id = q.id || `q-auto-${Date.now()}-${idx + 1}`;
+    q.id = `q-${quizId}-${idx + 1}`;
     q.quizId = quizId;
     q.position = idx;
     if (!q.optionsJson && q.options) q.optionsJson = q.options;
@@ -2039,12 +2026,14 @@ Output strictly valid JSON with questions array.`;
     timeLimitMin,
     timingBreakdown: timingInfo,
     isAutoScheduled: true,
+    questionCount: questions.length,
     subject: studyContext.primarySubject,
     scopeJson: {
       strategy: config.topicStrategy,
-      topicAge: '1-day-old',
+      studyDate: studyContext.studyDate || null,
+      topicAge: config.topicStrategy === 'one_day_old' ? 'yesterday' : config.topicStrategy,
       subject: studyContext.primarySubject,
-      topicsCovered: studyContext.topics.map((t) => t.topicText).slice(0, 5),
+      topicsCovered: studyContext.topics.map((t) => `${t.subject}: ${t.topicText}`),
     },
     settingsJson: {
       numQuestions: questions.length,
@@ -2056,36 +2045,21 @@ Output strictly valid JSON with questions array.`;
     createdAt: new Date().toISOString(),
   };
 
-  // 6. Persist to Prisma DB if available, else keep in memory
+  // Persist the complete validated quiz atomically, never an assigned quiz with
+  // only the first few questions if a later question insert fails.
   try {
     await prisma.quiz.create({
       data: {
-        id: quizId,
-        childId,
-        createdBy: actor.ownerId,
-        title,
-        status: 'assigned',
-        timeLimitMin,
-        scopeJson: quizObj.scopeJson,
-        settingsJson: quizObj.settingsJson,
+        id: quizId, childId, createdBy: actor.ownerId, title,
+        status: 'assigned', timeLimitMin,
+        scopeJson: quizObj.scopeJson, settingsJson: quizObj.settingsJson,
+        questions: { create: questions.map((question, position) => ({
+          id: question.id, position, type: question.type, prompt: question.prompt,
+          optionsJson: question.options, correctAnswer: question.correctAnswer,
+          explanation: question.explanation, topic: question.topic,
+        })) },
       },
     });
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      await prisma.quizQuestion.create({
-        data: {
-          id: q.id,
-          quizId,
-          position: i,
-          type: q.type,
-          prompt: q.prompt,
-          optionsJson: q.optionsJson || q.options || [],
-          correctAnswer: q.correctAnswer || q.correct_answer || 'Correct',
-          explanation: q.explanation,
-          topic: q.topic || 'General',
-        },
-      });
-    }
   } catch {}
 
   store.quizzes.add(quizObj);
