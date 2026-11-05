@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { listRoutines, createRoutine, deleteRoutine, memRoutines } from './routines.service';
+import { listRoutines, createRoutine, deleteRoutine } from './routines.service';
+import { demoParent, demoChildIds } from '../../test-utils/actors';
 
 // Pure function test for schedule logic (without DB)
 function computeOccurrences(weekdays: number[], from: string, to: string) {
@@ -36,7 +37,7 @@ describe('Routine recurrence & occurrences', () => {
 
 describe('School and College Schedule Routine Management', () => {
   it('lists default school periods for student', async () => {
-    const list = await listRoutines('demo-child-1', 'parent-1');
+    const list = await listRoutines(demoParent(), demoChildIds.rahim);
     expect(list.length).toBeGreaterThan(0);
     const schoolPeriods = list.filter((r: any) => r.source === 'school');
     expect(schoolPeriods.length).toBeGreaterThanOrEqual(5);
@@ -49,7 +50,8 @@ describe('School and College Schedule Routine Management', () => {
   });
 
   it('creates a new school period and deactivates it', async () => {
-    const newPeriod = await createRoutine('demo-child-1', 'parent-1', {
+    const actor = demoParent();
+    const newPeriod = await createRoutine(actor, demoChildIds.rahim, {
       name: '৭ম পিরিয়ড: শারীরিক শিক্ষা ও স্বাস্থ্য',
       periodName: '৭ম পিরিয়ড',
       subject: 'Physical Education',
@@ -67,10 +69,10 @@ describe('School and College Schedule Routine Management', () => {
     expect(newPeriod.weekdays).toEqual([0, 2, 4]);
 
     // Deactivate
-    const res = await deleteRoutine(newPeriod.id, 'parent-1');
+    const res = await deleteRoutine(actor, newPeriod.id);
     expect(res.message).toBe('Deactivated');
 
-    const updatedList = await listRoutines('demo-child-1', 'parent-1');
+    const updatedList = await listRoutines(actor, demoChildIds.rahim);
     expect(updatedList.some((r: any) => r.id === newPeriod.id)).toBe(false);
   });
 });

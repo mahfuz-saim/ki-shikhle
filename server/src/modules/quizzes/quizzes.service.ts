@@ -1,15 +1,21 @@
 import { prisma } from '../../db/client';
 import { callAI, estimateCost } from '../../services/ai';
-import { getPlanLimits, canGenerateQuiz } from '../../services/entitlements';
+import { getPlanLimits, canGenerateQuiz, resolvePlanCode } from '../../services/entitlements';
 import { z } from 'zod';
 import { sha256Hex } from '../../utils/crypto';
 import { badRequest, forbidden, notFound } from '../../utils/errors';
 import { env } from '../../config/env';
-import { memEntries } from '../entries/entries.service';
-import { memNotes } from '../notes/notes.service';
-import { memChildren } from '../children/children.service';
+import { store, seedDemoRows, registerDemoFixture, rekeyDemoChildId, DEMO_PARENT_ID } from '../../core/store';
+import { assertChildAccess, assertEntityAccess, type Actor } from '../../core/tenancy';
 
-export const memQuizzes: any[] = [
+/**
+ * The demo quiz fixtures.
+ *
+ * These belong to the demo tenant. They are registered into the owner-partitioned store
+ * (`core/store`) at import time, with the legacy `demo-child-N` ids re-keyed onto the
+ * demo children's real ids.
+ */
+const demoQuizFixtures: any[] = [
   // Rahim (Class 8)
   {
     id: 'quiz-rahim-1',
@@ -322,7 +328,7 @@ export const memQuizzes: any[] = [
     ],
   },
 ];
-export const memAttempts: any[] = [
+const demoAttemptFixtures: any[] = [
   {
     id: 'attempt-rahim-1',
     quizId: 'quiz-rahim-1',
@@ -390,6 +396,18 @@ export const memAttempts: any[] = [
 ];
 const quizCache = new Map<string, { data: any; expires: number }>();
 
+/**
+ * Register the demo quizzes and attempts into the owner-partitioned store.
+ *
+ * The degraded (no-database) path reads from `store.quizzes` / `store.attempts`, which
+ * are partitioned by owner — so the demo content is visible to the demo parent and to
+ * nobody else.
+ */
+registerDemoFixture(() => {
+  seedDemoRows(store.quizzes, demoQuizFixtures, () => ({ createdBy: DEMO_PARENT_ID }));
+  seedDemoRows(store.attempts, demoAttemptFixtures);
+});
+
 const quizOutputSchema = z.object({
   questions: z.array(z.object({
     type: z.enum(['mcq','true_false','fill_blank']),
@@ -437,15 +455,14 @@ function hashRequest(digests: string, settings: any) {
   return sha256Hex(digests + JSON.stringify(settings));
 }
 
-export async function generateQuiz(childId: string, parentId: string, input: any, createdBy: string) {
-  await assertOwnership(parentId, childId);
+export async function generateQuiz(actor: Actor, childId: string, input: any, createdBy: string) {
+  await assertChildAccess(actor, childId);
 
   // entitlement: check monthly quota
   try {
     const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const count = await prisma.quiz.count({ where: { childId, createdAt: { gte: startOfMonth } } });
-    const sub = await prisma.subscription.findFirst({ where:{userId: parentId}, include:{plan:true}, orderBy:{createdAt:'desc'}});
-    const planCode = sub?.plan?.code || 'free';
+    const planCode = await resolvePlanCode(actor.ownerId);
     if (!canGenerateQuiz(count, planCode)) throw forbidden(`Monthly AI quiz limit reached for ${planCode} (${getPlanLimits(planCode).aiQuizzesPerMonth}/mo)`);
     // budget cap per request: 6000 input tokens
     const estimated = JSON.stringify(input).length / 4;
@@ -453,7 +470,7 @@ export async function generateQuiz(childId: string, parentId: string, input: any
   } catch (e: any) { if (e.statusCode) throw e; }
 
   // Collect digests for scope
-  const digests = await collectDigests(childId, input);
+  const digests = await collectDigests(actor, childId, input);
   const digestText = digests.map((d:any)=> `${d.subjectId || 'general'}: ${JSON.stringify(d.digestJson)}`).join('\n');
   const settings = { numQuestions: Number(input.numQuestions||10), difficulty: input.difficulty||'mixed', types: input.types||['mcq','true_false'], language: input.language||'en', timeLimitMin: input.timeLimitMin };
 
@@ -463,7 +480,7 @@ export async function generateQuiz(childId: string, parentId: string, input: any
   if (cached && cached.expires > Date.now()) {
     console.log('[Quiz Cache] hit', cacheKey.slice(0,8));
     // log cache hit
-    try { await prisma.aiUsageLog.create({ data:{ userId: parentId, childId, feature:'quiz_generate', model: env.AI_MODEL_FAST, inputTokens:0, outputTokens:0, costEst:0, cacheHit:true, status:'success'}}); } catch {}
+    try { await prisma.aiUsageLog.create({ data:{ userId: actor.ownerId, childId, feature:'quiz_generate', model: env.AI_MODEL_FAST, inputTokens:0, outputTokens:0, costEst:0, cacheHit:true, status:'success'}}); } catch {}
     return cached.data;
   }
 
@@ -472,7 +489,7 @@ export async function generateQuiz(childId: string, parentId: string, input: any
   const user = `[DIGESTS]\n${digestText.slice(0, 6000)}\n[/DIGESTS]\nGenerate ${settings.numQuestions} questions, difficulty=${settings.difficulty}, types=${settings.types.join(',')}, language=${settings.language}. Grade via child grade context. Each question needs clear correct_answer. Respond with JSON: {"questions":[{"type":"mcq|true_false|fill_blank","prompt":"...","options":["..."],"correct_answer":"...","explanation":"...","topic":"..."}]}`;
 
   const start = Date.now();
-  let result = await callAI({ system, user, model: 'fast', maxTokens: 3000, responseFormat: 'json' });
+  let result = await callAI({ system, user, model: 'fast', maxTokens: 3000, responseFormat: 'json', feature: 'quiz' });
   let parsed: any;
   try {
     // extract JSON even if wrapped
@@ -482,13 +499,13 @@ export async function generateQuiz(childId: string, parentId: string, input: any
   } catch (e) {
     // retry once with repair prompt
     console.warn('Quiz parse failed, retrying with repair');
-    result = await callAI({ system: system + ' Repair: output valid JSON only.', user: `Previous output was invalid JSON: ${result.content}\n\nFix and return valid JSON.`, model:'fast', maxTokens: 3000, responseFormat:'json' });
+    result = await callAI({ system: system + ' Repair: output valid JSON only.', user: `Previous output was invalid JSON: ${result.content}\n\nFix and return valid JSON.`, model:'fast', maxTokens: 3000, responseFormat:'json', feature: 'quiz' });
     try {
       const jsonMatch = result.content.match(/\{[\s\S]*\}/);
       const rawParsed = JSON.parse(jsonMatch ? jsonMatch[0] : result.content);
       parsed = quizOutputSchema.parse(normalizeQuizJson(rawParsed));
     } catch (e2) {
-      const studyContext = await collectChildStudyContext(childId, 'all_subjects', input.subjectIds);
+      const studyContext = await collectChildStudyContext(actor, childId, 'all_subjects', input.subjectIds);
       const fallbackQuestions = generateProperCurriculumQuestions(studyContext, {
         questionCount: settings.numQuestions,
         difficulty: settings.difficulty as any,
@@ -507,9 +524,10 @@ export async function generateQuiz(childId: string, parentId: string, input: any
     }
   }
 
-  // If mock fallback was returned from AI mock, replace with proper curriculum questions
+  // If the AI mock's static bank came back instead of real generated questions,
+  // replace it with curriculum-grounded questions built from the child's own notes.
   if (parsed.questions.some((q: any) => q.prompt?.includes('quadratic formula') || q.prompt?.includes('mitochondria'))) {
-    const studyContext = await collectChildStudyContext(childId, 'all_subjects', input.subjectIds);
+    const studyContext = await collectChildStudyContext(actor, childId, 'all_subjects', input.subjectIds);
     const properQuestions = generateProperCurriculumQuestions(studyContext, {
       questionCount: settings.numQuestions,
       difficulty: settings.difficulty as any,
@@ -546,11 +564,15 @@ export async function generateQuiz(childId: string, parentId: string, input: any
       await prisma.quizQuestion.create({ data:{ quizId: quiz.id, position:i, type:q.type, prompt:q.prompt, optionsJson: q.options||[], correctAnswer: q.correct_answer, explanation: q.explanation, topic: q.topic||'General' } });
     }
     // usage log
-    await prisma.aiUsageLog.create({ data:{ userId: parentId, childId, feature:'quiz_generate', model: result.model, inputTokens: result.inputTokens, outputTokens: result.outputTokens, costEst: cost, latencyMs: latency, cacheHit:false, status:'success'}});
+    //
+    // The status reflects what actually happened. Mocked content is recorded as `mock`,
+    // never as `success` — a production AI outage used to write fake questions into the
+    // database and log them as a successful call, so the outage was invisible.
+    await prisma.aiUsageLog.create({ data:{ userId: actor.ownerId, childId, feature:'quiz_generate', model: result.model, inputTokens: result.inputTokens, outputTokens: result.outputTokens, costEst: cost, latencyMs: latency, cacheHit:false, status: result.mocked ? 'mock' : 'success'}});
     quiz = await prisma.quiz.findUnique({ where:{id:quiz.id}, include:{questions:true}});
   } catch {
-    quiz = { id:'quiz-'+Date.now(), childId, createdBy, title: input.title||'Mock Quiz', scopeJson, settingsJson, status:'draft', questions: parsed.questions.map((q:any,i:number)=>({ id:'q-'+i, quizId:'mock', position:i, type:q.type, prompt:q.prompt, optionsJson:q.options||[], correctAnswer: q.correct_answer, explanation: q.explanation, topic:q.topic })), createdAt: new Date().toISOString() };
-    memQuizzes.push(quiz);
+    quiz = { id:'quiz-'+Date.now(), childId, createdBy, ownerId: actor.ownerId, title: input.title||'Mock Quiz', scopeJson, settingsJson, status:'draft', questions: parsed.questions.map((q:any,i:number)=>({ id:'q-'+i, quizId:'mock', position:i, type:q.type, prompt:q.prompt, optionsJson:q.options||[], correctAnswer: q.correct_answer, explanation: q.explanation, topic:q.topic })), createdAt: new Date().toISOString() };
+    store.quizzes.add(quiz);
     // still log mock usage
     console.log(`[AI Usage] quiz_generate mock cost $${cost.toFixed(4)} tokens ${result.inputTokens}/${result.outputTokens}`);
   }
@@ -562,82 +584,125 @@ export async function generateQuiz(childId: string, parentId: string, input: any
   return quiz;
 }
 
-export async function listQuizzes(childId: string, parentId: string) {
-  await assertOwnership(parentId, childId);
+export async function listQuizzes(actor: Actor, childId: string) {
+  await assertChildAccess(actor, childId);
   try {
     const dbList = await prisma.quiz.findMany({ where:{childId}, orderBy:{createdAt:'desc'}, include:{questions:true}});
-    const memList = memQuizzes.filter((q:any)=> q.childId===childId && !dbList.some((d:any)=> d.id === q.id));
-    return [...memList, ...dbList];
+    const memList = store.quizzes.forChild(actor.ownerId, childId).filter((q:any)=> !dbList.some((d:any)=> d.id === q.id));
+    return [...memList, ...dbList].map((q: any) => sanitizeQuizForRole(q, actor));
   }
-  catch { return memQuizzes.filter((q:any)=> q.childId===childId); }
+  catch { return store.quizzes.forChild(actor.ownerId, childId).map((q: any) => sanitizeQuizForRole(q, actor)); }
 }
 
-export async function getQuiz(quizId: string, parentId: string) {
+/**
+ * Strip the answer key from a quiz when the caller is a child.
+ *
+ * The client used to mask `correctAnswer` in the UI only — the value was still in the
+ * network response, which is the same as publishing the key. A child actor never sees
+ * the correct answer or the per-question explanation before submitting.
+ */
+export function sanitizeQuizForRole(quiz: any, actor: Actor): any {
+  if (!quiz) return quiz;
+
+  // Normalise the option field name.
+  //
+  // DB quizzes expose `optionsJson` (the Prisma column) while the in-memory
+  // fixtures expose `options`. The client rendered only `q.optionsJson`, so every
+  // real quiz showed **no answer options at all** — the bug was invisible in demo
+  // mode because the mock fallback happened to use `optionsJson`. Both fields are
+  // now emitted so either client can read either shape.
+  const questions = (quiz.questions || []).map((q: any) => {
+    const options = Array.isArray(q.options) ? q.options : Array.isArray(q.optionsJson) ? q.optionsJson : [];
+    const base = { ...q, options, optionsJson: options };
+
+    if (actor.role !== 'child') return base;
+
+    const { correctAnswer, correct_answer, explanation, ...rest } = base;
+    return rest;
+  });
+
+  return { ...quiz, questions };
+}
+
+export async function getQuiz(actor: Actor, quizId: string) {
+  await assertEntityAccess(actor, { kind: 'quiz', id: quizId });
+
   let quiz: any;
-  try { quiz = await prisma.quiz.findUnique({ where:{id:quizId}, include:{questions:true, child:true}}); } catch { quiz = memQuizzes.find((q:any)=> q.id===quizId); }
-  if(!quiz) quiz = memQuizzes.find((q:any)=> q.id===quizId);
-  if(!quiz) throw notFound('Quiz not found');
-  try { if(quiz.child?.parentId !== parentId && quiz.childId) { const c:any = await prisma.child.findUnique({where:{id:quiz.childId}}); if(c?.parentId!==parentId) throw forbidden('Not yours'); } } catch(e:any){ if(e.statusCode) throw e; }
-  // hide correct answers if not creator? For MVP, parent preview can see, child attempt cannot (handled in attempt flow)
-  return quiz;
+  try {
+    quiz = await prisma.quiz.findUnique({ where:{id:quizId}, include:{questions:true, child:true}});
+  } catch {
+    quiz = store.quizzes.find(actor.ownerId, quizId);
+  }
+  if (!quiz) quiz = store.quizzes.find(actor.ownerId, quizId);
+  if (!quiz) throw notFound('Quiz not found');
+
+  return sanitizeQuizForRole(quiz, actor);
 }
 
-export async function updateQuestion(quizId: string, qid: string, parentId: string, data: any) {
-  await getQuiz(quizId, parentId);
+export async function updateQuestion(actor: Actor, quizId: string, qid: string, data: any) {
+  await assertEntityAccess(actor, { kind: 'quiz', id: quizId });
   try { return await prisma.quizQuestion.update({ where:{id:qid}, data:{ prompt: data.prompt, optionsJson: data.options, correctAnswer: data.correct_answer, explanation: data.explanation }}); }
-  catch { const quiz:any=memQuizzes.find((q:any)=>q.id===quizId); if(!quiz) throw notFound('Quiz'); const q=quiz.questions.find((x:any)=> x.id===qid); if(q) Object.assign(q, data); return q; }
+  catch { const quiz:any=store.quizzes.find(actor.ownerId, quizId); if(!quiz) throw notFound('Quiz'); const q=quiz.questions.find((x:any)=> x.id===qid); if(q) Object.assign(q, data); return q; }
 }
 
-export async function regenerateQuestion(quizId: string, qid: string, parentId: string) {
-  const quiz:any = await getQuiz(quizId, parentId);
+export async function regenerateQuestion(actor: Actor, quizId: string, qid: string) {
+  const quiz:any = await getQuiz(actor, quizId);
   const old = quiz.questions.find((q:any)=> q.id===qid || q.position===parseInt(qid));
   if(!old) throw notFound('Question not found');
   const system = 'Regenerate one quiz question, JSON only.';
   const user = `Regenerate question about ${old.topic||'same topic'} with type ${old.type}, keep difficulty mixed, language ${quiz.settingsJson?.language||'en'}. Return JSON {"questions":[...]}`;
-  const result = await callAI({ system, user, model:'fast', maxTokens:1000, responseFormat:'json'});
+  const result = await callAI({ system, user, model:'fast', maxTokens:1000, responseFormat:'json', feature: 'quiz' });
+  // A mocked regeneration returns the static question bank, not a fresh question about
+  // this child's topic. Writing it over the real question replaced a
+  // curriculum-grounded question with a generic one from the mock bank.
+  if (result.mocked) throw badRequest('The AI service is unavailable, so the question could not be regenerated. Please try again.');
   try {
     const parsed = JSON.parse(result.content.match(/\{[\s\S]*\}/)?.[0] || result.content);
     const nq = parsed.questions?.[0] || parsed;
-    return await updateQuestion(quizId, qid, parentId, { prompt: nq.prompt, options: nq.options, correct_answer: nq.correct_answer, explanation: nq.explanation });
+    return await updateQuestion(actor, quizId, qid, { prompt: nq.prompt, options: nq.options, correct_answer: nq.correct_answer, explanation: nq.explanation });
   } catch { throw badRequest('Regenerate failed'); }
 }
 
-export async function assignQuiz(quizId: string, parentId: string) {
-  const quiz:any = await getQuiz(quizId, parentId);
+export async function assignQuiz(actor: Actor, quizId: string) {
+  const quiz:any = await getQuiz(actor, quizId);
   try { return await prisma.quiz.update({ where:{id:quizId}, data:{ status:'assigned'}}); }
   catch { quiz.status='assigned'; return quiz; }
 }
 
-export async function createAttempt(quizId: string, childId: string, parentId: string) {
-  await assertOwnership(parentId, childId);
-  await getQuiz(quizId, parentId);
+export async function createAttempt(actor: Actor, quizId: string, childId: string) {
+  await assertChildAccess(actor, childId);
+  await assertEntityAccess(actor, { kind: 'quiz', id: quizId });
   let attempt:any;
   try { attempt = await prisma.quizAttempt.create({ data:{ quizId, childId, startedAt: new Date()}}); }
-  catch { attempt={id:'attempt-'+Date.now(), quizId, childId, startedAt: new Date().toISOString(), answers:[]}; memAttempts.push(attempt); }
+  catch { attempt={id:'attempt-'+Date.now(), quizId, childId, ownerId: actor.ownerId, startedAt: new Date().toISOString(), answers:[]}; store.attempts.add(attempt); }
   return attempt;
 }
 
-export async function saveAnswers(attemptId: string, parentId: string, answers: {questionId:string, answer:string}[]) {
+export async function saveAnswers(actor: Actor, attemptId: string, answers: {questionId:string, answer:string}[]) {
+  // The attempt is owned through its child — assert on that, not on the row's presence.
+  await assertEntityAccess(actor, { kind: 'attempt', id: attemptId });
+
   let attempt:any;
-  try { attempt = await prisma.quizAttempt.findUnique({ where:{id:attemptId}, include:{quiz:true}}); } catch { attempt = memAttempts.find((a:any)=> a.id===attemptId); }
+  try { attempt = await prisma.quizAttempt.findUnique({ where:{id:attemptId}, include:{quiz:true}}); } catch { attempt = store.attempts.find(actor.ownerId, attemptId); }
   if(!attempt) throw notFound('Attempt not found');
-  // ownership check via child
   // save each
   for (const a of answers) {
     // determine correctness now? No, scoring on submit
     try { await prisma.quizAnswer.upsert({ where:{ attemptId_questionId: {attemptId, questionId: a.questionId}}, update:{ answer: a.answer }, create:{ attemptId, questionId: a.questionId, answer: a.answer }}); }
-    catch { const existing = memAttempts.find((x:any)=> x.id===attemptId); if(existing){ const ex=(existing.answers as any[])||[]; const idx=ex.findIndex((y:any)=> y.questionId===a.questionId); if(idx>=0) ex[idx]=a; else ex.push(a); existing.answers=ex; } }
+    catch { const existing = store.attempts.find(actor.ownerId, attemptId); if(existing){ const ex=(existing.answers as any[])||[]; const idx=ex.findIndex((y:any)=> y.questionId===a.questionId); if(idx>=0) ex[idx]=a; else ex.push(a); existing.answers=ex; } }
   }
   return { message:'Saved', attemptId };
 }
 
-export async function submitAttempt(attemptId: string, parentId: string) {
+export async function submitAttempt(actor: Actor, attemptId: string) {
+  await assertEntityAccess(actor, { kind: 'attempt', id: attemptId });
+
   let attempt:any; let quiz:any;
   try {
     attempt = await prisma.quizAttempt.findUnique({ where:{id:attemptId}, include:{ answers:true, quiz:{ include:{questions:true}} } });
     if(!attempt) throw notFound('Attempt');
     quiz = attempt.quiz;
-  } catch { attempt=memAttempts.find((a:any)=> a.id===attemptId); if(!attempt) throw notFound('Attempt'); const q=memQuizzes.find((x:any)=> x.id===attempt.quizId); if(!q) throw notFound('Quiz'); quiz=q; }
+  } catch { attempt=store.attempts.find(actor.ownerId, attemptId); if(!attempt) throw notFound('Attempt'); const q=store.quizzes.find(actor.ownerId, attempt.quizId); if(!q) throw notFound('Quiz'); quiz=q; }
 
   // scoring in code, not LLM
   let score=0;
@@ -660,17 +725,18 @@ export async function submitAttempt(attemptId: string, parentId: string) {
     const updated = await prisma.quizAttempt.update({ where:{id:attemptId}, data:{ submittedAt: new Date(), score, maxScore, durationSec }});
     // create notification
     try {
-      let childName = 'Rahim Ahmed';
+      let childName = 'Student';
       try {
         const ch = await prisma.child.findUnique({ where: { id: attempt.childId } });
         if (ch) childName = ch.name;
-        else if (attempt.childId === 'demo-child-2') childName = 'Tasnim Islam';
-      } catch {
-        if (attempt.childId === 'demo-child-2') childName = 'Tasnim Islam';
-      }
+        else {
+          const memChild = store.children.find(actor.ownerId, attempt.childId);
+          if (memChild) childName = memChild.name;
+        }
+      } catch {}
       await prisma.notification.create({
         data: {
-          userId: parentId,
+          userId: actor.ownerId,
           type: 'quiz_completed',
           payloadJson: {
             attemptId,
@@ -690,21 +756,17 @@ export async function submitAttempt(attemptId: string, parentId: string) {
   }
 }
 
-export async function getAttempt(attemptId: string, parentId: string) {
-  let attempt:any;
-  try { attempt = await prisma.quizAttempt.findUnique({ where:{id:attemptId}, include:{ answers:{include:{question:true}}, quiz:true}}); } catch { attempt=memAttempts.find((a:any)=> a.id===attemptId); }
-  if(!attempt) throw notFound('Attempt');
-  // ownership check omitted for brevity in mock
-  return attempt;
-}
-
-export async function reportQuestion(questionId: string, parentId: string) {
-  try { await prisma.quizQuestion.update({ where:{id:questionId}, data:{ reported:true}}); } catch { const q=findQuestion(questionId); if(q) q.reported=true; }
+export async function reportQuestion(actor: Actor, questionId: string) {
+  try { await prisma.quizQuestion.update({ where:{id:questionId}, data:{ reported:true}}); }
+  catch { const q=findQuestion(actor, questionId); if(q) q.reported=true; }
   return { message:'Reported for review' };
 }
-function findQuestion(id:string){ for(const q of memQuizzes){ const f=(q.questions||[]).find((x:any)=> x.id===id); if(f) return f; } return null; }
+function findQuestion(actor: Actor, id:string){
+  for(const q of store.quizzes.forOwner(actor.ownerId)){ const f=(q.questions||[]).find((x:any)=> x.id===id); if(f) return f; }
+  return null;
+}
 
-async function collectDigests(childId: string, input: any) {
+async function collectDigests(actor: Actor, childId: string, input: any) {
   try {
     const where: any = { childId };
     if (input.from) where.date = { gte: new Date(input.from) };
@@ -722,7 +784,7 @@ async function collectDigests(childId: string, input: any) {
     entries = await prisma.learningEntry.findMany({ where, orderBy: { date: 'desc' }, take: 10 });
   } catch {}
   if (!entries || entries.length === 0) {
-    entries = memEntries.filter((e: any) => e.childId === childId);
+    entries = store.entries.forChild(actor.ownerId, childId) as any[];
   }
 
   // Synthesize from Notes
@@ -731,7 +793,7 @@ async function collectDigests(childId: string, input: any) {
     notes = await prisma.note.findMany({ where: { childId }, orderBy: { date: 'desc' }, take: 5 });
   } catch {}
   if (!notes || notes.length === 0) {
-    notes = memNotes.filter((n: any) => n.childId === childId);
+    notes = store.notes.forChild(actor.ownerId, childId) as any[];
   }
 
   if (entries.length > 0 || notes.length > 0) {
@@ -761,11 +823,7 @@ async function collectDigests(childId: string, input: any) {
   ];
 }
 
-async function assertOwnership(parentId:string, childId:string){
-  if (childId === parentId || childId.startsWith('demo-') || parentId.startsWith('demo-')) return;
-  try { const c=await prisma.child.findFirst({where:{id:childId, OR: [{ parentId }, { id: parentId }]}}); if(!c) throw notFound('Child'); } catch(e:any){ if(e.statusCode===404) throw e; }
-}
-
+// (ownership checks live in core/tenancy)
 
 export interface AutoQuizScheduleConfig {
   childId: string;
@@ -1444,25 +1502,27 @@ export function calculateSmartTime(questions: any[], subject?: string): { minute
   return { minutes, mathCount, nonMathCount };
 }
 
-export async function getChildInfo(childId: string) {
+/**
+ * Look up a child's profile for quiz generation.
+ *
+ * The `ownerId` narrows the in-memory lookup so a caller can never read another
+ * tenant's child profile by guessing an id.
+ */
+export async function getChildInfo(actor: Actor, childId: string) {
   try {
     const child = await prisma.child.findUnique({ where: { id: childId } });
     if (child) return child;
   } catch {}
-  const memChild = memChildren.find((c: any) => c.id === childId);
+  const memChild = store.children.find(actor.ownerId, childId);
   if (memChild) return memChild;
 
-  if (childId === 'demo-child-2') {
-    return { id: 'demo-child-2', name: 'Tasnim Islam', grade: 'Class 5', curriculum: 'NCTB', medium: 'Bangla', parentId: 'parent-demo' };
-  }
-  if (childId === 'demo-child-3') {
-    return { id: 'demo-child-3', name: 'Fahim Islam', grade: 'Class 11', curriculum: 'NCTB', medium: 'Bangla', parentId: 'parent-demo' };
-  }
-  return { id: childId, name: 'Rahim Ahmed', grade: 'Class 8', curriculum: 'NCTB', medium: 'Bangla', parentId: 'parent-demo' };
+  // Unknown child: return a neutral, owner-less profile. The caller has already been
+  // authorised by `assertChildAccess`, so this only supplies grade/medium context.
+  return { id: childId, name: 'Student', grade: 'Class 8', curriculum: 'NCTB', medium: 'Bangla', ownerId: actor.ownerId };
 }
 
-export async function collectChildStudyContext(childId: string, strategy: string, selectedSubjects?: string[]) {
-  const child = await getChildInfo(childId);
+export async function collectChildStudyContext(actor: Actor, childId: string, strategy: string, selectedSubjects?: string[]) {
+  const child = await getChildInfo(actor, childId);
 
   // 1. Fetch entries
   let entries: any[] = [];
@@ -1474,7 +1534,7 @@ export async function collectChildStudyContext(childId: string, strategy: string
     });
   } catch {}
   if (!entries || entries.length === 0) {
-    entries = memEntries.filter((e: any) => e.childId === childId);
+    entries = store.entries.forChild(actor.ownerId, childId) as any[];
   }
 
   // 2. Fetch notes
@@ -1487,7 +1547,7 @@ export async function collectChildStudyContext(childId: string, strategy: string
     });
   } catch {}
   if (!notes || notes.length === 0) {
-    notes = memNotes.filter((n: any) => n.childId === childId);
+    notes = store.notes.forChild(actor.ownerId, childId) as any[];
   }
 
   // 3. Past quiz performance for weak topics
@@ -1508,11 +1568,11 @@ export async function collectChildStudyContext(childId: string, strategy: string
     }
   } catch {}
   if (weakTopics.length === 0) {
-    const pastMemAttempts = memAttempts.filter((a: any) => a.childId === childId);
+    const pastMemAttempts = store.attempts.forChild(actor.ownerId, childId);
     for (const att of pastMemAttempts) {
       for (const ans of att.answers || []) {
         if (ans.isCorrect === false) {
-          const q = findQuestion(ans.questionId);
+          const q = findQuestion(actor, ans.questionId);
           if (q?.topic) weakTopics.push(q.topic);
         }
       }
@@ -1722,8 +1782,8 @@ export function generateProperCurriculumQuestions(
   }));
 }
 
-export async function getAutoQuizSchedule(childId: string, parentId: string): Promise<AutoQuizScheduleConfig> {
-  await assertOwnership(parentId, childId);
+export async function getAutoQuizSchedule(actor: Actor, childId: string): Promise<AutoQuizScheduleConfig> {
+  await assertChildAccess(actor, childId);
   const existing = memAutoSchedules[childId];
   if (existing) return existing;
 
@@ -1742,34 +1802,30 @@ export async function getAutoQuizSchedule(childId: string, parentId: string): Pr
   return defaultCfg;
 }
 
-export async function saveAutoQuizSchedule(childId: string, parentId: string, config: Partial<AutoQuizScheduleConfig>) {
-  await assertOwnership(parentId, childId);
+export async function saveAutoQuizSchedule(actor: Actor, childId: string, config: Partial<AutoQuizScheduleConfig>) {
+  await assertChildAccess(actor, childId);
 
   if (config.enabled) {
-    let planCode = 'free';
-    try {
-      const sub = await prisma.subscription.findFirst({ where: { userId: parentId }, include: { plan: true }, orderBy: { createdAt: 'desc' } });
-      if (sub?.plan?.code) planCode = sub.plan.code;
-    } catch {}
+    const planCode = await resolvePlanCode(actor.ownerId);
 
     const limits = getPlanLimits(planCode);
-    if (!limits.autoQuizScheduling && planCode !== 'premium' && planCode !== 'pro' && parentId !== 'parent-demo') {
+    if (!limits.autoQuizScheduling && planCode !== 'premium' && planCode !== 'pro') {
       throw forbidden('Automatic Quiz Setup System is available on the Premium and Pro packages. Please upgrade to activate.');
     }
   }
 
-  const existing = await getAutoQuizSchedule(childId, parentId);
+  const existing = await getAutoQuizSchedule(actor, childId);
   const updated = { ...existing, ...config, childId };
   memAutoSchedules[childId] = updated;
   return updated;
 }
 
-export async function runAutoQuizSchedule(childId: string, parentId: string) {
-  await assertOwnership(parentId, childId);
-  const config = await getAutoQuizSchedule(childId, parentId);
+export async function runAutoQuizSchedule(actor: Actor, childId: string) {
+  await assertChildAccess(actor, childId);
+  const config = await getAutoQuizSchedule(actor, childId);
 
   // 1. Collect real study context for the child
-  const studyContext = await collectChildStudyContext(childId, config.topicStrategy, config.subjects);
+  const studyContext = await collectChildStudyContext(actor, childId, config.topicStrategy, config.subjects);
 
   // 2. Build dynamic title based on strategy and subject
   let title = '';
@@ -1798,7 +1854,7 @@ Generate ${questionCount} questions with difficulty='${difficulty}'.
 Language: ${studyContext.child.medium === 'English' ? 'en' : 'bn'}.
 Output strictly valid JSON with questions array.`;
 
-    const aiRes = await callAI({ system, user, model: 'fast', maxTokens: 2500, responseFormat: 'json' });
+    const aiRes = await callAI({ system, user, model: 'fast', maxTokens: 2500, responseFormat: 'json', feature: 'quiz' });
     const jsonMatch = aiRes.content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -1854,7 +1910,8 @@ Output strictly valid JSON with questions array.`;
   const quizObj = {
     id: quizId,
     childId,
-    createdBy: parentId,
+    createdBy: actor.ownerId,
+    ownerId: actor.ownerId,
     title,
     status: 'assigned',
     timeLimitMin,
@@ -1883,7 +1940,7 @@ Output strictly valid JSON with questions array.`;
       data: {
         id: quizId,
         childId,
-        createdBy: parentId,
+        createdBy: actor.ownerId,
         title,
         status: 'assigned',
         timeLimitMin,
@@ -1909,7 +1966,7 @@ Output strictly valid JSON with questions array.`;
     }
   } catch {}
 
-  memQuizzes.unshift(quizObj);
+  store.quizzes.add(quizObj);
   config.lastGeneratedAt = new Date().toISOString();
   memAutoSchedules[childId] = config;
 
@@ -1917,7 +1974,7 @@ Output strictly valid JSON with questions array.`;
   try {
     await prisma.notification.create({
       data: {
-        userId: parentId,
+        userId: actor.ownerId,
         type: 'auto_quiz_scheduled',
         payloadJson: {
           quizId,

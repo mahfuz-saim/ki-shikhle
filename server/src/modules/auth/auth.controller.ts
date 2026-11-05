@@ -178,7 +178,10 @@ export const deleteAccount = async (req: Request, res: Response, next: NextFunct
 
 export const restoreAccount = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const r = await service.restoreAccount(req.body.userId || (req.user as any)?.userId);
+    // The account to restore is ALWAYS the authenticated account. It used to be taken
+    // from `req.body.userId`, which made this an unauthenticated endpoint that could
+    // un-delete any account on the platform by id.
+    const r = await service.restoreAccount((req.user as any).userId);
     res.json({ success: true, data: r, error: null });
   } catch (e) {
     next(e);

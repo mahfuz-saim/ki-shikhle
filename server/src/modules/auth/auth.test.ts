@@ -23,24 +23,27 @@ describe('Token helpers', () => {
 });
 
 describe('Refresh token resilience', () => {
-  it('refreshes mock parent token without throwing', async () => {
-    const res = await refreshTokens('mock-refresh-parent');
-    expect(res.accessToken).toBeDefined();
-    expect(res.refreshToken).toBeDefined();
-    expect(res.user.role).toBe('parent');
-
-    const decoded: any = jwt.verify(res.accessToken, env.JWT_ACCESS_SECRET);
-    expect(decoded.role).toBe('parent');
+  it('REJECTS a mock refresh token — it is not a session', async () => {
+    // There used to be a branch here that accepted any token starting with 'mock-refresh'
+    // (or merely containing 'demo') and returned a signed access token for the seeded demo
+    // family. Because `POST /auth/refresh` is public, that was an unauthenticated login
+    // bypass. It is gone: a refresh token that is not a verifiable JWT is invalid.
+    await expect(refreshTokens('mock-refresh-parent')).rejects.toMatchObject({ statusCode: 401 });
   });
 
-  it('refreshes mock student token without throwing', async () => {
-    const res = await refreshTokens('mock-refresh-rahim');
-    expect(res.accessToken).toBeDefined();
-    expect(res.refreshToken).toBeDefined();
-    expect(res.user.role).toBe('child');
+  it('REJECTS a mock student refresh token', async () => {
+    await expect(refreshTokens('mock-refresh-rahim')).rejects.toMatchObject({ statusCode: 401 });
+  });
 
-    const decoded: any = jwt.verify(res.accessToken, env.JWT_ACCESS_SECRET);
-    expect(decoded.role).toBe('child');
+  it('REJECTS a garbage refresh token', async () => {
+    await expect(refreshTokens('totally-invalid-token')).rejects.toMatchObject({ statusCode: 401 });
+  });
+
+  it('REJECTS a refresh token signed with the wrong secret', async () => {
+    const forged = jwt.sign({ userId: 'someone', familyId: 'f', type: 'refresh' }, 'not-the-real-secret', {
+      expiresIn: '7d',
+    });
+    await expect(refreshTokens(forged)).rejects.toMatchObject({ statusCode: 401 });
   });
 
   it('default access token TTL is 7 days to prevent unexpected inactivity logout', () => {

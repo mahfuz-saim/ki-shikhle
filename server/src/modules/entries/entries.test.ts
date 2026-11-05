@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { extractStructuredVoiceFallback, structureVoiceLog } from './entries.service';
+import { demoParent, demoChildIds } from '../../test-utils/actors';
 
 describe('Voice Learning Log & Claude AI Structuring', () => {
   it('correctly extracts physics topic, concepts, and school source from speech transcript', () => {
@@ -27,9 +28,9 @@ describe('Voice Learning Log & Claude AI Structuring', () => {
 
   it('structures voice log asynchronously with Claude AI model or fallback', async () => {
     const result = await structureVoiceLog(
+      demoParent(),
       'আজকে বিজ্ঞান ক্লাসে পানি বিশুদ্ধকরণ ও নিরাপদ পানি পানের নিয়ম শিখেছি',
-      'demo-child-1',
-      'demo-parent'
+      demoChildIds.rahim
     );
 
     expect(result.subject).toBeDefined();

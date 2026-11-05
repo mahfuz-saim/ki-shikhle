@@ -1,23 +1,33 @@
 import { prisma } from '../../db/client';
+import { store } from '../../core/store';
+import { assertEntityAccess, type Actor } from '../../core/tenancy';
 
-const memNotifs: any[] = [];
+/**
+ * Notifications belong to the **account**, not to a child.
+ *
+ * `markRead` used to ignore the caller entirely and update whatever row matched the id,
+ * so any authenticated user could mark (and therefore read) another tenant's notification.
+ */
 
-export async function list(userId: string) {
+export async function list(actor: Actor) {
   let items: any[] = [];
   try {
     items = await prisma.notification.findMany({
-      where: { userId },
+      where: { userId: actor.ownerId },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
   } catch {
-    items = memNotifs.filter((n: any) => n.userId === userId);
+    items = store.notifications.forOwner(actor.ownerId);
   }
 
   // Pre-fetch children for lookup
   let children: any[] = [];
   try {
-    children = await prisma.child.findMany({ where: { parentId: userId } });
+    children = await prisma.child.findMany({
+      where: { parentId: actor.ownerId },
+      select: { id: true, name: true },
+    });
   } catch {}
 
   return items.map((n) => {
@@ -33,8 +43,6 @@ export async function list(userId: string) {
     if (!childName && payload.childId) {
       const c = children.find((ch) => ch.id === payload.childId);
       if (c) childName = c.name;
-      else if (payload.childId === 'demo-child-1') childName = 'Rahim Ahmed';
-      else if (payload.childId === 'demo-child-2') childName = 'Tasnim Islam';
     }
 
     let title = n.title;
@@ -71,20 +79,26 @@ export async function list(userId: string) {
   });
 }
 
-export async function markRead(userId: string, id: string) {
+export async function markRead(actor: Actor, id: string) {
+  // Ownership first: a notification id from another tenant must be a 404, not a silent update.
+  await assertEntityAccess(actor, { kind: 'notification', id });
   try {
     return await prisma.notification.update({ where: { id }, data: { readAt: new Date() } });
   } catch {
-    const n = memNotifs.find((x: any) => x.id === id);
+    const n = store.notifications.find(actor.ownerId, id);
     if (n) n.readAt = new Date();
     return n;
   }
 }
 
-export async function markAllRead(userId: string) {
+export async function markAllRead(actor: Actor) {
   try {
-    await prisma.notification.updateMany({ where: { userId, readAt: null }, data: { readAt: new Date() } });
-  } catch {}
+    await prisma.notification.updateMany({ where: { userId: actor.ownerId, readAt: null }, data: { readAt: new Date() } });
+  } catch {
+    for (const n of store.notifications.forOwner(actor.ownerId)) {
+      if (!n.readAt) n.readAt = new Date();
+    }
+  }
   return { message: 'All read' };
 }
 
@@ -94,13 +108,14 @@ export async function create(userId: string, type: string, payload: any) {
   } catch {
     const n = {
       id: 'notif-' + Date.now(),
+      ownerId: userId,
       userId,
       type,
       payloadJson: payload,
       readAt: null,
       createdAt: new Date().toISOString(),
     };
-    memNotifs.push(n);
+    store.notifications.add(n as any);
     return n;
   }
 }

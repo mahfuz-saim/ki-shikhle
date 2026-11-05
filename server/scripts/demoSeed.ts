@@ -1,5 +1,21 @@
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/services/password';
+import { DEMO_ROUTINES } from '../src/core/demo-data';
+
+/**
+ * The demo tenant's deterministic ids.
+ *
+ * Shared with `src/core/store.ts` so the database path and the no-database fallback agree.
+ * Nothing identifies the demo tenant by an id prefix — a prefix check is exactly the shape
+ * of bug that caused the original cross-tenant data leak.
+ */
+const DEMO_PARENT_ID = '00000000-0000-4000-8000-000000000001';
+const DEMO_CHILD_IDS = {
+  rahim: '00000000-0000-4000-8000-000000000101',
+  tasnim: '00000000-0000-4000-8000-000000000102',
+  fahim: '00000000-0000-4000-8000-000000000103',
+} as const;
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -7,10 +23,15 @@ async function main() {
   const pw = await hashPassword('Password123!');
 
   // 1. Parent Account
+  //
+  // The upsert key is the EMAIL. The id is only set on create — previously the id was
+  // hardcoded to 'parent-demo' while the upsert matched on email, so on a database that
+  // already had the demo parent the seeded id and the real id disagreed.
   const parent = await prisma.user.upsert({
     where: { email: 'parent@demo.com' },
     update: { name: 'Rafiqul Islam', passwordHash: pw, trialEndsAt: null },
     create: {
+      id: DEMO_PARENT_ID,
       name: 'Rafiqul Islam',
       email: 'parent@demo.com',
       passwordHash: pw,
@@ -33,6 +54,7 @@ async function main() {
         planId: plan.id,
         status: 'active',
         childSlots: 5,
+        userId: parent.id,
         currentPeriodEnd: new Date(Date.now() + 365 * 86400000),
       },
       create: {
@@ -46,56 +68,84 @@ async function main() {
     });
   }
 
+  /** Create or refresh a demo child plus its login identity. */
+  async function upsertDemoChild(opts: {
+    id: string;
+    name: string;
+    nickname: string;
+    email: string;
+    grade: string;
+    slug: string;
+  }) {
+    const child = await prisma.child.upsert({
+      where: { id: opts.id },
+      update: {
+        email: opts.email,
+        passwordHash: pw,
+        parentId: parent.id,
+        name: opts.name,
+        nickname: opts.nickname,
+        grade: opts.grade,
+        slug: opts.slug,
+        demoProfile: opts.slug,
+      },
+      create: {
+        id: opts.id,
+        parentId: parent.id,
+        name: opts.name,
+        nickname: opts.nickname,
+        email: opts.email,
+        passwordHash: pw,
+        grade: opts.grade,
+        curriculum: 'NCTB',
+        medium: 'Bangla',
+        slug: opts.slug,
+        demoProfile: opts.slug,
+      },
+    });
+
+    // The `users` table doubles as the child-credential table. A child token must carry
+    // the child's OWN id, otherwise the server cannot tell a child from their parent.
+    const existing = await prisma.user.findUnique({ where: { email: opts.email } });
+    if (!existing) {
+      await prisma.user.create({
+        data: { name: opts.name, email: opts.email, passwordHash: pw, role: 'child', language: 'en' },
+      });
+    } else if (existing.role !== 'child') {
+      await prisma.user.update({ where: { id: existing.id }, data: { role: 'child', passwordHash: pw } });
+    }
+
+    return child;
+  }
+
   // 3. Child 1: Rahim Ahmed (Class 8)
-  const child1 = await prisma.child.upsert({
-    where: { id: 'demo-child-1' },
-    update: { email: 'rahim@demo.com', passwordHash: pw, parentId: parent.id },
-    create: {
-      id: 'demo-child-1',
-      parentId: parent.id,
-      name: 'Rahim Ahmed',
-      nickname: 'Rahim',
-      email: 'rahim@demo.com',
-      passwordHash: pw,
-      grade: 'Class 8',
-      curriculum: 'NCTB',
-      medium: 'Bangla',
-    },
+  const child1 = await upsertDemoChild({
+    id: DEMO_CHILD_IDS.rahim,
+    name: 'Rahim Ahmed',
+    nickname: 'Rahim',
+    email: 'rahim@demo.com',
+    grade: 'Class 8',
+    slug: 'rahim',
   });
 
   // 4. Child 2: Tasnim Islam (Class 5)
-  const child2 = await prisma.child.upsert({
-    where: { id: 'demo-child-2' },
-    update: { email: 'tasnim@demo.com', passwordHash: pw, parentId: parent.id },
-    create: {
-      id: 'demo-child-2',
-      parentId: parent.id,
-      name: 'Tasnim Islam',
-      nickname: 'Tasnim',
-      email: 'tasnim@demo.com',
-      passwordHash: pw,
-      grade: 'Class 5',
-      curriculum: 'NCTB',
-      medium: 'Bangla',
-    },
+  const child2 = await upsertDemoChild({
+    id: DEMO_CHILD_IDS.tasnim,
+    name: 'Tasnim Islam',
+    nickname: 'Tasnim',
+    email: 'tasnim@demo.com',
+    grade: 'Class 5',
+    slug: 'tasnim',
   });
 
-
   // 4.1 Child 3: Fahim Islam (Class 11 - College)
-  const child3 = await prisma.child.upsert({
-    where: { id: 'demo-child-3' },
-    update: { email: 'fahim@demo.com', passwordHash: pw, parentId: parent.id },
-    create: {
-      id: 'demo-child-3',
-      parentId: parent.id,
-      name: 'Fahim Islam',
-      nickname: 'Fahim',
-      email: 'fahim@demo.com',
-      passwordHash: pw,
-      grade: 'Class 11',
-      curriculum: 'NCTB',
-      medium: 'Bangla',
-    },
+  const child3 = await upsertDemoChild({
+    id: DEMO_CHILD_IDS.fahim,
+    name: 'Fahim Islam',
+    nickname: 'Fahim',
+    email: 'fahim@demo.com',
+    grade: 'Class 11',
+    slug: 'fahim',
   });
 
   const now = Date.now();
@@ -304,102 +354,46 @@ async function main() {
   }
 
   // 7. Seed Routines
-  await prisma.routine.upsert({
-    where: { id: 'routine-rahim-1' },
-    update: {},
-    create: {
-      id: 'routine-rahim-1',
-      childId: child1.id,
-      name: 'গণিত প্রাইভেট — রহিম স্যার',
-      source: 'tuition',
-      weekdays: [0, 2, 5],
-      startTime: '16:00',
-      durationMin: 90,
-      startsOn: new Date(now - 30 * dayMs),
-      active: true,
-    },
-  }).catch(() => {});
-
-  await prisma.routine.upsert({
-    where: { id: 'routine-rahim-2' },
-    update: {},
-    create: {
-      id: 'routine-rahim-2',
-      childId: child1.id,
-      name: 'পদার্থবিজ্ঞান কোচিং',
-      source: 'tuition',
-      weekdays: [1, 3],
-      startTime: '17:30',
-      durationMin: 60,
-      startsOn: new Date(now - 30 * dayMs),
-      active: true,
-    },
-  }).catch(() => {});
-
-  await prisma.routine.upsert({
-    where: { id: 'routine-tasnim-1' },
-    update: {},
-    create: {
-      id: 'routine-tasnim-1',
-      childId: child2.id,
-      name: 'প্রাথমিক গণিত প্রাইভেট',
-      source: 'tuition',
-      weekdays: [0, 2, 4],
-      startTime: '16:00',
-      durationMin: 60,
-      startsOn: new Date(now - 30 * dayMs),
-      active: true,
-    },
-  }).catch(() => {});
-
-
-  await prisma.routine.upsert({
-    where: { id: 'routine-fahim-c1' },
-    update: {},
-    create: {
-      id: 'routine-fahim-c1',
-      childId: child3.id,
-      name: '১ম পিরিয়ড: পদার্থবিজ্ঞান ১ম পত্র',
-      source: 'college',
-      weekdays: [0, 1, 2, 3, 4],
-      startTime: '08:30',
-      durationMin: 50,
-      startsOn: new Date(now - 30 * dayMs),
-      active: true,
-    },
-  }).catch(() => {});
-
-  await prisma.routine.upsert({
-    where: { id: 'routine-fahim-c2' },
-    update: {},
-    create: {
-      id: 'routine-fahim-c2',
-      childId: child3.id,
-      name: '২য় পিরিয়ড: রসায়ন ১ম পত্র',
-      source: 'college',
-      weekdays: [0, 1, 2, 3, 4],
-      startTime: '09:20',
-      durationMin: 50,
-      startsOn: new Date(now - 30 * dayMs),
-      active: true,
-    },
-  }).catch(() => {});
-
-  await prisma.routine.upsert({
-    where: { id: 'routine-fahim-t1' },
-    update: {},
-    create: {
-      id: 'routine-fahim-t1',
-      childId: child3.id,
-      name: 'পদার্থবিজ্ঞান কোচিং — গতিবিদ্যা',
-      source: 'tuition',
-      weekdays: [0, 2, 4],
-      startTime: '16:30',
-      durationMin: 75,
-      startsOn: new Date(now - 30 * dayMs),
-      active: true,
-    },
-  }).catch(() => {});
+  //
+  // The dataset lives in `src/core/demo-data.ts` so the database rows and the no-database
+  // fallback are always the same timetable. Previously the two copies drifted and the
+  // seeded rows had no subject/period label at all.
+  for (const r of DEMO_ROUTINES) {
+    await prisma.routine
+      .upsert({
+        where: { id: r.id },
+        update: {
+          childId: r.childId,
+          name: r.name,
+          periodName: r.periodName ?? null,
+          subject: r.subject ?? null,
+          teacher: r.teacher ?? null,
+          room: r.room ?? null,
+          source: r.source,
+          weekdays: r.weekdays,
+          startTime: r.startTime,
+          durationMin: r.durationMin,
+          startsOn: r.startsOn,
+          active: r.active,
+        },
+        create: {
+          id: r.id,
+          childId: r.childId,
+          name: r.name,
+          periodName: r.periodName ?? null,
+          subject: r.subject ?? null,
+          teacher: r.teacher ?? null,
+          room: r.room ?? null,
+          source: r.source,
+          weekdays: r.weekdays,
+          startTime: r.startTime,
+          durationMin: r.durationMin,
+          startsOn: r.startsOn,
+          active: r.active,
+        },
+      })
+      .catch((e) => console.warn('routine seed skipped', r.id, (e as Error).message.slice(0, 120)));
+  }
 
   console.log('✅ Demo Seed Complete:');
   console.log('  Parent: Rafiqul Islam (parent@demo.com / Password123!)');

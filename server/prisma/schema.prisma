@@ -130,6 +130,10 @@ model Child {
   pinHash    String?   @map("pin_hash")
   email      String?   @unique
   passwordHash String? @map("password_hash")
+  /// Stable human key, unique per parent. Not a security signal.
+  slug       String?   @map("slug")
+  /// Selects the seeded demo dataset for this child. Content marker only.
+  demoProfile String?  @map("demo_profile")
   deletedAt  DateTime? @map("deleted_at")
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
@@ -138,6 +142,7 @@ model Child {
   subjects Subject[] // subjects this child studies (seeded by grade + custom)
   learningEntries LearningEntry[]
   routines Routine[]
+  routineCompletions RoutineCompletion[]
   notes Note[]
   quizzes Quiz[]
   quizAttempts QuizAttempt[]
@@ -145,6 +150,7 @@ model Child {
   aiUsageLogs AiUsageLog[]
 
   @@index([parentId])
+  @@unique([parentId, slug])
   @@map("children")
 }
 
@@ -206,6 +212,14 @@ model Routine {
   childId     String   @map("child_id")
   subjectId   String?  @map("subject_id")
   name        String
+  /// Display label for the period, e.g. "১ম পিরিয়ড".
+  periodName  String?  @map("period_name")
+  /// Subject taught in this slot, e.g. "Bangla 1st Paper".
+  subject     String?
+  /// Who teaches it.
+  teacher     String?
+  /// Where it happens.
+  room        String?
   source      Source
   weekdays    Int[]    // 0=Sun ... 6=Sat
   startTime   String   @map("start_time") // HH:mm
@@ -221,6 +235,29 @@ model Routine {
 
   @@index([childId])
   @@map("routines")
+}
+
+/// A parent/child marking one scheduled routine session as done.
+///
+/// The schedule page used to store completion in `localStorage`, so the server
+/// never learned about it and the dashboard could not reflect it. This model
+/// is the server-side record.
+model RoutineCompletion {
+  id        String   @id @default(uuid())
+  childId   String   @map("child_id")
+  routineId String?  @map("routine_id")
+  /// The scheduled date (YYYY-MM-DD).
+  date      DateTime @db.Date
+  /// The scheduled start time (HH:mm) — part of the occurrence key.
+  startTime String   @map("start_time")
+  completed Boolean  @default(true)
+  completedAt DateTime @default(now()) @map("completed_at")
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, date, startTime])
+  @@index([childId, date])
+  @@map("routine_completions")
 }
 
 model RoutineException {
@@ -243,10 +280,16 @@ model Note {
   id            String   @id @default(uuid())
   childId       String   @map("child_id")
   subjectId     String?  @map("subject_id")
+  /// Free-text subject label, e.g. "Physics".
+  subject       String?
+  /// Short display title.
+  title         String?
   entryId       String?  @map("entry_id")
   date          DateTime @db.Date
   fileUrl       String?  @map("file_url")
   textClean     String?  @map("text_clean")
+  /// AI-generated structured summary (markdown).
+  aiSummary     String?  @map("ai_summary")
   textHash      String?  @map("text_hash")
   ocrConfidence Float?   @map("ocr_confidence")
   status        String   @default("active")

@@ -5,129 +5,60 @@ import { getPlanLimits, canCreateChild } from '../../services/entitlements';
 import { badRequest, conflict, forbidden, notFound } from '../../utils/errors';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env';
-import { memUsers } from '../auth/auth.service';
+import { store, sanitizeChild, DEMO_PARENT_ID, DEMO_CHILD_IDS } from '../../core/store';
+import { assertChildAccess, listAccessibleChildren, type Actor } from '../../core/tenancy';
 
-// In-memory fallback for dev without DB
-export const memChildren: any[] = [
-  {
-    id: 'demo-child-1',
-    parentId: 'parent-demo',
-    name: 'Rahim Ahmed',
-    nickname: 'Rahim',
-    email: 'rahim@demo.com',
-    password: 'Password123!',
-    grade: 'Class 8',
-    curriculum: 'NCTB',
-    medium: 'Bangla',
-    avatar: '/avatars/boy-1.png',
-    createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
-  },
-  {
-    id: 'demo-child-2',
-    parentId: 'parent-demo',
-    name: 'Tasnim Islam',
-    nickname: 'Tasnim',
-    email: 'tasnim@demo.com',
-    password: 'Password123!',
-    grade: 'Class 5',
-    curriculum: 'NCTB',
-    medium: 'Bangla',
-    avatar: '/avatars/girl-1.png',
-    createdAt: new Date(Date.now() - 25 * 86400000).toISOString(),
-  },
-  {
-    id: 'demo-child-3',
-    parentId: 'parent-demo',
-    name: 'Fahim Islam',
-    nickname: 'Fahim',
-    email: 'fahim@demo.com',
-    password: 'Password123!',
-    grade: 'Class 11',
-    curriculum: 'NCTB',
-    medium: 'Bangla',
-    avatar: '/avatars/boy-2.png',
-    createdAt: new Date(Date.now() - 20 * 86400000).toISOString(),
-  },
-];
+/**
+ * The columns a parent is allowed to see on a child.
+ *
+ * `passwordHash` and `pinHash` are deliberately absent. The previous implementation
+ * returned raw Prisma rows, so every child's argon2id password hash and PIN hash was sent
+ * to the owning parent over the API on every call.
+ */
+const CHILD_SELECT = {
+  id: true,
+  parentId: true,
+  name: true,
+  nickname: true,
+  grade: true,
+  curriculum: true,
+  medium: true,
+  avatar: true,
+  email: true,
+  slug: true,
+  demoProfile: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
-async function resolveParentContext(parentId: string, parentEmail?: string) {
-  const isDemo =
-    parentId === 'parent-demo' ||
-    parentId === 'parent@demo.com' ||
-    parentEmail?.toLowerCase() === 'parent@demo.com';
+/** Fields needed to verify a PIN — loaded explicitly, never spread into a response. */
+const CHILD_WITH_SECRETS_SELECT = {
+  ...CHILD_SELECT,
+  pinHash: true,
+  passwordHash: true,
+} as const;
 
-  let resolvedParentId = parentId;
-  let foundDbParent = false;
-
-  try {
-    const dbParent = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { id: parentId },
-          { email: 'parent@demo.com' },
-          ...(isDemo ? [{ id: 'parent-demo' }] : []),
-        ],
-        deletedAt: null,
-      },
-    });
-    if (dbParent) {
-      resolvedParentId = dbParent.id;
-      foundDbParent = true;
-    }
-  } catch {}
-
-  const allPossibleParentIds = Array.from(
-    new Set([resolvedParentId, parentId, ...(isDemo ? ['parent-demo', 'parent@demo.com'] : [])].filter(Boolean))
-  );
-
-  return {
-    isDemo,
-    resolvedParentId,
-    foundDbParent,
-    allPossibleParentIds,
-  };
+/**
+ * List the children this actor may see.
+ *
+ * The scope comes from the token (via `actor.ownerId`) and nowhere else. The old
+ * implementation widened every request to include the demo tenant.
+ */
+export async function listChildren(actor: Actor) {
+  return listAccessibleChildren(actor);
 }
 
-export async function listChildren(parentId: string, parentEmail?: string) {
-  const { isDemo, resolvedParentId, allPossibleParentIds } = await resolveParentContext(parentId, parentEmail);
-
-  try {
-    const list = await prisma.child.findMany({
-      where: { parentId: { in: allPossibleParentIds }, deletedAt: null },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (list && list.length > 0) return list;
-  } catch {}
-
-  if (isDemo) {
-    return memChildren.filter(
-      (c: any) =>
-        (allPossibleParentIds.includes(c.parentId) || c.parentId === 'parent-demo' || c.parentId === 'parent@demo.com') &&
-        !c.deletedAt
-    );
-  }
-  return memChildren.filter(
-    (c: any) =>
-      (allPossibleParentIds.includes(c.parentId) || c.parentId === resolvedParentId || c.parentId === parentId) &&
-      !c.deletedAt
-  );
-}
-
-export async function createChild(parentId: string, data: any, parentEmail?: string) {
+export async function createChild(actor: Actor, data: any) {
   const normEmail =
     data.email && typeof data.email === 'string' && data.email.trim() ? data.email.trim().toLowerCase() : null;
 
   // Check if student email is already in use in memory or database
   if (normEmail) {
-    const existingMemChild = (memChildren || []).find(
-      (c: any) => c.email && c.email.toLowerCase() === normEmail && !c.deletedAt
-    );
-    if (existingMemChild) {
+    const existingMemChild = store.children.findByField('email', normEmail);
+    if (existingMemChild && !existingMemChild.deletedAt) {
       throw conflict('An account with this student email already exists');
     }
-    const existingMemUser = (memUsers || []).find(
-      (u: any) => u.email && u.email.toLowerCase() === normEmail && !u.deletedAt
-    );
+    const existingMemUser = store.users.byEmail(normEmail);
     if (existingMemUser) {
       throw conflict('An account with this student email already exists');
     }
@@ -149,23 +80,21 @@ export async function createChild(parentId: string, data: any, parentEmail?: str
     }
   }
 
-  const { isDemo, resolvedParentId, allPossibleParentIds } = await resolveParentContext(parentId, parentEmail);
-
   // Entitlement check
   let count = 0;
-  let planCode = isDemo ? 'pro' : 'free';
+  let planCode = 'free';
 
   try {
     count = await prisma.child.count({
       where: {
-        parentId: { in: allPossibleParentIds },
+        parentId: actor.ownerId,
         deletedAt: null,
       },
     });
 
     const sub = await prisma.subscription.findFirst({
       where: {
-        userId: { in: allPossibleParentIds },
+        userId: actor.ownerId,
       },
       include: { plan: true },
       orderBy: { createdAt: 'desc' },
@@ -173,15 +102,11 @@ export async function createChild(parentId: string, data: any, parentEmail?: str
 
     if (sub?.plan?.code) {
       planCode = sub.plan.code;
-    } else if (isDemo) {
-      planCode = 'pro';
     }
   } catch {}
 
   // Ensure in-memory count is factored in for mock/dev fallback
-  const memCount = (memChildren || []).filter(
-    (c: any) => allPossibleParentIds.includes(c.parentId) && !c.deletedAt
-  ).length;
+  const memCount = store.children.forOwner(actor.ownerId).filter((c: any) => !c.deletedAt).length;
 
   const effectiveCount = Math.max(count, memCount);
 
@@ -216,14 +141,14 @@ export async function createChild(parentId: string, data: any, parentEmail?: str
       }
     }
 
-    // Keep in-memory user updated so student can login immediately in offline/mock mode
-    const existingInMem = (memUsers || []).find((u: any) => u.email?.toLowerCase() === normEmail);
-    if (!existingInMem && Array.isArray(memUsers)) {
-      memUsers.push({
+    // Keep the in-memory identity in sync so the student can log in in offline/mock mode.
+    const existingInMem = store.users.byEmail(normEmail);
+    if (!existingInMem) {
+      store.users.add({
         id: 'user-child-' + Date.now(),
         name: data.name,
         email: normEmail,
-        password: data.password,
+        passwordHash: passwordHash!,
         role: 'child',
         language: data.medium === 'English' ? 'en' : 'bn',
         createdAt: new Date().toISOString(),
@@ -233,7 +158,8 @@ export async function createChild(parentId: string, data: any, parentEmail?: str
 
   const pinHash = data.pin ? await hashPin(data.pin) : null;
   const payload: any = {
-    parentId: resolvedParentId || 'parent-demo',
+    // The child belongs to the account that created it. Never to the demo tenant.
+    parentId: actor.ownerId,
     name: data.name,
     nickname: data.nickname || '',
     grade: data.grade,
@@ -248,20 +174,13 @@ export async function createChild(parentId: string, data: any, parentEmail?: str
   let child: any = null;
 
   try {
-    child = await prisma.child.create({ data: payload });
+    child = await prisma.child.create({
+      data: payload,
+      select: CHILD_SELECT,
+    });
   } catch (err: any) {
     if (err?.code === 'P2002' || err?.statusCode === 409) {
       throw conflict('An account with this student email already exists');
-    }
-    // If DB parent ID differs from parentId or FK constraint fails, attempt fallback
-    try {
-      if (resolvedParentId !== parentId && parentId) {
-        child = await prisma.child.create({ data: { ...payload, parentId } });
-      }
-    } catch (fallbackErr: any) {
-      if (fallbackErr?.code === 'P2002' || fallbackErr?.statusCode === 409) {
-        throw conflict('An account with this student email already exists');
-      }
     }
   }
 
@@ -269,106 +188,183 @@ export async function createChild(parentId: string, data: any, parentEmail?: str
     child = {
       id: 'child-' + Date.now(),
       ...payload,
-      password: data.password, // for in-memory dev mock login
       createdAt: new Date().toISOString(),
     };
   }
 
-  // Always keep in-memory children synced so student login & list work seamlessly
-  const existingInMemChild = (memChildren || []).find(
-    (c: any) => c.id === child.id || (normEmail && c.email === normEmail)
-  );
-  if (!existingInMemChild && Array.isArray(memChildren)) {
-    memChildren.push({
+  // Always keep the in-memory store synced so student login & listing work seamlessly.
+  if (!store.children.findAny(child.id)) {
+    store.children.add({
       ...child,
-      parentId: isDemo ? 'parent-demo' : (child.parentId || resolvedParentId),
-      password: data.password,
-    });
+      ownerId: actor.ownerId,
+      parentId: actor.ownerId,
+    } as any);
   }
 
-  return child;
+  return sanitizeChild(child);
 }
 
-export async function getChild(parentId: string, id: string, parentEmail?: string) {
-  const { isDemo, resolvedParentId, allPossibleParentIds } = await resolveParentContext(parentId, parentEmail);
+export async function getChild(actor: Actor, id: string) {
+  // Ownership is checked FIRST and outside any try/catch, so a database error can never
+  // skip the check.
+  await assertChildAccess(actor, id);
 
   try {
     const c = await prisma.child.findFirst({
-      where: {
-        id,
-        parentId: { in: allPossibleParentIds },
-        deletedAt: null,
-      },
+      where: { id, parentId: actor.ownerId, deletedAt: null },
+      select: CHILD_SELECT,
     });
     if (c) return c;
   } catch {}
 
-  const c = memChildren.find(
-    (x: any) =>
-      x.id === id &&
-      (allPossibleParentIds.includes(x.parentId) ||
-        x.parentId === parentId ||
-        x.parentId === resolvedParentId ||
-        (isDemo && (x.parentId === 'parent-demo' || x.parentId === 'parent@demo.com'))) &&
-      !x.deletedAt
-  );
-  if (!c) throw notFound('Child not found');
-  return c;
+  const c = store.children.find(actor.ownerId, id);
+  if (!c || c.deletedAt) throw notFound('Child not found');
+  return sanitizeChild(c);
 }
 
-export async function updateChild(parentId: string, id: string, data: any, parentEmail?: string) {
-  await getChild(parentId, id, parentEmail);
+export async function updateChild(actor: Actor, id: string, data: any) {
+  await assertChildAccess(actor, id);
+
   const updateData: any = { ...data };
   if (data.pin) updateData.pinHash = await hashPin(data.pin);
   if (data.password) {
     updateData.passwordHash = await hashPassword(data.password);
   }
+  // The plaintext fields are not columns. Prisma rejects an unknown key, which used to
+  // throw inside the `try` and fall through to the in-memory branch — so changing a
+  // child's password 404'd instead of working.
   delete updateData.pin;
+  delete updateData.password;
 
   try {
-    const updated = await prisma.child.update({ where: { id }, data: updateData });
+    const updated = await prisma.child.update({
+      where: { id },
+      data: updateData,
+      select: CHILD_SELECT,
+    });
+    // Keep the child's login identity in sync. `users` doubles as the child-credential
+    // table, so a password changed on the `Child` row has to change there too —
+    // otherwise the child can still log in with the old password.
+    if (data.password) await syncChildIdentityPassword(updated.id, updated.email, updateData.passwordHash);
     return updated;
   } catch {
-    const idx = memChildren.findIndex((c: any) => c.id === id);
-    if (idx >= 0) {
-      Object.assign(memChildren[idx], updateData);
-      if (data.password) memChildren[idx].password = data.password;
-      return memChildren[idx];
+    const existing = store.children.find(actor.ownerId, id);
+    if (existing) {
+      const { pin, password, ...safe } = updateData;
+      Object.assign(existing, safe);
+      if (data.password) {
+        existing.passwordHash = updateData.passwordHash;
+        await syncChildIdentityPassword(existing.id, existing.email, updateData.passwordHash);
+      }
+      return sanitizeChild(existing);
     }
     throw notFound('Child not found');
   }
 }
 
-export async function deleteChild(parentId: string, id: string, parentEmail?: string) {
-  await getChild(parentId, id, parentEmail);
+/**
+ * Mirror a child's password hash onto the child-role `User` row.
+ *
+ * A child's login identity lives in `users` (role `child`) and its PIN lives on the
+ * `Child` row. Two copies of one credential that can drift apart is how "the parent
+ * reset the password but the old one still works" happens. Both are written together.
+ */
+async function syncChildIdentityPassword(childId: string, email: string | null | undefined, passwordHash: string) {
+  if (!email) return;
+  try {
+    await prisma.user.updateMany({ where: { email, role: 'child' }, data: { passwordHash } });
+  } catch {
+    // The database is unreachable — the in-memory identity is updated below.
+  }
+  const identity = store.users.byEmail(email);
+  if (identity && identity.role === 'child') identity.passwordHash = passwordHash;
+}
+
+export async function deleteChild(actor: Actor, id: string) {
+  await assertChildAccess(actor, id);
   try {
     await prisma.child.update({ where: { id }, data: { deletedAt: new Date() } });
   } catch {
-    const idx = memChildren.findIndex((c: any) => c.id === id);
-    if (idx >= 0) memChildren[idx].deletedAt = new Date();
+    const existing = store.children.find(actor.ownerId, id);
+    if (existing) existing.deletedAt = new Date().toISOString();
   }
   return { message: 'Child deleted (soft)' };
 }
 
-export async function setPin(parentId: string, id: string, pin: string, parentEmail?: string) {
+export async function setPin(actor: Actor, id: string, pin: string) {
   const hash = await hashPin(pin);
-  return updateChild(parentId, id, { pinHash: hash } as any, parentEmail);
+  return updateChild(actor, id, { pinHash: hash } as any);
 }
 
-export async function enterChildMode(parentId: string, childId: string, pin: string, parentEmail?: string) {
-  const child: any = await getChild(parentId, childId, parentEmail);
-  if (child.pinHash) {
-    const ok = await verifyPin(child.pinHash, pin);
-    if (!ok) throw badRequest('Invalid PIN');
+/**
+ * Issue a child-scoped token.
+ *
+ * The token carries the CHILD's own identity, not the parent's. The old version put the
+ * parent's id in `userId`, which made a child token indistinguishable from the parent's
+ * token at the controller layer — the root of "a child can read their siblings' data".
+ */
+export async function enterChildMode(actor: Actor, childId: string, pin: string) {
+  await assertChildAccess(actor, childId);
+
+  let pinHash: string | null | undefined;
+  try {
+    const row = await prisma.child.findUnique({
+      where: { id: childId },
+      select: { id: true, name: true, grade: true, pinHash: true, email: true, parentId: true },
+    });
+    if (row) {
+      pinHash = row.pinHash;
+      if (row.pinHash) {
+        const ok = await verifyPin(row.pinHash, pin);
+        if (!ok) throw badRequest('Invalid PIN');
+      }
+      const token = jwt.sign(
+        {
+          userId: childIdentityId(row.email, childId),
+          childId,
+          role: 'child',
+          type: 'child',
+        },
+        env.JWT_ACCESS_SECRET,
+        { expiresIn: '8h' }
+      );
+      return { token, child: { id: row.id, name: row.name, grade: row.grade } };
+    }
+  } catch (e: any) {
+    if (e?.statusCode) throw e;
   }
 
-  // child scoped token (limited routes, 8h)
+  // degraded mode
+  const mem = store.children.find(actor.ownerId, childId);
+  if (!mem || mem.deletedAt) throw notFound('Child not found');
+  if (mem.pinHash) {
+    const ok = await verifyPin(mem.pinHash, pin);
+    if (!ok) throw badRequest('Invalid PIN');
+  }
   const token = jwt.sign(
-    { userId: parentId || 'parent-demo', childId, role: 'child', type: 'child' },
+    {
+      userId: childIdentityId(mem.email || '', childId),
+      childId,
+      role: 'child',
+      type: 'child',
+    },
     env.JWT_ACCESS_SECRET,
     { expiresIn: '8h' }
   );
-  return { token, child: { id: child.id, name: child.name, grade: child.grade } };
+  return { token, child: { id: mem.id, name: mem.name, grade: mem.grade } };
+}
+
+/**
+ * The id a child token should carry as its subject.
+ *
+ * `users` doubles as the child-credential table, so a child's login identity is its
+ * `User` row. When there is none, the child's own id is used — which still scopes the
+ * token to that one child.
+ */
+function childIdentityId(email: string | null | undefined, childId: string): string {
+  if (!email) return childId;
+  const identity = store.users.byEmail(email);
+  return identity?.id || childId;
 }
 
 export interface UnloggedStudyAlertConfig {
@@ -380,32 +376,16 @@ export interface UnloggedStudyAlertConfig {
   updatedAt?: string;
 }
 
-export const memUnloggedAlertConfigs: Record<string, UnloggedStudyAlertConfig> = {
-  'demo-child-1': {
-    childId: 'demo-child-1',
-    enabled: true,
-    time: '21:00',
-    channel: 'all',
-    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-  },
-  'demo-child-2': {
-    childId: 'demo-child-2',
-    enabled: true,
-    time: '20:30',
-    channel: 'all',
-    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-  },
-  'demo-child-3': {
-    childId: 'demo-child-3',
-    enabled: true,
-    time: '22:00',
-    channel: 'all',
-    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-  },
-};
+/**
+ * Per-child alert configuration.
+ *
+ * Keyed by child id. Every read and write goes through `assertChildAccess`, so a config
+ * can only be reached by the owning parent.
+ */
+export const memUnloggedAlertConfigs: Record<string, UnloggedStudyAlertConfig> = {};
 
-export async function getUnloggedAlertConfig(parentId: string, childId: string, parentEmail?: string): Promise<UnloggedStudyAlertConfig> {
-  await getChild(parentId, childId, parentEmail);
+export async function getUnloggedAlertConfig(actor: Actor, childId: string): Promise<UnloggedStudyAlertConfig> {
+  await assertChildAccess(actor, childId);
   const existing = memUnloggedAlertConfigs[childId];
   if (existing) return existing;
 
@@ -421,13 +401,12 @@ export async function getUnloggedAlertConfig(parentId: string, childId: string, 
 }
 
 export async function saveUnloggedAlertConfig(
-  parentId: string,
+  actor: Actor,
   childId: string,
-  config: Partial<UnloggedStudyAlertConfig>,
-  parentEmail?: string
+  config: Partial<UnloggedStudyAlertConfig>
 ): Promise<UnloggedStudyAlertConfig> {
-  await getChild(parentId, childId, parentEmail);
-  const current = await getUnloggedAlertConfig(parentId, childId, parentEmail);
+  await assertChildAccess(actor, childId);
+  const current = await getUnloggedAlertConfig(actor, childId);
   const updated: UnloggedStudyAlertConfig = {
     ...current,
     ...config,
@@ -438,17 +417,23 @@ export async function saveUnloggedAlertConfig(
   return updated;
 }
 
-export async function triggerTestUnloggedAlert(parentId: string, childId: string, parentEmail?: string) {
-  const child: any = await getChild(parentId, childId, parentEmail);
-  const cfg = await getUnloggedAlertConfig(parentId, childId, parentEmail);
+export async function triggerTestUnloggedAlert(actor: Actor, childId: string) {
+  const child: any = await getChild(actor, childId);
+  const cfg = await getUnloggedAlertConfig(actor, childId);
 
-  const notif = await createNotification(parentId, 'missed_sessions', {
+  const notif = await createNotification(actor.ownerId, 'missed_sessions', {
     childId,
     childName: child.name,
     time: cfg.time,
-    title: 'দৈনিক পড়ার বিবরণ অ্যালার্ট (Unlogged Study Alert)',
-    message: `${child.name}-এর আজকের কোনো পড়ার বিবরণ এখনও লিপিবদ্ধ করা হয়নি। নির্ধারিত সময়: ${cfg.time}। শিক্ষার্থীকে পোর্টাল থেকে পড়ার বিবরণ যুক্ত করতে বলুন।`,
+    title: 'দৈনিক পড়ার বিবরণ অ্যালার্ট (Unlogged Study Alert)',
+    message: `${child.name}-এর আজকের কোনো পড়ার বিবরণ এখনও লিপিবদ্ধ করা হয়নি। নির্ধারিত সময়: ${cfg.time}। শিক্ষার্থীকে পোর্টাল থেকে পড়ার বিবরণ যুক্ত করতে বলুন।`,
   });
 
   return { success: true, notification: notif };
 }
+
+/** The seeded demo tenant's ids — used by the seed script and the demo dataset lookups. */
+export const demoTenant = {
+  parentId: DEMO_PARENT_ID,
+  childIds: DEMO_CHILD_IDS,
+};

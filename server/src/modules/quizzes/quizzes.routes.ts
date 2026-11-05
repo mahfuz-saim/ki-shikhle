@@ -20,7 +20,10 @@ router.post('/quizzes/:id/assign', ctrl.assign);
 router.post('/quizzes/:id/attempts', ctrl.createAttempt);
 router.put('/attempts/:id/answers', ctrl.saveAnswers);
 router.post('/attempts/:id/submit', ctrl.submit);
-router.get('/attempts/:id', ctrl.getAttempt);
+// `GET /attempts/:id` is NOT registered here. It used to be — and because the quizzes
+// router is mounted before the results router, this shadowed the results router's
+// handler, so the client never received `perTopic` or the AI explanation. The results
+// router is now the single source: `GET /attempts/:id` -> {attempt, perTopic, explanation}.
 router.post('/questions/:id/report', ctrl.report);
 
 export default router;

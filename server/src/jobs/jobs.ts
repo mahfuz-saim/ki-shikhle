@@ -48,14 +48,17 @@ export async function runCleanup() {
 /** Auto Quiz Scheduler: generates scheduled quizzes for children based on daily routine and config. */
 export async function runAutoQuizSchedulerJob() {
   const { runAutoQuizSchedule, getAutoQuizSchedule } = await import('../modules/quizzes/quizzes.service');
-  const { memChildren } = await import('../modules/children/children.service');
+  const { store } = await import('../core/store');
 
   let children: any[] = [];
   try {
     children = await prisma.child.findMany({ where: { deletedAt: null } });
   } catch {}
   if (!children || children.length === 0) {
-    children = memChildren.filter((c: any) => !c.deletedAt);
+    // degraded mode — the cron runner is platform-level, so it may enumerate every child.
+    // Each child is then processed with an actor scoped to its OWN owner, so the
+    // per-child ownership checks inside the quiz service still apply.
+    children = store.children.listAll().filter((c: any) => !c.deletedAt);
   }
 
   const now = new Date();
@@ -65,7 +68,13 @@ export async function runAutoQuizSchedulerJob() {
 
   for (const child of children) {
     try {
-      const schedule = await getAutoQuizSchedule(child.id, child.parentId);
+      // The job acts on behalf of the child's OWNING parent, so every ownership check
+      // inside the quiz service still applies. It is not a cross-tenant bypass.
+      const ownerId = child.parentId ?? child.ownerId;
+      if (!ownerId) continue;
+      const actor: any = { ownerId, role: 'parent', degraded: false };
+
+      const schedule = await getAutoQuizSchedule(actor, child.id);
       if (!schedule || !schedule.enabled) continue;
       if (schedule.daysOfWeek && !schedule.daysOfWeek.includes(currentDayOfWeek)) continue;
 
@@ -76,7 +85,7 @@ export async function runAutoQuizSchedulerJob() {
         }
       }
 
-      const res = await runAutoQuizSchedule(child.id, child.parentId);
+      const res = await runAutoQuizSchedule(actor, child.id);
       generatedCount++;
       details.push({
         childId: child.id,

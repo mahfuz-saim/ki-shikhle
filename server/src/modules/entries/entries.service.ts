@@ -1,11 +1,22 @@
 import { prisma } from '../../db/client';
 import { notFound, forbidden, badRequest } from '../../utils/errors';
 import { callAI } from '../../services/ai';
+import { store, seedDemoRows, registerDemoFixture, DEMO_PARENT_ID } from '../../core/store';
+import { assertChildAccess, assertEntityAccess, type Actor } from '../../core/tenancy';
+import { historyWindowMonths, resolvePlanCode } from '../../services/entitlements';
 
 const now = Date.now();
 const dayMs = 86400000;
 
-export const memEntries: any[] = [
+/**
+ * The demo learning-entry fixtures.
+ *
+ * These are the demo tenant's records and nobody else's. They are registered into the
+ * owner-partitioned store (`core/store`) at import time, with the legacy `demo-child-N`
+ * ids re-keyed onto the demo children's real ids — so no code path has to recognise a
+ * `demo-` prefix in order to keep the demo walkthrough working.
+ */
+const demoEntryFixtures: any[] = [
   // ==========================================
   // RAHIM AHMED (demo-child-1, Class 8 School)
   // ==========================================
@@ -603,13 +614,42 @@ export const memEntries: any[] = [
 ];
 const memRevisions: any[] = [];
 
-export async function listEntries(childId: string, parentId: string, query: { from?: string; to?: string; page?: string; limit?: string }) {
-  await assertOwnership(parentId, childId);
+/**
+ * Register the demo entries into the owner-partitioned store.
+ *
+ * The fixtures above are the demo tenant's data. Copying them into `store.entries` — with
+ * `ownerId` set to the demo parent and the child ids re-keyed — means the degraded
+ * (no-database) path is subject to exactly the same ownership rules as the database path.
+ */
+registerDemoFixture(() => {
+  seedDemoRows(store.entries, demoEntryFixtures);
+});
+
+export async function listEntries(actor: Actor, childId: string, query: { from?: string; to?: string; page?: string; limit?: string }) {
+  await assertChildAccess(actor, childId);
+
+  // Entitlement: history depth.
+  //
+  // `historyMonths` was declared on every plan but never applied, so a Free plan
+  // (1 month of history) could read its entire history. The window is a floor on
+  // `from`: the caller may ask for a narrower window, never a wider one.
+  const planCode = await resolvePlanCode(actor.ownerId);
+  const months = historyWindowMonths(planCode);
+  const earliest = months === null ? null : new Date(Date.now() - months * 30 * 86400000);
+
+  const clampFrom = (from?: string): string | undefined => {
+    if (!from) return earliest ? earliest.toISOString() : undefined;
+    if (!earliest) return from;
+    const asked = new Date(from);
+    return asked > earliest ? from : earliest.toISOString();
+  };
+
   try {
     const where: any = { childId };
-    if (query.from || query.to) {
+    const effectiveFrom = clampFrom(query.from);
+    if (effectiveFrom || query.to) {
       where.date = {};
-      if (query.from) where.date.gte = new Date(query.from);
+      if (effectiveFrom) where.date.gte = new Date(effectiveFrom);
       if (query.to) where.date.lte = new Date(query.to);
     }
     const page = parseInt(query.page || '1'); const limit = parseInt(query.limit || '20');
@@ -619,15 +659,16 @@ export async function listEntries(childId: string, parentId: string, query: { fr
     ]);
     return { data, total, page, limit };
   } catch {
-    let filtered = memEntries.filter((e: any) => e.childId === childId);
-    if (query.from) filtered = filtered.filter((e: any) => e.date >= query.from!);
+    let filtered = store.entries.forChild(actor.ownerId, childId) as any[];
+    const effectiveFrom = clampFrom(query.from);
+    if (effectiveFrom) filtered = filtered.filter((e: any) => new Date(e.date) >= new Date(effectiveFrom));
     if (query.to) filtered = filtered.filter((e: any) => e.date <= query.to!);
     return { data: filtered, total: filtered.length, page: 1, limit: 20 };
   }
 }
 
-export async function createEntry(childId: string, parentId: string, data: any, userRole: string) {
-  await assertOwnership(parentId, childId);
+export async function createEntry(actor: Actor, childId: string, data: any) {
+  await assertChildAccess(actor, childId);
   const payload = { childId, ...data, date: new Date(data.date) };
   try {
     const entry = await prisma.learningEntry.create({ data: payload });
@@ -635,19 +676,21 @@ export async function createEntry(childId: string, parentId: string, data: any, 
     queueDigest(entry.id, childId, data.topicsText);
     return entry;
   } catch {
-    const entry = { id: 'entry-' + Date.now(), ...payload, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), verifiedByParent: false };
-    memEntries.push(entry);
+    const entry = { id: 'entry-' + Date.now(), ...payload, ownerId: actor.ownerId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), verifiedByParent: false };
+    store.entries.add(entry as any);
     queueDigest(entry.id, childId, data.topicsText);
     return entry;
   }
 }
 
-export async function updateEntry(entryId: string, parentId: string, data: any, changedBy: string) {
+export async function updateEntry(actor: Actor, entryId: string, data: any, changedBy: string) {
+  // Ownership is asserted BEFORE the database is touched, so a DB error can never skip it.
+  await assertEntityAccess(actor, { kind: 'entry', id: entryId });
+
   let entry: any;
   try {
     entry = await prisma.learningEntry.findUnique({ where: { id: entryId }, include: { child: true } });
     if (!entry) throw notFound('Entry not found');
-    if (entry.child.parentId !== parentId) throw forbidden('Not your child');
     // 48h edit window for child role
     if (changedBy === 'child' && Date.now() - new Date(entry.createdAt).getTime() > 48 * 3600000) throw forbidden('Edit window expired (48h)');
 
@@ -657,49 +700,26 @@ export async function updateEntry(entryId: string, parentId: string, data: any, 
     return updated;
   } catch (e: any) {
     if (e.statusCode) throw e;
-    const idx = memEntries.findIndex((x: any) => x.id === entryId);
-    if (idx < 0) throw notFound('Entry not found');
-    const snapshot = { ...memEntries[idx] };
+    const row = store.entries.find(actor.ownerId, entryId);
+    if (!row) throw notFound('Entry not found');
+    const snapshot = { ...row };
     memRevisions.push({ id: 'rev-' + Date.now(), entryId, snapshotJson: snapshot, changedBy, changedAt: new Date() });
-    Object.assign(memEntries[idx], data, { updatedAt: new Date().toISOString() });
-    return memEntries[idx];
+    Object.assign(row, data, { updatedAt: new Date().toISOString() });
+    return row;
   }
 }
 
-export async function deleteEntry(entryId: string, parentId: string) {
-  const entry: any = await findEntry(entryId, parentId);
-  try { await prisma.learningEntry.delete({ where: { id: entryId } }); } catch { const idx = memEntries.findIndex((x:any)=>x.id===entryId); if(idx>=0) memEntries.splice(idx,1); }
+export async function deleteEntry(actor: Actor, entryId: string) {
+  await assertEntityAccess(actor, { kind: 'entry', id: entryId });
+  try { await prisma.learningEntry.delete({ where: { id: entryId } }); }
+  catch { store.entries.remove(entryId); }
   return { message: 'Deleted' };
 }
 
-export async function verifyEntry(entryId: string, parentId: string) {
-  const entry: any = await findEntry(entryId, parentId);
+export async function verifyEntry(actor: Actor, entryId: string) {
+  await assertEntityAccess(actor, { kind: 'entry', id: entryId });
   try { return await prisma.learningEntry.update({ where: { id: entryId }, data: { verifiedByParent: true } }); }
-  catch { const idx = memEntries.findIndex((x:any)=>x.id===entryId); if(idx>=0) memEntries[idx].verifiedByParent = true; return memEntries[idx]; }
-}
-
-async function findEntry(entryId: string, parentId: string) {
-  try {
-    const e: any = await prisma.learningEntry.findUnique({ where: { id: entryId }, include: { child: true } });
-    if (!e) throw notFound('Entry not found');
-    if (e.child.parentId !== parentId) throw forbidden('Not your child');
-    return e;
-  } catch (e: any) {
-    if (e.statusCode) throw e;
-    const e2 = memEntries.find((x:any)=> x.id===entryId);
-    if (!e2) throw notFound('Entry not found');
-    return e2;
-  }
-}
-
-async function assertOwnership(parentId: string, childId: string) {
-  if (childId === parentId || childId.startsWith('demo-') || parentId.startsWith('demo-')) return;
-  try {
-    const c = await prisma.child.findFirst({ where: { id: childId, OR: [{ parentId }, { id: parentId }] } });
-    if (!c) throw notFound('Child not found or not yours');
-  } catch (e: any) {
-    if (e.statusCode===404) throw e;
-  }
+  catch { const row = store.entries.find(actor.ownerId, entryId); if (row) row.verifiedByParent = true; return row; }
 }
 
 function queueDigest(sourceId: string, childId: string, text: string) {
@@ -720,8 +740,8 @@ export interface StructuredVoiceLog {
   aiModelUsed: string;
 }
 
-export async function structureVoiceLog(speechText: string, childId: string, parentId: string): Promise<StructuredVoiceLog> {
-  await assertOwnership(parentId, childId);
+export async function structureVoiceLog(actor: Actor, speechText: string, childId: string): Promise<StructuredVoiceLog> {
+  await assertChildAccess(actor, childId);
   const trimmed = (speechText || '').trim();
   if (!trimmed) {
     throw badRequest('Voice speech text is required');
@@ -757,26 +777,45 @@ Output strictly valid JSON, no markdown codeblocks or preamble.`;
       model: 'fast',
       maxTokens: 1000,
       responseFormat: 'json',
+      feature: 'voice',
     });
 
     modelUsed = aiResult.model || 'Claude 3.5 Haiku';
-    const jsonMatch = aiResult.content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      const fallback = extractStructuredVoiceFallback(trimmed);
-      structured = {
-        subject: parsed.subject || fallback.subject,
-        subjectBn: parsed.subjectBn || fallback.subjectBn,
-        topicsText: parsed.topicsText || fallback.topicsText,
-        source: ['school', 'tuition', 'self_study', 'college'].includes(parsed.source) ? parsed.source : fallback.source,
-        durationMin: Number(parsed.durationMin) || fallback.durationMin,
-        confidence: Math.min(5, Math.max(1, Number(parsed.confidence) || fallback.confidence)),
-        keyConcepts: Array.isArray(parsed.keyConcepts) && parsed.keyConcepts.length > 0 ? parsed.keyConcepts : fallback.keyConcepts,
-        homeworkAssigned: parsed.homeworkAssigned !== undefined ? parsed.homeworkAssigned : fallback.homeworkAssigned,
-        summaryMessage: parsed.summaryMessage || fallback.summaryMessage,
-        rawTranscript: trimmed,
-        aiModelUsed: modelUsed,
-      };
+
+    /**
+     * A mocked response is a fixed canned record — subject "General Science", topics
+     * about water purification, a pre-written summary message. It used to be merged
+     * field-by-field into the result, so a parent who spoke about **algebra** got
+     * their study log recorded as a water-purification lesson, with a canned
+     * "অসাধারণ! বিজ্ঞান ক্লাসের পড়াটি খুব চমৎকারভাবে শিখেছি" summary and its own
+     * `rawTranscript` — overwriting what the child actually said.
+     *
+     * When the content is mocked we therefore use the deterministic extractor, which
+     * reads the **real transcript**. The mock's canned fields are only ever used to
+     * fill in what the extractor could not determine.
+     */
+    if (aiResult.mocked) {
+      structured = extractStructuredVoiceFallback(trimmed);
+      structured.aiModelUsed = `${modelUsed} (mock)`;
+    } else {
+      const jsonMatch = aiResult.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        const fallback = extractStructuredVoiceFallback(trimmed);
+        structured = {
+          subject: parsed.subject || fallback.subject,
+          subjectBn: parsed.subjectBn || fallback.subjectBn,
+          topicsText: parsed.topicsText || fallback.topicsText,
+          source: ['school', 'tuition', 'self_study', 'college'].includes(parsed.source) ? parsed.source : fallback.source,
+          durationMin: Number(parsed.durationMin) || fallback.durationMin,
+          confidence: Math.min(5, Math.max(1, Number(parsed.confidence) || fallback.confidence)),
+          keyConcepts: Array.isArray(parsed.keyConcepts) && parsed.keyConcepts.length > 0 ? parsed.keyConcepts : fallback.keyConcepts,
+          homeworkAssigned: parsed.homeworkAssigned !== undefined ? parsed.homeworkAssigned : fallback.homeworkAssigned,
+          summaryMessage: parsed.summaryMessage || fallback.summaryMessage,
+          rawTranscript: trimmed,
+          aiModelUsed: modelUsed,
+        };
+      }
     }
   } catch (err) {
     console.warn('[AI voice structure fallback]:', err);
@@ -793,22 +832,28 @@ export function extractStructuredVoiceFallback(text: string): StructuredVoiceLog
   let subject = 'General Science';
   let subjectBn = 'সাধারণ বিজ্ঞান';
 
-  if (/(math|গণিত|বীজগণিত|সমীকরণ|লসাগু|গসাগু|ভগ্নাংশ|জ্যামিতি|উৎপাদক|hcf|lcm|algebra)/i.test(text)) {
+  // The subject is guessed from the words actually in the transcript.
+  //
+  // The English vocabulary was much narrower than the Bangla one: "math", "algebra"
+  // and "hcf" matched, but "equation", "factoring", "geometry" and "fraction" did
+  // not — so a parent speaking English about quadratic equations got their log filed
+  // under "General Science".
+  if (/(math|গণিত|বীজগণিত|সমীকরণ|লসাগু|গসাগু|ভগ্নাংশ|জ্যামিতি|উৎপাদক|hcf|lcm|algebra|equation|factoring|factoris|geometry|trigonometr|fraction|polynomial|calculus)/i.test(text)) {
     subject = 'Mathematics';
     subjectBn = 'গণিত';
-  } else if (/(physics|পদার্থবিজ্ঞান|বলবিদ্যা|ত্বরণ|নিউটনের|f\s*=\s*ma)/i.test(text)) {
+  } else if (/(physics|পদার্থবিজ্ঞান|বলবিদ্যা|ত্বরণ|নিউটনের|f\s*=\s*ma|velocity|acceleration|momentum|force|gravity|kinematic)/i.test(text)) {
     subject = 'Physics';
     subjectBn = 'পদার্থবিজ্ঞান';
-  } else if (/(chemistry|রসায়ন|পর্যায় সারণি|পরমাণু|মৌল|বিক্রিয়া)/i.test(text)) {
+  } else if (/(chemistry|রসায়ন|পর্যায় সারণি|পরমাণু|মৌল|বিক্রিয়া|atom|molecule|reaction|element|compound|acid|base|periodic)/i.test(text)) {
     subject = 'Chemistry';
     subjectBn = 'রসায়ন';
-  } else if (/(biology|জীববিজ্ঞান|উদ্ভিদ|কোষ|শালোকসংশ্লেষণ)/i.test(text)) {
+  } else if (/(biology|জীববিজ্ঞান|উদ্ভিদ|কোষ|শালোকসংশ্লেষণ|cell|tissue|organ|photosynthesis|photosynthes|genetic|dna)/i.test(text)) {
     subject = 'Biology';
     subjectBn = 'জীববিজ্ঞান';
-  } else if (/(english|ইংরেজি|grammar|vocabulary|passage|paragraph)/i.test(text)) {
+  } else if (/(english|ইংরেজি|grammar|vocabulary|passage|paragraph|essay|comprehension|tense|preposition)/i.test(text)) {
     subject = 'English';
     subjectBn = 'ইংরেজি';
-  } else if (/(bangla|বাংলা|কবিতা|গল্প|ব্যাকরণ|সন্ধি|সমাস)/i.test(text)) {
+  } else if (/(bangla|বাংলা|কবিতা|গল্প|ব্যাকরণ|সন্ধি|সমাস|poem|story|novel)/i.test(text)) {
     subject = 'Bangla';
     subjectBn = 'বাংলা';
   } else if (/(ict|আইসিটি|তথ্যপ্রযুক্তি|কম্পিউটার|স্প্রেডশিট|এক্সেলে)/i.test(text)) {
@@ -857,7 +902,13 @@ export function extractStructuredVoiceFallback(text: string): StructuredVoiceLog
     confidence: 5,
     keyConcepts,
     homeworkAssigned,
-    summaryMessage: `অসাধারণ! ${subjectBn} বিষয়ের আজকের পাঠটি সফলভাবে প্রস্তুত হয়েছে।`,
+    // The summary is built from the subject and the actual homework, so it describes
+    // *this* log. It used to be a single fixed "অসাধারণ! <subject> বিষয়ের আজকের পাঠটি
+    // সফলভাবে প্রস্তুত হয়েছে" for every subject — a canned congratulation that said
+    // nothing about what was actually studied.
+    summaryMessage: homeworkAssigned
+      ? `${subjectBn} বিষয়ে পড়া হয়েছে। বাড়ির কাজ: ${homeworkAssigned}`
+      : `${subjectBn} বিষয়ে পড়া হয়েছে।`,
     rawTranscript: text,
     aiModelUsed: 'Claude 3.5 Haiku',
   };

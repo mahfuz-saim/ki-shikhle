@@ -31,7 +31,31 @@ export async function aiUsage(query:{page?:string,limit?:string}){
 }
 
 export async function listUsers(){
-  try{ return await prisma.user.findMany({ take:50, orderBy:{createdAt:'desc'}}); }catch{ return [{id:'u1', email:'demo@example.com', name:'Demo', trialEndsAt: new Date()}]; }
+  // `passwordHash` is projected out. The `users` table doubles as the child-credential
+  // table, so an argon2id hash here would hand an attacker offline-cracking material for
+  // every account on the platform.
+  try{
+    return await prisma.user.findMany({
+      take: 50,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        language: true,
+        country: true,
+        timezone: true,
+        emailVerifiedAt: true,
+        deletedAt: true,
+        trialEndsAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }catch{
+    return [{id:'u1', email:'demo@example.com', name:'Demo', trialEndsAt: new Date()}];
+  }
 }
 
 export async function extendTrial(userId:string, days:number){
@@ -40,6 +64,8 @@ export async function extendTrial(userId:string, days:number){
     if(!user) throw notFound('User');
     const newEnd=new Date((user.trialEndsAt|| new Date()).getTime()+ days*86400000);
     const updated=await prisma.user.update({where:{id:userId}, data:{trialEndsAt:newEnd}});
-    return updated;
+    // Never return the credential hash, even to an admin.
+    const { passwordHash, ...safe } = updated as any;
+    return safe;
   }catch(e:any){ if(e.statusCode) throw e; return { id:userId, trialEndsAt: new Date(Date.now()+days*86400000) }; }
 }

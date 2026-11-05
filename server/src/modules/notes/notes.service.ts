@@ -2,9 +2,20 @@ import { prisma } from '../../db/client';
 import { storage } from '../../services/storage';
 import { callAI, estimateCost, generateSubjectNote, AIImage } from '../../services/ai';
 import { sha256Hex } from '../../utils/crypto';
-import { notFound, forbidden } from '../../utils/errors';
+import { notFound, forbidden, badRequest } from '../../utils/errors';
+import { store, seedDemoRows, registerDemoFixture } from '../../core/store';
+import { assertChildAccess, assertEntityAccess, type Actor } from '../../core/tenancy';
+import { decodeBase64Image } from '../../middleware/upload';
+import { canUseVision, resolvePlanCode } from '../../services/entitlements';
 
-export const memNotes: any[] = [
+/**
+ * The demo note fixtures.
+ *
+ * These belong to the demo tenant. They are registered into the owner-partitioned store
+ * (`core/store`) at import time, with the legacy `demo-child-N` ids re-keyed onto the
+ * demo children's real ids.
+ */
+const demoNoteFixtures: any[] = [
   // Rahim Ahmed (Class 8) Notes
   {
     id: 'note-rahim-1',
@@ -174,6 +185,16 @@ export const memNotes: any[] = [
 
 function hashText(t: string) { return sha256Hex(t.trim()); }
 
+/**
+ * Register the demo notes into the owner-partitioned store.
+ *
+ * The degraded (no-database) path reads from `store.notes`, which is partitioned by
+ * owner — so the demo notes are visible to the demo parent and to nobody else.
+ */
+registerDemoFixture(() => {
+  seedDemoRows(store.notes, demoNoteFixtures);
+});
+
 export function generateStructuredFallback(rawText: string, subject: string): string {
   if (!rawText || rawText.trim().length < 10) {
     return generateSubjectNote(subject);
@@ -209,13 +230,32 @@ export type MakeAINoteInput = {
   file?: any;
 };
 
-export async function makeAINote(childId: string, userId: string, body: MakeAINoteInput) {
-  await assertOwnership(userId, childId);
+export async function makeAINote(actor: Actor, childId: string, body: MakeAINoteInput) {
+  await assertChildAccess(actor, childId);
+
+  const hasImage = Boolean(body.file?.buffer || body.imageBase64);
+
+  // Entitlement: the AI vision path (reading a note image) is a paid feature on the
+  // plans that exclude it.
+  //
+  // `aiVisionOCR` was declared on every plan but never checked, so the limit was
+  // decorative. A text-only note is not affected — it uses the cheap text model.
+  if (hasImage) {
+    const planCode = await resolvePlanCode(actor.ownerId);
+    if (!canUseVision(planCode)) {
+      throw forbidden(
+        `AI note generation from images is not available on the ${planCode} plan. Upgrade to unlock it.`
+      );
+    }
+  }
+
   const rawText = body.text || '';
   let subject = body.subject || 'General';
 
   let aiImage: AIImage | undefined;
   if (body.file?.buffer) {
+    // The upload guard has already checked the magic bytes and normalised
+    // `file.mimetype`, so this mapping is over a type we have verified.
     const mt = (body.file.mimetype || 'image/jpeg').toLowerCase();
     const mediaType = mt.includes('png')
       ? 'image/png'
@@ -229,22 +269,16 @@ export async function makeAINote(childId: string, userId: string, body: MakeAINo
       mediaType,
     };
   } else if (body.imageBase64) {
+    // The base64 path is *not* covered by the multipart upload guard, so the bytes
+    // are checked here. Previously the media type was taken from a client-supplied
+    // string with no validation at all.
     const clean = body.imageBase64.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
-    const mt = (body.imageMimeType || 'image/jpeg').toLowerCase();
-    const mediaType = mt.includes('png')
-      ? 'image/png'
-      : mt.includes('webp')
-      ? 'image/webp'
-      : mt.includes('gif')
-      ? 'image/gif'
-      : 'image/jpeg';
-    aiImage = {
-      data: clean,
-      mediaType,
-    };
+    const decoded = decodeBase64Image(clean);
+    if (!decoded) {
+      throw badRequest('The uploaded image could not be read. Upload a JPEG, PNG, WebP or GIF.');
+    }
+    aiImage = { data: clean, mediaType: decoded.mediaType as AIImage['mediaType'] };
   }
-
-  const hasImage = Boolean(aiImage);
 
   const system = `You are an expert pedagogy teacher and study-note specialist for Bangladeshi school students following the NCTB curriculum.
 Your mission is to examine uploaded class notes, handwritten pages, chalkboard photos, diagrams, or text and synthesize a beautifully structured, comprehensive, high-quality study note.
@@ -277,6 +311,7 @@ ${rawText ? `Student Context / Notes:\n${rawText}` : 'Please examine the uploade
       model: hasImage ? 'smart' : 'fast',
       image: aiImage,
       maxTokens: 2500,
+      feature: 'note',
     });
     if (aiResult.content && aiResult.content.length > 50) {
       let title: string | undefined;
@@ -290,6 +325,10 @@ ${rawText ? `Student Context / Notes:\n${rawText}` : 'Please examine the uploade
         subject,
         textClean: rawText || (hasImage ? `[AI Vision Note from image: ${title || subject}]` : ''),
         model: aiResult.model,
+        // True when the content came from the deterministic mock rather than a real model.
+        // The client shows a "generated" badge either way, but the API response is honest
+        // about which one it was.
+        mocked: !!aiResult.mocked,
       };
     }
   } catch (err) {
@@ -303,11 +342,12 @@ ${rawText ? `Student Context / Notes:\n${rawText}` : 'Please examine the uploade
     subject,
     textClean: rawText || `[AI Study Note: ${subject}]`,
     model: 'fast-formatter',
+    mocked: true,
   };
 }
 
-export async function createNote(childId: string, parentId: string, file: any, body: any) {
-  await assertOwnership(parentId, childId);
+export async function createNote(actor: Actor, childId: string, file: any, body: any) {
+  await assertChildAccess(actor, childId);
   let fileUrl: string | undefined;
   let textClean = body.textClean || body.text || '';
   const ocrConfidence: number | undefined = body.ocrConfidence ? parseFloat(body.ocrConfidence) : 0.95;
@@ -323,7 +363,7 @@ export async function createNote(childId: string, parentId: string, file: any, b
   // If aiSummary is missing and an image or text is provided, generate the AI note!
   if (!aiSummary && (file || body.imageBase64)) {
     try {
-      const aiNote = await makeAINote(childId, parentId, {
+      const aiNote = await makeAINote(actor, childId, {
         file,
         imageBase64: body.imageBase64,
         imageMimeType: body.imageMimeType,
@@ -342,7 +382,7 @@ export async function createNote(childId: string, parentId: string, file: any, b
     }
   } else if (!aiSummary && textClean && textClean.trim().length > 10) {
     try {
-      const aiNote = await makeAINote(childId, parentId, { text: textClean, subject, date: body.date });
+      const aiNote = await makeAINote(actor, childId, { text: textClean, subject, date: body.date });
       aiSummary = aiNote.aiSummary;
       if (!title && aiNote.title) title = aiNote.title;
     } catch {
@@ -381,27 +421,29 @@ export async function createNote(childId: string, parentId: string, file: any, b
     const note = {
       id: 'note-' + Date.now(),
       ...payload,
+      ownerId: actor.ownerId,
       createdAt: new Date().toISOString(),
     };
-    memNotes.unshift(note);
+    store.notes.add(note as any);
     if (textHash) queueDigest('note', note.id, childId, payload.subjectId, textClean);
     return note;
   }
 }
 
-export async function listNotes(childId: string, parentId: string) {
-  await assertOwnership(parentId, childId);
+export async function listNotes(actor: Actor, childId: string) {
+  await assertChildAccess(actor, childId);
   try {
     const dbNotes = await prisma.note.findMany({ where: { childId }, orderBy: { date: 'desc' } });
     if (dbNotes && dbNotes.length > 0) return dbNotes;
-    return memNotes.filter((n: any) => n.childId === childId);
+    return store.notes.forChild(actor.ownerId, childId);
   } catch {
-    return memNotes.filter((n: any) => n.childId === childId);
+    return store.notes.forChild(actor.ownerId, childId);
   }
 }
 
-export async function updateNote(noteId: string, parentId: string, data: any) {
-  const note: any = await findNote(noteId, parentId);
+export async function updateNote(actor: Actor, noteId: string, data: any) {
+  await assertEntityAccess(actor, { kind: 'note', id: noteId });
+  const note: any = await findNote(actor, noteId);
   const textHash = data.textClean ? hashText(data.textClean) : note.textHash;
   const payload = { ...data, textHash };
   try {
@@ -412,21 +454,22 @@ export async function updateNote(noteId: string, parentId: string, data: any) {
   }
 }
 
-export async function deleteNote(noteId: string, parentId: string) {
-  const note: any = await findNote(noteId, parentId);
+export async function deleteNote(actor: Actor, noteId: string) {
+  await assertEntityAccess(actor, { kind: 'note', id: noteId });
+  const note: any = await findNote(actor, noteId);
   const key = typeof note.fileUrl === 'string' ? note.fileUrl.split('/').pop() : null;
   if (key) await storage.delete(key).catch(() => {});
   try {
     await prisma.note.delete({ where: { id: noteId } });
   } catch {
-    const idx = memNotes.findIndex((x: any) => x.id === noteId);
-    if (idx >= 0) memNotes.splice(idx, 1);
+    store.notes.remove(noteId);
   }
   return { message: 'Deleted' };
 }
 
-export async function aiOcrFallback(noteId: string, parentId: string, userId: string) {
-  const note: any = await findNote(noteId, parentId);
+export async function aiOcrFallback(actor: Actor, noteId: string) {
+  await assertEntityAccess(actor, { kind: 'note', id: noteId });
+  const note: any = await findNote(actor, noteId);
   const prompt = {
     system: 'You are an educational study note helper. Improve and format class notes text.',
     user: `Subject: ${note.subject || 'General'}\nImprove and structure study note for: ${note.textClean?.slice(0, 4000) ?? ''}`,
@@ -436,12 +479,25 @@ export async function aiOcrFallback(noteId: string, parentId: string, userId: st
   const start = Date.now();
   const result = await callAI(prompt);
   const latency = Date.now() - start;
-  const improved = result.content.slice(0, 5000);
   const cost = estimateCost(result.inputTokens, result.outputTokens, result.model);
+
+  /**
+   * A mocked "improvement" is a canned note about a generic subject. It used to be
+   * written straight over the note's `textClean` — so with the AI unavailable, the
+   * child's actual class notes were **destroyed** and replaced by the mock, and the
+   * usage log recorded the call as a success with zero tokens.
+   *
+   * The note's real text is now left alone when the content is mocked.
+   */
+  if (result.mocked) {
+    throw badRequest('The AI service is unavailable, so the note could not be improved. The original text has been left unchanged.');
+  }
+
+  const improved = result.content.slice(0, 5000);
   try {
     await prisma.aiUsageLog.create({
       data: {
-        userId,
+        userId: actor.ownerId,
         childId: note.childId,
         feature: 'ai_ocr',
         model: result.model,
@@ -453,43 +509,38 @@ export async function aiOcrFallback(noteId: string, parentId: string, userId: st
       },
     });
   } catch {}
-  await updateNote(noteId, parentId, { textClean: improved, aiSummary: improved, ocrConfidence: 0.98 });
+  await updateNote(actor, noteId, { textClean: improved, aiSummary: improved, ocrConfidence: 0.98 });
   return {
     improvedText: improved,
     usage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens, costEst: cost, model: result.model },
   };
 }
 
-async function findNote(noteId: string, userId: string) {
+/**
+ * Load a note the actor is allowed to touch.
+ *
+ * The ownership check itself lives in `core/tenancy` — this only resolves the row.
+ *
+ * The child row is projected, not included wholesale: `Child` carries `passwordHash`
+ * and `pinHash`, and `updateNote` returns this object straight to the browser.
+ */
+async function findNote(actor: Actor, noteId: string) {
   try {
-    const n: any = await prisma.note.findUnique({ where: { id: noteId }, include: { child: true } });
+    const n: any = await prisma.note.findUnique({
+      where: { id: noteId },
+      include: {
+        child: {
+          select: { id: true, name: true, nickname: true, grade: true, curriculum: true, medium: true, avatar: true },
+        },
+      },
+    });
     if (!n) throw notFound('Note not found');
-    if (n.child.parentId !== userId && n.child.id !== userId && !userId.startsWith('demo-')) {
-      throw forbidden('Not yours');
-    }
     return n;
   } catch (e: any) {
     if (e.statusCode) throw e;
-    const n = memNotes.find((x: any) => x.id === noteId);
+    const n = store.notes.find(actor.ownerId, noteId);
     if (!n) throw notFound('Note not found');
     return n;
-  }
-}
-
-async function assertOwnership(userId: string, childId: string) {
-  if (childId === userId || childId.startsWith('demo-') || userId.startsWith('demo-')) return;
-  try {
-    const c = await prisma.child.findFirst({
-      where: {
-        id: childId,
-        OR: [{ parentId: userId }, { id: userId }],
-      },
-    });
-    if (!c) {
-      // allow fallback
-    }
-  } catch (e: any) {
-    if (e.statusCode === 404) throw e;
   }
 }
 

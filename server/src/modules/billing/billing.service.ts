@@ -1,18 +1,35 @@
 import { prisma } from '../../db/client';
 import { paymentProvider } from '../../services/payments';
-import { PLANS } from '../../services/entitlements';
+import { PLANS, resolvePlan, isSellablePlan } from '../../services/entitlements';
 import { notFound, badRequest } from '../../utils/errors';
-import { memUsers } from '../auth/auth.service';
+import { store, DEMO_PARENT_ID } from '../../core/store';
+import type { Actor } from '../../core/tenancy';
 
+/**
+ * Subscriptions and payments.
+ *
+ * Two bugs lived here:
+ *
+ *  1. `getInvoices` filtered with `p.userId === userId || true` — the `|| true` made the
+ *     filter a no-op, so **every tenant's invoices** were returned to anyone who asked.
+ *  2. `getSubscription` handed the seeded demo parent a free Pro plan because the id was
+ *     matched by the hardcoded strings `'parent-demo'` / `'parent@demo.com'`. The demo
+ *     tenant is now a normal account with a real id, so the plan comes from a real seeded
+ *     subscription instead of an id check.
+ */
+
+/** In-memory subscriptions, scoped by their owner's user id. */
 const memSubs: any[] = [
   {
     id: 'sub-demo-parent-pro',
-    userId: 'parent-demo',
+    userId: DEMO_PARENT_ID,
     plan: {
       code: 'pro',
       name: 'Pro Family (প্রো ফ্যামিলি)',
       priceBdt: 999,
       limits: PLANS.pro.limits,
+      tier: 'pro',
+      legacy: false,
     },
     status: 'active',
     childSlots: 5,
@@ -28,20 +45,6 @@ const memSubs: any[] = [
     ],
   },
 ];
-const memPayments: any[] = [
-  {
-    id: 'pay-demo-pro-1',
-    subscriptionId: 'sub-demo-parent-pro',
-    userId: 'parent-demo',
-    amount: 999,
-    currency: 'BDT',
-    invoiceNo: 'INV-2026-8801',
-    status: 'succeeded',
-    method: 'bkash',
-    isDemo: true,
-    createdAt: new Date(Date.now() - 5 * 86400000).toISOString(),
-  },
-];
 
 export async function getPlans() {
   return [PLANS.free, PLANS.basic, PLANS.premium, PLANS.pro].map((p) => ({
@@ -54,8 +57,9 @@ export async function getPlans() {
     active: true,
   }));
 }
+export async function getSubscription(actor: Actor) {
+  const userId = actor.ownerId;
 
-export async function getSubscription(userId: string) {
   // 1. In-memory check first to instantly reflect runtime upgrades/demo checkouts
   const existing = memSubs.find((s) => s.userId === userId);
   if (existing) return existing;
@@ -68,62 +72,63 @@ export async function getSubscription(userId: string) {
       orderBy: { createdAt: 'desc' },
     });
     if (sub) {
-      // Map legacy 'trial' database records to standard freemium Free plan
-      if (sub.plan?.code === 'trial') {
-        return {
-          ...sub,
-          plan: {
-            ...sub.plan,
-            code: 'free',
-            name: 'Free (ফ্রি)',
-            limits: PLANS.free.limits,
-          },
-        };
-      }
-      return sub;
+      // The plan's identity and its limits are resolved together, so the two can
+      // never disagree.
+      //
+      // A legacy plan code ('trial', 'starter', 'standard') keeps its own code and
+      // name — the subscriber should still see the plan they bought — but carries
+      // the limits of the current plan that covers what they sold.
+      //
+      // It used to be rewritten to `free`, which silently downgraded a paying
+      // subscriber: `standard` was sold at five children and came back as one.
+      const resolved = resolvePlan(sub.plan?.code || 'free');
+      return {
+        ...sub,
+        plan: {
+          ...sub.plan,
+          name: resolved.name,
+          limits: resolved.limits,
+          tier: resolved.tier,
+          legacy: resolved.legacy,
+        },
+      };
     }
   } catch {}
 
-  // 3. Fallback default subscription
-  const isDemoParent = userId === 'parent-demo' || userId === 'parent@demo.com';
-  const defaultSub = isDemoParent
-    ? {
-        id: 'sub-demo-parent-pro',
-        userId,
-        plan: {
-          code: 'pro',
-          name: 'Pro Family (প্রো ফ্যামিলি)',
-          priceBdt: 999,
-          limits: PLANS.pro.limits,
-        },
-        status: 'active',
-        childSlots: 5,
-        currentPeriodEnd: new Date(Date.now() + 30 * 86400000).toISOString(),
-      }
-    : {
-        id: 'sub-' + userId,
-        userId,
-        plan: {
-          code: 'free',
-          name: 'Free (ফ্রি)',
-          priceBdt: 0,
-          limits: PLANS.free.limits,
-        },
-        status: 'active',
-        childSlots: 1,
-        currentPeriodEnd: null,
-      };
+  // 3. Fallback default subscription — everyone starts on the free plan. There is no
+  //    id-based exception for any particular account.
+  const defaultSub = {
+    id: 'sub-' + userId,
+    userId,
+    plan: {
+      code: 'free',
+      name: 'Free (ফ্রি)',
+      priceBdt: 0,
+      limits: PLANS.free.limits,
+      tier: 'free',
+      legacy: false,
+    },
+    status: 'active',
+    childSlots: 1,
+    currentPeriodEnd: null,
+  };
   memSubs.push(defaultSub);
   return defaultSub;
 }
 
 export async function demoCheckout(
-  userId: string,
+  actor: Actor,
   input: { planCode: string; childCount: number; billingPeriod: 'monthly' | 'yearly'; simulateFailure?: boolean }
 ) {
-  const plan = PLANS[input.planCode] || (PLANS as any)[input.planCode];
+  const userId = actor.ownerId;
+  // Only the catalogue plans may be bought. The legacy codes ('trial', 'starter',
+  // 'standard') are held by existing subscribers but must not be purchasable:
+  // `standard` at ৳299 grants five children while `premium` at ৳599 grants two, so
+  // selling it would undercut the flagship plan.
+  if (!isSellablePlan(input.planCode)) throw badRequest(`Plan "${input.planCode}" is not available for purchase.`);
+  const plan = PLANS[input.planCode];
   if (!plan) throw notFound('Plan');
-  const sub = (await getSubscription(userId)) as any;
+  const sub = (await getSubscription(actor)) as any;
 
   const result = await paymentProvider.createCheckout({
     userId,
@@ -137,7 +142,7 @@ export async function demoCheckout(
   }
 
   // Clear trial state on in-memory user
-  const memU = memUsers.find((u) => u.id === userId);
+  const memU = store.users.byId(userId);
   if (memU) {
     memU.trialEndsAt = null;
   }
@@ -219,6 +224,18 @@ export async function demoCheckout(
     if (existingIdx >= 0) memSubs[existingIdx] = subRecord;
     else memSubs.push(subRecord);
 
+    store.payments.add({
+      id: payment.id,
+      ownerId: userId,
+      userId,
+      subscriptionId: subscription.id,
+      amount: result.amount,
+      invoiceNo: result.invoiceNo,
+      status: 'succeeded',
+      isDemo: true,
+      createdAt: new Date().toISOString(),
+    } as any);
+
     return { subscription: subRecord, payment, invoiceNo: result.invoiceNo, amount: result.amount, planCode: input.planCode };
   } catch {
     const subMock = {
@@ -241,18 +258,20 @@ export async function demoCheckout(
     const pay = {
       id: 'pay-' + Date.now(),
       subscriptionId: subMock.id,
+      userId,
       amount: result.amount,
       invoiceNo: result.invoiceNo,
       isDemo: true,
       status: 'succeeded',
+      createdAt: new Date().toISOString(),
     };
-    memPayments.push(pay);
+    store.payments.add(pay as any);
     return { subscription: subMock, payment: pay, invoiceNo: result.invoiceNo, amount: result.amount, planCode: input.planCode };
   }
 }
 
-export async function cancelSubscription(userId: string) {
-  const sub = (await getSubscription(userId)) as any;
+export async function cancelSubscription(actor: Actor) {
+  const sub = (await getSubscription(actor)) as any;
   try {
     await prisma.subscription.update({ where: { id: sub.id }, data: { cancelAtPeriodEnd: true } });
   } catch {
@@ -261,14 +280,17 @@ export async function cancelSubscription(userId: string) {
   return { message: 'Subscription will cancel at period end' };
 }
 
-export async function getInvoices(userId: string) {
+export async function getInvoices(actor: Actor) {
+  const userId = actor.ownerId;
   try {
     return await prisma.payment.findMany({
       where: { subscription: { userId } },
       orderBy: { createdAt: 'desc' },
     });
   } catch {
-    return memPayments.filter((p: any) => p.userId === userId || true);
+    // Scoped to this account. The old `p.userId === userId || true` returned every tenant's
+    // invoices to anyone who asked.
+    return store.payments.forOwner(userId);
   }
 }
 export const listInvoices = getInvoices;
