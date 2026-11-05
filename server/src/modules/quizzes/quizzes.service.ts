@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { sha256Hex } from '../../utils/crypto';
 import { badRequest, forbidden, notFound } from '../../utils/errors';
 import { env } from '../../config/env';
-import { store, seedDemoRows, registerDemoFixture, rekeyDemoChildId, DEMO_PARENT_ID } from '../../core/store';
+import { store, seedDemoRows, registerDemoFixture, rekeyDemoChildId, DEMO_PARENT_ID, sanitizeChild } from '../../core/store';
 import { assertChildAccess, assertEntityAccess, type Actor } from '../../core/tenancy';
 
 /**
@@ -1584,7 +1584,11 @@ export async function getChildInfo(actor: Actor, childId: string) {
     if (child) return child;
   } catch {}
   const memChild = store.children.find(actor.ownerId, childId);
-  if (memChild) return memChild;
+  // The mem row carries `passwordHash` and `pinHash`. It is not returned today —
+  // the only caller reads `grade`/`medium`/`name` — but returning it raw means the
+  // next caller that spreads this object leaks the hashes. Strip them here so
+  // that the function is safe to use anywhere.
+  if (memChild) return sanitizeChild(memChild) as any;
 
   // Unknown child: return a neutral, owner-less profile. The caller has already been
   // authorised by `assertChildAccess`, so this only supplies grade/medium context.

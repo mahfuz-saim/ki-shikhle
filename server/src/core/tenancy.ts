@@ -86,6 +86,28 @@ export async function resolveActor(input: ActorInput): Promise<Actor> {
 
       return { ownerId: user.id, role, email: user.email, degraded: false };
     }
+
+    // The subject is not a `users` row, but it may be a **child profile** id.
+    //
+    // `users` doubles as the child-credential table, so a child normally has a
+    // `users` row and the branch above handles it. But a child row can exist
+    // without one — the identity is created only when a password is set — and
+    // `enterChildMode` falls back to the child's profile id when there is no
+    // identity to find. Without this branch such a token was rejected as an
+    // unknown account, and the child could not read even their own notes.
+    const childRow = await prisma.child.findUnique({
+      where: { id: userId },
+      select: { id: true, parentId: true, email: true, deletedAt: true },
+    });
+    if (childRow && !childRow.deletedAt && input.childId && input.childId === childRow.id) {
+      return {
+        ownerId: childRow.parentId,
+        childId: childRow.id,
+        role: 'child',
+        email: childRow.email ?? undefined,
+        degraded: false,
+      };
+    }
   } catch {
     // Fall through to the in-memory store (degraded mode).
   }
@@ -93,6 +115,20 @@ export async function resolveActor(input: ActorInput): Promise<Actor> {
   // 2. Degraded mode: the in-memory store, scoped exactly like the database.
   const mem = store.users.byId(userId);
   if (!mem) {
+    // The subject may still be a **child profile** id — the same fallback
+    // `enterChildMode` uses when there is no child login identity. The store holds
+    // every child fixture, so the degraded path scopes exactly like the database.
+    const memChild = store.children.findByField('id', userId);
+    if (memChild && !memChild.deletedAt && input.childId && input.childId === memChild.id) {
+      return {
+        ownerId: memChild.ownerId,
+        childId: memChild.id,
+        role: 'child',
+        email: memChild.email ?? undefined,
+        degraded: true,
+      };
+    }
+
     // Never fall back to another account. An unknown subject is an authentication failure.
     throw unauthorized('Unknown or disabled account');
   }

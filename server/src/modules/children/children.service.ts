@@ -325,7 +325,7 @@ export async function enterChildMode(actor: Actor, childId: string, pin: string)
       }
       const token = jwt.sign(
         {
-          userId: childIdentityId(row.email, childId),
+          userId: await childIdentityId(row.email, childId),
           childId,
           role: 'child',
           type: 'child',
@@ -349,7 +349,7 @@ export async function enterChildMode(actor: Actor, childId: string, pin: string)
   }
   const token = jwt.sign(
     {
-      userId: childIdentityId(mem.email || '', childId),
+      userId: await childIdentityId(mem.email || '', childId),
       childId,
       role: 'child',
       type: 'child',
@@ -366,11 +366,27 @@ export async function enterChildMode(actor: Actor, childId: string, pin: string)
  * `users` doubles as the child-credential table, so a child's login identity is its
  * `User` row. When there is none, the child's own id is used — which still scopes the
  * token to that one child.
+ *
+ * The database is the source of truth here, not the in-memory store. The store only
+ * holds the seeded demo fixtures, so a lookup there found nothing for any child
+ * created at runtime — and the token was signed with the child's *profile* id, which
+ * is not a `users` row. `resolveActor` then rejected it as an unknown account and
+ * every child-mode request came back 401: the child could not read their own notes.
  */
-function childIdentityId(email: string | null | undefined, childId: string): string {
+async function childIdentityId(email: string | null | undefined, childId: string): Promise<string> {
   if (!email) return childId;
-  const identity = store.users.byEmail(email);
-  return identity?.id || childId;
+  const norm = email.trim().toLowerCase();
+  try {
+    const identity = await prisma.user.findFirst({
+      where: { email: norm },
+      select: { id: true },
+    });
+    if (identity) return identity.id;
+  } catch {
+    // Degraded mode — fall through to the store.
+  }
+  const memIdentity = store.users.byEmail(norm);
+  return memIdentity?.id || childId;
 }
 
 export interface UnloggedStudyAlertConfig {
