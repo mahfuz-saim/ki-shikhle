@@ -2,13 +2,13 @@
 
 export const runtime = 'edge';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { KidShell } from '@/components/layout/kid-shell';
-import { useAuth } from '@/components/auth/auth-context';
+import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import { QuizTakingSkeleton } from '@/components/ui/skeleton';
@@ -25,27 +25,68 @@ import {
 export default function TakeQuiz() {
   const params = useParams();
   const router = useRouter();
-  const { activeChild } = useAuth();
-  const { isBn } = useI18n();
+  const { childId } = useChildScope();
+  const { t, isBn } = useI18n();
 
   const quizId = (params as any)?.id as string;
-  const childId = activeChild?.id || 'demo-child';
-
   const [quiz, setQuiz] = useState<any>(null);
   const [attempt, setAttempt] = useState<any>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [idx, setIdx] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [startingAttempt, setStartingAttempt] = useState(true);
+  const submissionInFlight = useRef(false);
+  const timedOutAttempt = useRef<string | null>(null);
   const [saveMsg, setSaveMsg] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+
+  // Keep the request, not a "started" flag. Strict Mode replays effects, so a
+  // cancelled subscriber must not strand the next subscriber without an attempt.
+  const attemptRequest = useRef<{ key: string; promise: Promise<any> } | null>(null);
+  const ensureAttempt = useCallback((): Promise<any> => {
+    if (!quizId || !childId) return Promise.reject(new Error('The child session is still loading. Please try again.'));
+    const key = `${childId}:${quizId}`;
+    if (attemptRequest.current?.key === key) return attemptRequest.current.promise;
+
+    const promise = api.post(`/quizzes/${quizId}/attempts`, { childId }).then((response) => {
+      const savedAttempt = response.data?.data;
+      if (!savedAttempt?.id) throw new Error('The server did not return a quiz attempt. Please try again.');
+      return savedAttempt;
+    });
+    attemptRequest.current = { key, promise };
+    void promise.catch(() => {
+      // A failed start can be retried by Save or Submit without reloading answers.
+      if (attemptRequest.current?.promise === promise) attemptRequest.current = null;
+    });
+    return promise;
+  }, [quizId, childId]);
+
+  /**
+   * The locale is read through a ref rather than as an effect dependency.
+   *
+   * A locale toggle used to re-run the two effects below — re-fetching the quiz
+   * and, in the sibling page, POSTing a brand-new attempt. The locale only
+   * affects the *copy* of an error message, so it is read at call time.
+   */
+  const isBnRef = useRef(isBn);
+  useEffect(() => {
+    isBnRef.current = isBn;
+  }, [isBn]);
 
   useEffect(() => {
+    if (!quizId) return;
+    let isMounted = true;
+
     api
       .get(`/quizzes/${quizId}`)
       .then((r) => {
+        if (!isMounted) return;
         const q = r.data.data;
-        // Strip correct answers for student view
-        if (q.questions) {
+        // Strip correct answers for student view. The server already strips these for a
+        // child actor; this is defence in depth for a parent previewing the page.
+        if (q?.questions) {
           q.questions = q.questions.map((qq: any) => ({
             ...qq,
             correctAnswer: undefined,
@@ -53,98 +94,133 @@ export default function TakeQuiz() {
           }));
         }
         setQuiz(q);
-        if (q.timeLimitMin) setTimeLeft(q.timeLimitMin * 60);
+        if (q?.timeLimitMin) setTimeLeft(q.timeLimitMin * 60);
       })
-      .catch(() => {
-        setQuiz({
-          id: quizId,
-          title: isBn ? 'পদার্থবিজ্ঞান ও নিউটনের সূত্র কুইজ' : 'Physics & Mechanics Chapter Quiz',
-          questions: [
-            {
-              id: 'q1',
-              type: 'mcq',
-              topic: 'Physics: Newton 2nd Law',
-              prompt: isBn
-                ? 'বল (F), ভর (m) এবং ত্বরণ (a) এর সম্পর্ক কোনটি?'
-                : 'What is the relation between Force (F), Mass (m), and Acceleration (a)?',
-              optionsJson: ['F = ma', 'F = m/a', 'F = m + a', 'F = a/m'],
-            },
-            {
-              id: 'q2',
-              type: 'true_false',
-              topic: 'Physics: Newton 3rd Law',
-              prompt: isBn
-                ? 'প্রত্যেক ক্রিয়ার একটি সমান ও বিপরীত প্রতিক্রিয়া বল থাকে।'
-                : 'Every action has an equal and opposite reaction force.',
-              optionsJson: ['True', 'False'],
-            },
-            {
-              id: 'q3',
-              type: 'mcq',
-              topic: 'Physics: Units',
-              prompt: isBn ? 'বলের এসআই (SI) একক কী?' : 'What is the SI unit of force?',
-              optionsJson: ['Joule (জুল)', 'Newton (নিউটন)', 'Pascal (প্যাসকেল)', 'Watt (ওয়াট)'],
-            },
-          ],
-        });
-        setTimeLeft(15 * 60);
+      .catch((err) => {
+        if (!isMounted) return;
+        // A quiz that cannot be loaded is an error, not a reason to invent one.
+        const serverMsg = err?.response?.data?.error?.message;
+        setLoadError(
+          serverMsg ||
+          (isBnRef.current ? 'কুইজটি লোড করা যায়নি।' : 'Could not load this quiz.')
+        );
+        setQuiz(null);
       });
 
-    api
-      .post(`/quizzes/${quizId}/attempts`, { childId })
-      .then((r) => setAttempt(r.data.data))
-      .catch(() => setAttempt({ id: 'att-1', quizId }));
-  }, [quizId, childId, isBn]);
+    return () => {
+      isMounted = false;
+    };
+    // `isBn` is intentionally NOT a dependency — it re-runs on every locale toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quizId]);
+
+  useEffect(() => {
+    if (!quizId || !childId) return;
+    let cancelled = false;
+    setAttempt(null);
+    setStartingAttempt(true);
+    setSubmitError('');
+
+    ensureAttempt()
+      .then((savedAttempt) => {
+        if (!cancelled) setAttempt(savedAttempt);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setSubmitError(error?.response?.data?.error?.message
+            || (isBnRef.current ? 'কুইজ শুরু করা যায়নি। জমা দিতে আবার চেষ্টা করুন।' : 'Could not start the attempt. Submit again to retry.'));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setStartingAttempt(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [quizId, childId, ensureAttempt]);
 
   // Countdown timer
   useEffect(() => {
-    if (timeLeft === null) return;
+    if (timeLeft === null || !attempt?.id || submitting) return;
     if (timeLeft <= 0) {
-      handleSubmit();
+      // A failed automatic submission must not trigger an endless request loop.
+      // Leave the submit button available for an explicit retry instead.
+      if (timedOutAttempt.current !== attempt.id) {
+        timedOutAttempt.current = attempt.id;
+        void handleSubmit();
+      }
       return;
     }
     const t = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
     return () => clearTimeout(t);
-  }, [timeLeft]);
+  }, [timeLeft, attempt?.id, submitting]);
 
   const handleSelectOption = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
   const handleSaveProgress = async () => {
-    if (!attempt) return;
+    if (submissionInFlight.current) return;
     const payload = Object.entries(answers).map(([questionId, answer]) => ({
       questionId,
       answer,
     }));
     try {
-      await api.put(`/attempts/${attempt.id}/answers`, { answers: payload });
-    } catch {}
-    setSaveMsg(isBn ? 'অগ্রগতি সংরক্ষিত হয়েছে!' : 'Progress saved! You can resume anytime.');
+      const savedAttempt = await ensureAttempt();
+      setAttempt(savedAttempt);
+      setSubmitError('');
+      await api.put(`/attempts/${savedAttempt.id}/answers`, { answers: payload });
+      setSaveMsg(t('childQuizPlay.text'));
+    } catch {
+      // Do not claim a save that did not happen.
+      setSaveMsg(
+        t('childQuizPlay.text_2')
+      );
+    }
     setTimeout(() => setSaveMsg(''), 3000);
   };
 
   const handleSubmit = async () => {
+    if (submissionInFlight.current) return;
+    submissionInFlight.current = true;
     setSubmitting(true);
+    setSubmitError('');
     const payload = Object.entries(answers).map(([questionId, answer]) => ({
       questionId,
       answer,
     }));
-    const attemptId = attempt?.id || 'att-1';
-
     try {
+      // Reuse an in-flight/completed start or retry a failed one before submitting.
+      const savedAttempt = await ensureAttempt();
+      setAttempt(savedAttempt);
+      const attemptId = savedAttempt.id;
       await api.put(`/attempts/${attemptId}/answers`, { answers: payload });
       await api.post(`/attempts/${attemptId}/submit`);
       router.push(`/attempts/${attemptId}/results`);
-    } catch {
-      router.push(`/attempts/${attemptId}/results`);
+    } catch (err: any) {
+      // Navigating to the results page on failure showed a score for work that was
+      // never recorded.
+      const serverMsg = err?.response?.data?.error?.message;
+      setSubmitError(
+        serverMsg ||
+        (t('childQuizPlay.text_4'))
+      );
+      submissionInFlight.current = false;
+      setSubmitting(false);
     }
   };
 
   if (!quiz) {
     return (
       <KidShell>
-        <QuizTakingSkeleton />
+        {loadError ? (
+          <div className="p-4 rounded-2xl border border-destructive/30 bg-destructive/10 text-destructive text-xs font-semibold">
+            {loadError}
+          </div>
+        ) : (
+          <QuizTakingSkeleton />
+        )}
       </KidShell>
     );
   }
@@ -162,7 +238,7 @@ export default function TakeQuiz() {
           <div>
             <h1 className="text-base font-bold text-foreground truncate">{quiz.title}</h1>
             <p className="text-xs text-muted-foreground">
-              {isBn ? `প্রশ্ন ${idx + 1} / ${totalQ}` : `Question ${idx + 1} of ${totalQ}`}
+              {t('childQuizPlay.question_of', { p0: idx + 1, p1: totalQ }, `Question ${idx + 1} of ${totalQ}`)}
             </p>
           </div>
 
@@ -187,6 +263,12 @@ export default function TakeQuiz() {
         {saveMsg && (
           <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold text-center">
             {saveMsg}
+          </div>
+        )}
+
+        {submitError && (
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs font-semibold text-center">
+            {submitError}
           </div>
         )}
 
@@ -246,7 +328,7 @@ export default function TakeQuiz() {
                   type="text"
                   value={answers[currentQ.id] || ''}
                   onChange={(e) => handleSelectOption(currentQ.id, e.target.value)}
-                  placeholder={isBn ? 'এখানে তোমার উত্তর লেখো...' : 'Type your answer here...'}
+                  placeholder={t('childQuizPlay.text_5')}
                   className="w-full h-12 border rounded-2xl px-4 text-sm bg-background font-medium"
                 />
               </div>
@@ -269,6 +351,7 @@ export default function TakeQuiz() {
                 variant="ghost"
                 size="sm"
                 onClick={handleSaveProgress}
+                disabled={startingAttempt || submitting}
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
                 <Bookmark className="w-3.5 h-3.5 mr-1" />
@@ -287,12 +370,12 @@ export default function TakeQuiz() {
               ) : (
                 <Button
                   size="sm"
-                  disabled={submitting}
+                  disabled={startingAttempt || submitting || !childId}
                   onClick={handleSubmit}
                   className="text-xs rounded-xl h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/20"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>{submitting ? 'Submitting...' : 'Submit Quiz 🎉'}</span>
+                  <span>{startingAttempt ? 'Starting quiz...' : submitting ? 'Submitting...' : 'Submit Quiz 🎉'}</span>
                 </Button>
               )}
             </div>

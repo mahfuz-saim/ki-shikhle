@@ -31,3 +31,19 @@ export const exceptionSchema = z.object({
   }),
   params: z.object({ id: z.string() }),
 });
+
+/**
+ * A "this session was done" marker.
+ *
+ * `date` + `startTime` identify the scheduled occurrence — the same key the schedule
+ * page uses — so the write is idempotent.
+ */
+export const completionSchema = z.object({
+  body: z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}/),
+    startTime: z.string().regex(/^\d{2}:\d{2}$/),
+    routineId: z.string().nullish(),
+    completed: z.boolean().optional(),
+  }),
+  params: z.object({ id: z.string() }),
+});

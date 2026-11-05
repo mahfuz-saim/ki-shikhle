@@ -21,6 +21,7 @@ import {
   Lock,
   GraduationCap,
   CheckCircle2,
+  Check,
 } from 'lucide-react';
 
 export default function ChildrenPage() {
@@ -213,9 +214,7 @@ export default function ChildrenPage() {
               {t('child.title', 'Children Profiles')}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {isBn
-                ? 'সন্তানদের পৃথক প্রোফাইল ও লগইন ক্রেডেনশিয়াল পরিচালনা করুন'
-                : 'Create and manage student logins, curriculum grades, and individual portals.'}
+              {t('children.text')}
             </p>
           </div>
 
@@ -312,7 +311,7 @@ export default function ChildrenPage() {
                         {c.grade}
                       </Badge>
                       <Badge variant="outline" className="font-medium text-[11px]">
-                        {c.medium === 'English' ? (isBn ? 'ইংলিশ ভার্সন' : 'English Version') : (isBn ? 'বাংলা মাধ্যম' : 'Bangla Version')}
+                        {c.medium === 'English' ? (t('children.text_2')) : (t('children.text_3'))}
                       </Badge>
                     </div>
 
@@ -383,12 +382,10 @@ export default function ChildrenPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold">
-                  {isBn ? 'বিষয় তালিকা' : 'Subjects List'}
+                  {t('children.text_4')}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  {isBn
-                    ? 'প্রাক-নির্ধারিত বিষয়সমূহ এবং প্রয়োজন অনুসারে নতুন বিষয় যোগ করুন'
-                    : 'Preloaded subjects with bilingual names. You can add custom subjects.'}
+                  {t('children.text_5')}
                 </CardDescription>
               </div>
             </div>
@@ -403,12 +400,12 @@ export default function ChildrenPage() {
       <Modal
         isOpen={addModalOpen}
         onClose={() => setAddModalOpen(false)}
-        title={t('child.add', 'Create Student Account')}
+        title={t('child.create_account', 'Create Student Account')}
         description="Set up an independent student login with email and password. Students log in via the main login page to access their dedicated portal."
       >
         <form onSubmit={handleCreate} className="space-y-4 pt-1">
           <div>
-            <Label className="text-xs font-semibold">{t('child.name', 'Student Full Name')}</Label>
+            <Label className="text-xs font-semibold">{t('child.student_full_name', 'Student Full Name')}</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -420,7 +417,7 @@ export default function ChildrenPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-semibold">{t('child.nickname', 'Nickname (Optional)')}</Label>
+              <Label className="text-xs font-semibold">{t('child.nickname_optional', 'Nickname (Optional)')}</Label>
               <Input
                 value={form.nickname}
                 onChange={(e) => setForm({ ...form, nickname: e.target.value })}
@@ -507,7 +504,7 @@ export default function ChildrenPage() {
               {t('common.cancel', 'Cancel')}
             </Button>
             <Button type="submit" size="sm" disabled={loading}>
-              {loading ? t('common.loading', 'Creating...') : t('child.add', 'Create Student Account')}
+              {loading ? t('common.creating', 'Creating...') : t('child.create_account', 'Create Student Account')}
             </Button>
           </div>
         </form>
@@ -604,7 +601,7 @@ export default function ChildrenPage() {
               {t('common.cancel', 'Cancel')}
             </Button>
             <Button type="submit" size="sm" disabled={loading}>
-              {loading ? t('common.loading', 'Saving...') : t('common.save', 'Save Changes')}
+              {loading ? t('common.saving', 'Saving...') : t('common.save', 'Save Changes')}
             </Button>
           </div>
         </form>
@@ -647,7 +644,7 @@ export default function ChildrenPage() {
               {t('common.cancel', 'Cancel')}
             </Button>
             <Button type="submit" size="sm" disabled={loading || newPassword.length < 4}>
-              {loading ? t('common.loading', 'Saving...') : 'Update Password'}
+              {loading ? t('common.saving', 'Saving...') : 'Update Password'}
             </Button>
           </div>
         </form>
@@ -682,16 +679,31 @@ export default function ChildrenPage() {
 }
 
 function SubjectsManager() {
+  const { t, isBn } = useI18n();
+  const { activeChild, childrenList } = useAuth();
   const [list, setList] = useState<any[]>([]);
+  const [assigned, setAssigned] = useState<any[]>([]);
   const [nameEn, setNameEn] = useState('');
   const [nameBn, setNameBn] = useState('');
   const [loading, setLoading] = useState(false);
+  const [addError, setAddError] = useState('');
+  const [assignError, setAssignError] = useState('');
+
+  /**
+   * The child whose subject list is being managed.
+   *
+   * The subject↔child relation is now owner-scoped on the server, so the child has to
+   * be named explicitly. Without one, the manager only lists the account's catalogue.
+   */
+  const child = activeChild || childrenList?.[0] || null;
 
   const load = () => {
     api
       .get('/subjects')
       .then((r) => setList(r.data.data))
       .catch(() =>
+        // The server was unreachable — showing the *default* catalogue is honest
+        // (these are the built-in subjects), so it stays.
         setList([
           { nameEn: 'Mathematics', nameBn: 'গণিত' },
           { nameEn: 'Physics', nameBn: 'পদার্থবিজ্ঞান' },
@@ -707,25 +719,92 @@ function SubjectsManager() {
       );
   };
 
+  /** The subjects this child is actually assigned. */
+  const loadAssigned = (childId: string) => {
+    api
+      .get(`/subjects/children/${childId}/subjects`)
+      .then((r) => setAssigned(r.data.data || []))
+      .catch(() => setAssigned([]));
+  };
+
   useEffect(() => {
     load();
   }, []);
 
+  useEffect(() => {
+    if (child?.id) loadAssigned(child.id);
+    else setAssigned([]);
+  }, [child?.id]);
+
+  async function assign(subjectId: string) {
+    if (!child?.id) return;
+    setAssignError('');
+    try {
+      await api.post(`/subjects/children/${child.id}/subjects/${subjectId}`, {});
+      loadAssigned(child.id);
+    } catch (err: any) {
+      const serverMsg = err?.response?.data?.error?.message;
+      setAssignError(serverMsg || t('children.text_7'));
+    }
+  }
+
+  async function unassign(subjectIds: string[]) {
+    if (!child?.id) return;
+    setAssignError('');
+    try {
+      await Promise.all(subjectIds.map((subjectId) =>
+        api.delete(`/subjects/children/${child.id}/subjects/${subjectId}`)
+      ));
+      loadAssigned(child.id);
+    } catch (err: any) {
+      const serverMsg = err?.response?.data?.error?.message;
+      setAssignError(serverMsg || t('children.text_7'));
+    }
+  }
+
   async function add() {
     if (!nameEn) return;
     setLoading(true);
+    setAddError('');
     try {
       await api.post('/subjects', { nameEn, nameBn, curriculum: 'NCTB', grade: 'Class 8' });
       setNameEn('');
       setNameBn('');
       load();
-    } catch {
-      // Mock addition
-      setList((prev) => [...prev, { nameEn, nameBn, isCustom: true }]);
-      setNameEn('');
-      setNameBn('');
+    } catch (err: any) {
+      // The old code added the subject to local state on failure, so it appeared
+      // in the list as if it were saved — then vanished on the next reload.
+      const serverMsg = err?.response?.data?.error?.message;
+      setAddError(
+        serverMsg ||
+          (t('children.text_6'))
+      );
     } finally {
       setLoading(false);
+    }
+  }
+
+  // The catalogue can contain the same subject for multiple grades or seed rows.
+  // Show one card per normalized name, while retaining every assigned record ID.
+  const subjectGroups = new Map<string, { subject: any; assignedIds: string[] }>();
+  const assignedIds = new Set(assigned.map((subject) => subject.id));
+  const normalizeName = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+  for (const subject of list) {
+    const key = normalizeName(subject.nameEn || subject.nameBn || subject.id || '');
+    const group = subjectGroups.get(key);
+    if (!group) {
+      subjectGroups.set(key, {
+        subject,
+        assignedIds: assignedIds.has(subject.id) ? [subject.id] : [],
+      });
+    } else {
+      if (assignedIds.has(subject.id) && !group.assignedIds.includes(subject.id)) {
+        group.assignedIds.push(subject.id);
+      }
+      // Prefer the child's grade when choosing which record to assign.
+      if (subject.grade === child?.grade && subject.curriculum === child?.curriculum) {
+        group.subject = subject;
+      }
     }
   }
 
@@ -750,29 +829,70 @@ function SubjectsManager() {
         </Button>
       </div>
 
+      {addError && (
+        <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs font-semibold">
+          {addError}
+        </div>
+      )}
+
       {/* Scrollable Subject Box: 6 subjects visible on mobile (3 rows x 2 cols), rest scrollable within box */}
       <div className="max-h-[178px] sm:max-h-[235px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 overscroll-contain">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1 pb-1">
-          {list.map((s: any, i: number) => (
-            <div
-              key={i}
-              className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/20 text-xs hover:bg-muted/40 transition-colors h-[52px]"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold truncate text-foreground text-xs leading-tight">{s.nameEn}</p>
-                {s.nameBn && (
-                  <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">{s.nameBn}</p>
-                )}
+          {Array.from(subjectGroups, ([key, { subject: s, assignedIds }]) => {
+            const isAssigned = assignedIds.length > 0;
+            return (
+              <div
+                key={key}
+                className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/20 text-xs hover:bg-muted/40 transition-colors h-[52px]"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold truncate text-foreground text-xs leading-tight">{s.nameEn}</p>
+                  {s.nameBn && (
+                    <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">{s.nameBn}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {s.isCustom && (
+                    <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                      Custom
+                    </Badge>
+                  )}
+                  {child && (
+                    <button
+                      onClick={() => (isAssigned ? unassign(assignedIds) : assign(s.id))}
+                      title={isAssigned ? t('children.text_8') : t('children.text_9')}
+                      aria-label={isAssigned ? t('children.text_8') : t('children.text_9')}
+                      className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-colors ${
+                        isAssigned
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-card border-border text-muted-foreground hover:border-primary hover:text-primary'
+                      }`}
+                    >
+                      {isAssigned ? (
+                        <Check className="w-3 h-3" />
+                      ) : (
+                        <Plus className="w-3 h-3" />
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
-              {s.isCustom && (
-                <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1 shrink-0">
-                  Custom
-                </Badge>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
+
+      {assignError && (
+        <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs font-semibold">
+          {assignError}
+        </div>
+      )}
+
+      {child && (
+        <p className="text-[11px] text-muted-foreground">
+          {t('children.text_10', { p0: child.name }, `Assigned to ${child.name}`)}
+        </p>
+      )}
     </div>
   );
 }

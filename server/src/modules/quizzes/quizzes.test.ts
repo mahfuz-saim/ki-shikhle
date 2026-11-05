@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import { calculateSmartTime, getAutoQuizSchedule, saveAutoQuizSchedule, runAutoQuizSchedule } from './quizzes.service';
+import { demoParent, demoChildIds } from '../../test-utils/actors';
 
 const quizOutputSchema = z.object({
   questions: z.array(z.object({
@@ -48,15 +49,15 @@ describe('Smart Dynamic Timing & Auto Quiz Scheduling', () => {
   });
 
   it('generates auto-scheduled quiz for child with 1-day-old spaced repetition', async () => {
-    const childId = 'demo-child-1';
-    const parentId = 'demo-parent';
+    const actor = demoParent();
+    const childId = demoChildIds.rahim;
 
-    const schedule = await getAutoQuizSchedule(childId, parentId);
+    const schedule = await getAutoQuizSchedule(actor, childId);
     expect(schedule.enabled).toBe(true);
     expect(schedule.topicStrategy).toBe('one_day_old');
     expect(schedule.timeStrategy).toBe('ai_dynamic');
 
-    const runResult = await runAutoQuizSchedule(childId, parentId);
+    const runResult = await runAutoQuizSchedule(actor, childId);
     expect(runResult.quiz).toBeDefined();
     expect(runResult.quiz.isAutoScheduled).toBe(true);
     expect(runResult.quiz.questions.length).toBeGreaterThan(0);
@@ -64,10 +65,10 @@ describe('Smart Dynamic Timing & Auto Quiz Scheduling', () => {
   });
 
   it('generates grade-appropriate questions for Class 5 student Tasnim', async () => {
-    const childId = 'demo-child-2';
-    const parentId = 'demo-parent';
+    const actor = demoParent();
+    const childId = demoChildIds.tasnim;
 
-    const runResult = await runAutoQuizSchedule(childId, parentId);
+    const runResult = await runAutoQuizSchedule(actor, childId);
     expect(runResult.quiz).toBeDefined();
     expect(runResult.quiz.questions.length).toBe(5);
 
@@ -80,10 +81,10 @@ describe('Smart Dynamic Timing & Auto Quiz Scheduling', () => {
   });
 
   it('generates college-level questions for Class 11 student Fahim', async () => {
-    const childId = 'demo-child-3';
-    const parentId = 'demo-parent';
+    const actor = demoParent();
+    const childId = demoChildIds.fahim;
 
-    const runResult = await runAutoQuizSchedule(childId, parentId);
+    const runResult = await runAutoQuizSchedule(actor, childId);
     expect(runResult.quiz).toBeDefined();
     expect(runResult.quiz.questions.length).toBe(5);
 
@@ -94,21 +95,21 @@ describe('Smart Dynamic Timing & Auto Quiz Scheduling', () => {
   });
 
   it('respects question count configuration (e.g. 3 questions and 8 questions)', async () => {
-    const childId = 'demo-child-1';
-    const parentId = 'demo-parent';
+    const actor = demoParent();
+    const childId = demoChildIds.rahim;
 
     // Set 3 questions
-    await saveAutoQuizSchedule(childId, parentId, { questionCount: 3 });
-    const res3 = await runAutoQuizSchedule(childId, parentId);
+    await saveAutoQuizSchedule(actor, childId, { questionCount: 3 });
+    const res3 = await runAutoQuizSchedule(actor, childId);
     expect(res3.quiz.questions.length).toBe(3);
 
     // Set 8 questions
-    await saveAutoQuizSchedule(childId, parentId, { questionCount: 8 });
-    const res8 = await runAutoQuizSchedule(childId, parentId);
+    await saveAutoQuizSchedule(actor, childId, { questionCount: 8 });
+    const res8 = await runAutoQuizSchedule(actor, childId);
     expect(res8.quiz.questions.length).toBe(8);
 
     // Reset to 5
-    await saveAutoQuizSchedule(childId, parentId, { questionCount: 5 });
+    await saveAutoQuizSchedule(actor, childId, { questionCount: 5 });
   }, 15000);
 
   it('runs auto quiz scheduler background job for all active children', async () => {

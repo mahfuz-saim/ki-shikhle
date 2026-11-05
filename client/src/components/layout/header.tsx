@@ -13,6 +13,7 @@ import {
   ChevronDown,
   User as UserIcon,
   LogOut,
+  LogIn,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth/auth-context';
 import { useI18n } from '@/lib/i18n-context';
@@ -20,7 +21,7 @@ import { Button } from '@/components/ui/button';
 
 export function Header() {
   const { theme, setTheme } = useTheme();
-  const { user, activeChild, setActiveChild, childrenList, logout, subscription } = useAuth();
+  const { user, activeChild, setActiveChild, childrenList, logout, subscription, exitChildMode, isChildMode } = useAuth();
   const { locale, toggleLocale, t, isBn } = useI18n();
 
   const [childDropdownOpen, setChildDropdownOpen] = useState(false);
@@ -122,21 +123,23 @@ export function Header() {
                   </p>
                   <div className="space-y-0.5">
                     {childrenList.map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={() => {
-                          setActiveChild(c);
-                          setChildDropdownOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${
-                          activeChild?.id === c.id
-                            ? 'bg-primary text-primary-foreground font-semibold'
-                            : 'hover:bg-muted text-foreground'
-                        }`}
-                      >
-                        <span className="truncate">{c.name}</span>
-                        <span className="text-[10px] opacity-75 shrink-0 ml-1.5">{c.grade}</span>
-                      </button>
+                      <div key={c.id}>
+                        <button
+                          onClick={() => {
+                            setActiveChild(c);
+                            setChildDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${
+                            activeChild?.id === c.id
+                              ? 'bg-primary text-primary-foreground font-semibold'
+                              : 'hover:bg-muted text-foreground'
+                          }`}
+                        >
+                          <span className="truncate">{c.name}</span>
+                          <span className="text-[10px] opacity-75 shrink-0 ml-1.5">{c.grade}</span>
+                        </button>
+
+                      </div>
                     ))}
                   </div>
                   <div className="border-t my-1 pt-1">
@@ -145,7 +148,7 @@ export function Header() {
                       onClick={() => setChildDropdownOpen(false)}
                       className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-primary hover:bg-primary/10 transition-colors font-medium"
                     >
-                      + {t('child.add', 'Manage / Add Student')}
+                      + {t('child.manage_accounts', 'Manage / Add Student')}
                     </Link>
                   </div>
                 </div>
@@ -182,12 +185,12 @@ export function Header() {
               />
               <span>
                 {activePlanCode === 'pro'
-                  ? (isBn ? 'প্রো ফ্যামিলি (১৫০ AI কুইজ/মাস)' : 'Pro Family (150 Quizzes/mo)')
+                  ? (t('header.ai'))
                   : activePlanCode === 'premium'
-                  ? (isBn ? 'প্রিমিয়াম (৫০ AI কুইজ + অটো কুইজ)' : 'Premium (50 Quizzes + Auto Quiz)')
+                  ? (t('header.ai_2'))
                   : activePlanCode === 'basic'
-                  ? (isBn ? 'বেসিক (১০ AI কুইজ/মাস)' : 'Basic Plan (10 Quizzes/mo)')
-                  : (isBn ? 'ফ্রি প্ল্যান (২ AI কুইজ/মাস)' : 'Free Tier (2 Quizzes/mo)')}
+                  ? (t('header.ai_3'))
+                  : (t('header.ai_4'))}
               </span>
             </div>
           </Link>
@@ -256,8 +259,22 @@ export function Header() {
                   className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  {t('nav.billing', 'Subscription & Billing')}
+                  {t('nav.subscription_billing', 'Subscription & Billing')}
                 </Link>
+                {/* Leave the child portal without signing the parent out. */}
+                {isChildMode && (
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      exitChildMode?.();
+                      window.location.href = '/dashboard';
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-primary hover:bg-primary/10 transition-colors mt-1 border-t pt-1.5"
+                  >
+                    <LogIn className="w-3.5 h-3.5" />
+                    {t('childMode.exit', 'Back to parent account')}
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setUserMenuOpen(false);
@@ -281,7 +298,7 @@ export function Header() {
                   >
                     <span className="flex items-center gap-2">
                       <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>{isBn ? 'ভাষা (Language)' : 'Language (ভাষা)'}</span>
+                      <span>{t('header.language')}</span>
                     </span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
                       {locale === 'en' ? 'বাংলা' : 'EN'}
@@ -302,10 +319,10 @@ export function Header() {
                       ) : (
                         <Moon className="w-3.5 h-3.5 text-indigo-500" />
                       )}
-                      <span>{isBn ? 'থিম (Theme)' : 'Theme'}</span>
+                      <span>{t('header.theme')}</span>
                     </span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize">
-                      {theme === 'dark' ? (isBn ? 'ডার্ক' : 'Dark') : (isBn ? 'লাইট' : 'Light')}
+                      {theme === 'dark' ? (t('header.text')) : (t('header.text_2'))}
                     </span>
                   </button>
                 </div>
@@ -318,14 +335,55 @@ export function Header() {
   );
 }
 
+/**
+ * A banner showing how many days of the free trial are left.
+ *
+ * This component computed `trialDays` and then returned `null` — it was dead
+ * code that never rendered. It now actually renders, but only when the account
+ * is genuinely on a trial (a `trialEndsAt` in the future). Accounts with an
+ * active subscription, or no trial at all, see nothing.
+ */
 export function TrialBanner() {
-  const { user } = useAuth();
-  const trialEnds = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
-  const trialDays = trialEnds
-    ? Math.max(0, Math.ceil((trialEnds.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 0;
+  const { user, subscription } = useAuth();
+  const { t, isBn } = useI18n();
 
-  return null;
+  const trialEnds = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  if (!trialEnds || Number.isNaN(trialEnds.getTime())) return null;
+
+  const msRemaining = trialEnds.getTime() - Date.now();
+  if (msRemaining <= 0) return null; // the trial is over
+
+  // A paid subscription supersedes the trial banner.
+  const subStatus = subscription?.status;
+  if (subStatus && subStatus !== 'trialing' && subStatus !== 'trial') return null;
+
+  const trialDays = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
+
+  return (
+    <div className="w-full px-4 sm:px-6 md:px-8 pt-3">
+      <div
+        className={`rounded-2xl border px-4 py-2.5 text-xs font-semibold flex flex-wrap items-center justify-between gap-2 ${
+          trialDays <= 3
+            ? 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'
+            : 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300'
+        }`}
+        role="status"
+      >
+        <span className="flex items-center gap-2">
+          <Sparkles className="w-3.5 h-3.5 shrink-0" />
+          {trialDays <= 3
+            ? t('header.your_free_trial_ends_in_day', { p0: trialDays, p1: trialDays === 1 ? '' : 's' }, `Your free trial ends in ${trialDays} day${trialDays === 1 ? '' : 's'}!`)
+            : t('header.days_left_in_your_free_trial', { p0: trialDays }, `${trialDays} days left in your free trial.`)}
+        </span>
+        <Link
+          href="/billing"
+          className="underline underline-offset-2 hover:no-underline font-bold shrink-0"
+        >
+          {t('header.text_3')}
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 export default Header;

@@ -1,0 +1,420 @@
+/**
+ * The canonical demo dataset.
+ *
+ * These records belong to the demo tenant (`DEMO_PARENT_ID`) and to nobody else. They are
+ * the *showcase* content for the seeded demo account: a full school/college timetable, a
+ * realistic set of learning entries, and so on.
+ *
+ * Why one shared file
+ * -------------------
+ * The dataset used to live twice — once as `const demoXFixtures` next to each service
+ * (for the no-database fallback) and once as inline literals in the Prisma seed scripts.
+ * The two copies drifted, and the drift was visible: the database rows had no `subject`
+ * or `periodName`, so the seeded demo account showed a timetable with blank subject
+ * labels while the in-memory fallback showed the full one.
+ *
+ * Both the seed scripts and the in-memory fixtures now read from here, so a demo timetable
+ * is defined exactly once.
+ *
+ * The child ids are the demo tenant's **real** ids. Nothing here is keyed on an id prefix,
+ * because a prefix check is exactly the shape of bug that caused the original cross-tenant
+ * data leak.
+ */
+
+import { DEMO_CHILD_IDS, DEMO_PARENT_ID } from './store';
+
+export interface DemoRoutine {
+  id: string;
+  childId: string;
+  name: string;
+  periodName?: string | null;
+  subject?: string | null;
+  teacher?: string | null;
+  room?: string | null;
+  source: 'school' | 'college' | 'tuition' | 'self_study';
+  weekdays: number[];
+  startTime: string;
+  durationMin: number;
+  startsOn: Date;
+  active: boolean;
+}
+
+const daysAgo = (d: number) => new Date(Date.now() - d * 86400000);
+
+/** Rahim — Class 8, JSC. School periods Sunday to Thursday, plus tuition and self-study. */
+const rahimRoutines: DemoRoutine[] = [
+  {
+    id: 'routine-rahim-p1',
+    childId: DEMO_CHILD_IDS.rahim,
+    name: '১ম পিরিয়ড: বাংলা ১ম পত্র (Bangla 1st)',
+    periodName: '১ম পিরিয়ড',
+    subject: 'Bangla 1st Paper',
+    teacher: 'কবির আহমেদ স্যার',
+    room: 'রুম ৩০২',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '09:00',
+    durationMin: 45,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-rahim-p2',
+    childId: DEMO_CHILD_IDS.rahim,
+    name: '২য় পিরিয়ড: ইংরেজি ১ম পত্র (English 1st)',
+    periodName: '২য় পিরিয়ড',
+    subject: 'English 1st Paper',
+    teacher: 'নাসরিন সুলতানা ম্যাডাম',
+    room: 'রুম ৩০২',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '09:45',
+    durationMin: 45,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-rahim-p3',
+    childId: DEMO_CHILD_IDS.rahim,
+    name: '৩য় পিরিয়ড: সাধারণ গণিত (Mathematics)',
+    periodName: '৩য় পিরিয়ড',
+    subject: 'Mathematics',
+    teacher: 'আবুল হোসেন স্যার',
+    room: 'রুম ৩০২',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '10:30',
+    durationMin: 45,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-rahim-p4',
+    childId: DEMO_CHILD_IDS.rahim,
+    name: '৪র্থ পিরিয়ড: সাধারণ বিজ্ঞান (Science)',
+    periodName: '৪র্থ পিরিয়ড',
+    subject: 'General Science',
+    teacher: 'ড. রফিকুল ইসলাম',
+    room: 'বিজ্ঞান ল্যাব',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '11:45',
+    durationMin: 45,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-rahim-p5',
+    childId: DEMO_CHILD_IDS.rahim,
+    name: '৫ম পিরিয়ড: বাংলাদেশ ও বিশ্বপরিচয় (BGS)',
+    periodName: '৫ম পিরিয়ড',
+    subject: 'Bangladesh & Global Studies',
+    teacher: 'মাহমুদা বেগম ম্যাডাম',
+    room: 'রুম ৩০২',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '12:30',
+    durationMin: 45,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-rahim-p6',
+    childId: DEMO_CHILD_IDS.rahim,
+    name: '৬ষ্ঠ পিরিয়ড: তথ্য ও যোগাযোগ প্রযুক্তি (ICT)',
+    periodName: '৬ষ্ঠ পিরিয়ড',
+    subject: 'ICT',
+    teacher: 'তানভীর আহমেদ স্যার',
+    room: 'কম্পিউটার ল্যাব',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '13:15',
+    durationMin: 45,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-rahim-1',
+    childId: DEMO_CHILD_IDS.rahim,
+    name: 'গণিত প্রাইভেট — রহিম স্যার',
+    periodName: 'প্রাইভেট',
+    subject: 'Mathematics',
+    teacher: 'রহিম স্যার',
+    room: 'টিউটর হোম',
+    source: 'tuition',
+    weekdays: [0, 2, 4],
+    startTime: '16:00',
+    durationMin: 90,
+    startsOn: daysAgo(60),
+    active: true,
+  },
+  {
+    id: 'routine-rahim-2',
+    childId: DEMO_CHILD_IDS.rahim,
+    name: 'পদার্থবিজ্ঞান ও রসায়ন কোচিং',
+    periodName: 'কোচিং',
+    subject: 'General Science',
+    teacher: 'আহমেদ স্যার',
+    room: 'মাস্টারমাইন্ড ব্রাঞ্চ',
+    source: 'tuition',
+    weekdays: [1, 3],
+    startTime: '17:30',
+    durationMin: 75,
+    startsOn: daysAgo(60),
+    active: true,
+  },
+  {
+    id: 'routine-rahim-7',
+    childId: DEMO_CHILD_IDS.rahim,
+    name: 'সন্ধ্যায় সেলফ স্টাডি ও রিভিশন',
+    periodName: 'সেলফ স্টাডি',
+    subject: 'Self-Study',
+    teacher: 'নিজে',
+    room: 'পড়ার টেবিল',
+    source: 'self_study',
+    weekdays: [0, 1, 2, 3, 4, 5, 6],
+    startTime: '20:00',
+    durationMin: 90,
+    startsOn: daysAgo(60),
+    active: true,
+  },
+];
+
+/** Tasnim — Class 5, PEC. */
+const tasnimRoutines: DemoRoutine[] = [
+  {
+    id: 'routine-tasnim-p1',
+    childId: DEMO_CHILD_IDS.tasnim,
+    name: '১ম পিরিয়ড: প্রাথমিক বাংলা',
+    periodName: '১ম পিরিয়ড',
+    subject: 'Bangla',
+    teacher: 'ফরিদা ইয়াসমিন ম্যাডাম',
+    room: 'রুম ২০৩',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '09:30',
+    durationMin: 45,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-tasnim-p2',
+    childId: DEMO_CHILD_IDS.tasnim,
+    name: '২য় পিরিয়ড: প্রাথমিক ইংরেজি',
+    periodName: '২য় পিরিয়ড',
+    subject: 'English',
+    teacher: 'সায়মা সুলতানা ম্যাডাম',
+    room: 'রুম ২০৩',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '10:15',
+    durationMin: 45,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-tasnim-p3',
+    childId: DEMO_CHILD_IDS.tasnim,
+    name: '৩য় পিরিয়ড: প্রাথমিক গণিত',
+    periodName: '৩য় পিরিয়ড',
+    subject: 'Mathematics',
+    teacher: 'মোশাররফ হোসেন স্যার',
+    room: 'রুম ২০৩',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '11:00',
+    durationMin: 45,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-tasnim-p4',
+    childId: DEMO_CHILD_IDS.tasnim,
+    name: '৪র্থ পিরিয়ড: প্রাথমিক বিজ্ঞান',
+    periodName: '৪র্থ পিরিয়ড',
+    subject: 'General Science',
+    teacher: 'নুরুল ইসলাম স্যার',
+    room: 'রুম ২০৩',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '12:15',
+    durationMin: 45,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-tasnim-p5',
+    childId: DEMO_CHILD_IDS.tasnim,
+    name: '৫ম পিরিয়ড: বাংলাদেশ ও বিশ্বপরিচয়',
+    periodName: '৫ম পিরিয়ড',
+    subject: 'Bangladesh & Global Studies',
+    teacher: 'রোকসানা আক্তার ম্যাডাম',
+    room: 'রুম ২০৩',
+    source: 'school',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '13:00',
+    durationMin: 45,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-tasnim-1',
+    childId: DEMO_CHILD_IDS.tasnim,
+    name: 'প্রাথমিক গণিত ও ইংরেজি প্রাইভেট',
+    periodName: 'প্রাইভেট',
+    subject: 'Mathematics',
+    teacher: 'শামীমা ম্যাডাম',
+    room: 'টিউটর হোম',
+    source: 'tuition',
+    weekdays: [0, 2, 5],
+    startTime: '16:30',
+    durationMin: 60,
+    startsOn: daysAgo(60),
+    active: true,
+  },
+  {
+    id: 'routine-tasnim-2',
+    childId: DEMO_CHILD_IDS.tasnim,
+    name: 'সন্ধ্যায় হোমওয়ার্ক ও রিভিশন',
+    periodName: 'সেলফ স্টাডি',
+    subject: 'Self-Study',
+    teacher: 'নিজে',
+    room: 'পড়ার টেবিল',
+    source: 'self_study',
+    weekdays: [0, 1, 2, 3, 4, 5, 6],
+    startTime: '18:30',
+    durationMin: 75,
+    startsOn: daysAgo(60),
+    active: true,
+  },
+];
+
+/** Fahim — Class 11, HSC Science. College periods plus coaching. */
+const fahimRoutines: DemoRoutine[] = [
+  {
+    id: 'routine-fahim-c1',
+    childId: DEMO_CHILD_IDS.fahim,
+    name: '১ম পিরিয়ড: পদার্থবিজ্ঞান ১ম পত্র',
+    periodName: '১ম পিরিয়ড',
+    subject: 'Physics 1st Paper',
+    teacher: 'ড. মাহবুব স্যার',
+    room: 'ল্যাব ৪',
+    source: 'college',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '08:30',
+    durationMin: 50,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-fahim-c2',
+    childId: DEMO_CHILD_IDS.fahim,
+    name: '২য় পিরিয়ড: রসায়ন ১ম পত্র',
+    periodName: '২য় পিরিয়ড',
+    subject: 'Chemistry 1st Paper',
+    teacher: 'তাহমিনা ম্যাডাম',
+    room: 'কেমিস্ট্রি ল্যাব',
+    source: 'college',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '09:20',
+    durationMin: 50,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-fahim-c3',
+    childId: DEMO_CHILD_IDS.fahim,
+    name: '৩য় পিরিয়ড: উচ্চতর গণিত ১ম পত্র',
+    periodName: '৩য় পিরিয়ড',
+    subject: 'Higher Mathematics',
+    teacher: 'এনামুল স্যার',
+    room: 'রুম ৪০১',
+    source: 'college',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '10:10',
+    durationMin: 50,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-fahim-c4',
+    childId: DEMO_CHILD_IDS.fahim,
+    name: '৪র্থ পিরিয়ড: জীববিজ্ঞান ১ম পত্র',
+    periodName: '৪র্থ পিরিয়ড',
+    subject: 'Biology 1st Paper',
+    teacher: 'ফারহানা ম্যাডাম',
+    room: 'বায়োলজি ল্যাব',
+    source: 'college',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '11:20',
+    durationMin: 50,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-fahim-c5',
+    childId: DEMO_CHILD_IDS.fahim,
+    name: '৫ম পিরিয়ড: আইসিটি ল্যাব ও প্রোগ্রামিং',
+    periodName: '৫ম পিরিয়ড',
+    subject: 'ICT',
+    teacher: 'রাকিবুল হাসান',
+    room: 'কম্পিউটার ল্যাব',
+    source: 'college',
+    weekdays: [0, 1, 2, 3, 4],
+    startTime: '12:10',
+    durationMin: 50,
+    startsOn: daysAgo(90),
+    active: true,
+  },
+  {
+    id: 'routine-fahim-t1',
+    childId: DEMO_CHILD_IDS.fahim,
+    name: 'পদার্থবিজ্ঞান কোচিং — গতিবিদ্যা',
+    periodName: 'কোচিং',
+    subject: 'Physics 1st Paper',
+    teacher: 'আহমেদ স্যার',
+    room: 'ইউসিসি ব্রাঞ্চ',
+    source: 'tuition',
+    weekdays: [0, 2, 4],
+    startTime: '16:30',
+    durationMin: 75,
+    startsOn: daysAgo(60),
+    active: true,
+  },
+  {
+    id: 'routine-fahim-t2',
+    childId: DEMO_CHILD_IDS.fahim,
+    name: 'রসায়ন প্রাইভেট — গুণগত রসায়ন',
+    periodName: 'প্রাইভেট',
+    subject: 'Chemistry 1st Paper',
+    teacher: 'শফিক স্যার',
+    room: 'টিউটর হোম',
+    source: 'tuition',
+    weekdays: [1, 3],
+    startTime: '17:00',
+    durationMin: 60,
+    startsOn: daysAgo(60),
+    active: true,
+  },
+  {
+    id: 'routine-fahim-s1',
+    childId: DEMO_CHILD_IDS.fahim,
+    name: 'উচ্চতর গণিত সেলফ স্টাডি ও অনুশীলন',
+    periodName: 'সেলফ স্টাডি',
+    subject: 'Higher Mathematics',
+    teacher: 'নিজে',
+    room: 'পড়ার টেবিল',
+    source: 'self_study',
+    weekdays: [0, 1, 2, 3, 4, 5, 6],
+    startTime: '20:30',
+    durationMin: 60,
+    startsOn: daysAgo(60),
+    active: true,
+  },
+];
+
+/** Every demo routine, in one list. */
+export const DEMO_ROUTINES: DemoRoutine[] = [...rahimRoutines, ...tasnimRoutines, ...fahimRoutines];
+
+/** The demo tenant's id — the owner of every seeded row. */
+export const DEMO_OWNER_ID = DEMO_PARENT_ID;

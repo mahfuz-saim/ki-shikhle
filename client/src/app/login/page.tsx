@@ -16,7 +16,7 @@ import { ArrowLeft, Sparkles, GraduationCap, UserCheck, Eye, EyeOff } from 'luci
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,57 +43,21 @@ export default function LoginPage() {
       }
       router.push('/dashboard');
     } catch (err: any) {
+      // Show the real error. This used to have a catch-all that logged the visitor in as
+      // the demo parent (or as a demo child, picked by substring-matching their email)
+      // on ANY failure — including a typo'd password and including the API being down.
+      // So a wrong password "worked", and every account could reach the demo family.
       const serverMsg = err.response?.data?.error?.message;
-      if (err.response?.status === 401 && serverMsg) {
+      if (serverMsg) {
         setError(serverMsg);
-        setLoading(false);
-        return;
-      }
-
-      // Offline dev fallback
-      const normEmail = email.trim().toLowerCase();
-      if (normEmail.includes('tasnim')) {
-        login('demo-child-token-tasnim', {
-          id: 'demo-child-2',
-          name: 'Tasnim Islam',
-          email: normEmail,
-          role: 'child',
-          childId: 'demo-child-2',
-          grade: 'Class 5',
-          curriculum: 'NCTB',
-        });
-        router.push('/child');
-      } else if (normEmail.includes('fahim')) {
-        login('demo-child-token-fahim', {
-          id: 'demo-child-3',
-          name: 'Fahim Islam',
-          email: normEmail,
-          role: 'child',
-          childId: 'demo-child-3',
-          grade: 'Class 11',
-          curriculum: 'NCTB',
-        });
-        router.push('/child');
-      } else if (normEmail.includes('rahim') || normEmail.includes('student')) {
-        login('demo-child-token-rahim', {
-          id: 'demo-child-1',
-          name: 'Rahim Ahmed',
-          email: normEmail,
-          role: 'child',
-          childId: 'demo-child-1',
-          grade: 'Class 8',
-          curriculum: 'NCTB',
-        });
-        router.push('/child');
+      } else if (err.response?.status === 401) {
+        setError(t('login.text'));
+      } else if (err.request) {
+        setError(
+          t('login.text_2')
+        );
       } else {
-        login('demo-parent-token', {
-          id: 'parent-demo',
-          name: 'Rafiqul Islam',
-          email: normEmail,
-          role: 'parent',
-          trialEndsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
-        });
-        router.push('/dashboard');
+        setError(t('login.text_3'));
       }
     } finally {
       setLoading(false);
@@ -129,7 +93,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-4">
         <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-1">
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>{isBn ? 'হোমপেজে ফিরুন' : 'Back to Home'}</span>
+          <span>{t('login.text_4')}</span>
         </Link>
 
         <Card className="rounded-3xl border shadow-xl bg-card">
@@ -153,20 +117,21 @@ export default function LoginPage() {
               />
             </div>
             <CardTitle className="text-2xl font-black text-foreground">
-              {isBn ? 'লগইন করুন' : 'Welcome Back'}
+              {t('login.text_5')}
             </CardTitle>
             <CardDescription className="text-xs">
-              {isBn
-                ? 'অভিভাবক অথবা শিক্ষার্থীর ইমেইল ও পাসওয়ার্ড দিয়ে লগইন করুন'
-                : 'Sign in with your parent or student account to enter your portal'}
+              {t('login.text_6')}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4 pt-2">
             <form onSubmit={onSubmit} className="space-y-3.5">
               <div>
-                <Label className="text-xs font-semibold">{isBn ? 'ইমেইল অ্যাড্রেস' : 'Email Address'}</Label>
+                <Label htmlFor="login-email" className="text-xs font-semibold">
+                  {t('login.text_7')}
+                </Label>
                 <Input
+                  id="login-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -178,13 +143,16 @@ export default function LoginPage() {
 
               <div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold">{isBn ? 'পাসওয়ার্ড' : 'Password'}</Label>
+                  <Label htmlFor="login-password" className="text-xs font-semibold">
+                    {t('login.text_8')}
+                  </Label>
                   <Link href="/forgot-password" className="text-[11px] text-primary hover:underline">
-                    {isBn ? 'পাসওয়ার্ড ভুলে গেছেন?' : 'Forgot password?'}
+                    {t('login.text_9')}
                   </Link>
                 </div>
                 <div className="relative mt-1">
                   <Input
+                    id="login-password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -196,7 +164,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5 focus:outline-none"
-                    title={showPassword ? (isBn ? 'পাসওয়ার্ড লুকান' : 'Hide password') : (isBn ? 'পাসওয়ার্ড দেখুন' : 'Show password')}
+                    title={showPassword ? (t('login.text_10')) : (t('login.text_11'))}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? (
@@ -215,7 +183,7 @@ export default function LoginPage() {
                 className="w-full h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
                 disabled={loading}
               >
-                {loading ? (isBn ? 'লগইন হচ্ছে...' : 'Logging in...') : isBn ? 'লগইন করুন' : 'Sign In'}
+                {loading ? (t('login.text_12')) : t('login.sign_in')}
               </Button>
             </form>
 
@@ -223,7 +191,7 @@ export default function LoginPage() {
             <div className="p-3.5 rounded-2xl bg-muted/50 border space-y-2.5">
               <p className="text-[11px] text-muted-foreground font-semibold flex items-center justify-center gap-1">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>{isBn ? 'ডেমো অ্যাকাউন্টের ক্রেডেনশিয়াল লোড করুন' : "Load demo account's credentials"}</span>
+                <span>{t('login.load_demo_account_s_credentials')}</span>
               </p>
               <div className="space-y-1.5">
                 <button
@@ -286,7 +254,7 @@ export default function LoginPage() {
             <p className="text-xs text-center text-muted-foreground pt-1">
               Don&apos;t have an account?{' '}
               <Link href="/register" className="text-primary font-bold hover:underline">
-                {isBn ? 'ফ্রি অ্যাকাউন্ট তৈরি করুন' : 'Create Free Account'}
+                {t('login.text_13')}
               </Link>
             </p>
           </CardContent>

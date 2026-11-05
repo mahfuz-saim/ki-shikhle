@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import * as dashboardSvc from './dashboard.service';
 import { listRoutines } from '../routines/routines.service';
+import { demoParent, demoChildIds } from '../../test-utils/actors';
 
 describe('College Student Dashboard & Study Time (Fahim Islam)', () => {
   it('returns valid college study hours in weekly study time for Fahim', async () => {
-    const studyTimes = await dashboardSvc.studyTime('demo-child-3', 'parent-demo', 'week');
+    const studyTimes = await dashboardSvc.studyTime(demoParent(), demoChildIds.fahim, 'week');
     expect(studyTimes).toBeDefined();
     expect(Array.isArray(studyTimes)).toBe(true);
     expect(studyTimes.length).toBeGreaterThan(0);
@@ -16,7 +17,7 @@ describe('College Student Dashboard & Study Time (Fahim Islam)', () => {
   });
 
   it('returns realistic high-school / college KPIs in summary for Fahim', async () => {
-    const sum = await dashboardSvc.summary('demo-child-3', 'parent-demo');
+    const sum = await dashboardSvc.summary(demoParent(), demoChildIds.fahim);
     expect(sum).toBeDefined();
     expect(sum.kpis).toBeDefined();
     expect(sum.kpis.totalTime).toBeGreaterThanOrEqual(1500); // 26 hours
@@ -25,7 +26,7 @@ describe('College Student Dashboard & Study Time (Fahim Islam)', () => {
   });
 
   it('returns college routines with source "college" for Fahim', async () => {
-    const routines = await listRoutines('demo-child-3', 'parent-demo');
+    const routines = await listRoutines(demoParent(), demoChildIds.fahim);
     expect(routines).toBeDefined();
     expect(routines.length).toBeGreaterThan(0);
 

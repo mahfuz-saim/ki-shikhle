@@ -19,16 +19,57 @@ if (typeof process !== 'undefined' && typeof process.cwd === 'function') {
 
 const isProd = (process.env.NODE_ENV || 'development') === 'production';
 
-// Fallback values so the Cloudflare Worker boots during initial deployment before dashboard secrets are saved
-const getSecret = (name: string, fallback: string) => {
+/**
+ * Read a signing secret.
+ *
+ * There used to be **published constants** here:
+ *
+ *   JWT_ACCESS_SECRET  = 'temp_access_secret_replace_in_dashboard_001'
+ *   JWT_REFRESH_SECRET = 'temp_refresh_secret_replace_in_dashboard_001'
+ *   PASSWORD_PEPPER    = 'temp_pepper_replace_in_dashboard'
+ *
+ * They are in the repository, so they are in every deployment that forgot to set the
+ * real value — which means anyone could mint a valid access token (including one with
+ * `role: 'admin'`) for any account. There is no fallback any more: a missing secret is a
+ * startup error in production.
+ *
+ * In development a **random** per-process secret is generated instead, so two dev
+ * machines do not share a signing key and a restart invalidates old sessions. That is
+ * the correct trade-off: no shared secret, no published constant.
+ */
+function requireSecret(name: string): string {
   const v = process.env[name];
   if (v && v.length >= 16) return v;
-  return v || fallback;
-};
 
-process.env.JWT_ACCESS_SECRET = getSecret('JWT_ACCESS_SECRET', 'temp_access_secret_replace_in_dashboard_001');
-process.env.JWT_REFRESH_SECRET = getSecret('JWT_REFRESH_SECRET', 'temp_refresh_secret_replace_in_dashboard_001');
-if (!process.env.PASSWORD_PEPPER) process.env.PASSWORD_PEPPER = 'temp_pepper_replace_in_dashboard';
+  if (isProd) {
+    // Fail loudly rather than boot with a guessable key.
+    throw new Error(
+      `${name} is missing or too short. Run \`npm run setup\` to generate one, or set it in the environment.`
+    );
+  }
+
+  // Development: a random, per-process secret. Never a shared constant.
+  const generated = randomHex(32);
+  process.env[name] = generated;
+  console.warn(
+    `⚠️  ${name} is not set — generated a random development-only secret. Set it in .env to keep sessions across restarts.`
+  );
+  return generated;
+}
+
+process.env.JWT_ACCESS_SECRET = requireSecret('JWT_ACCESS_SECRET');
+process.env.JWT_REFRESH_SECRET = requireSecret('JWT_REFRESH_SECRET');
+
+if (!process.env.PASSWORD_PEPPER) {
+  if (isProd) {
+    throw new Error(
+      'PASSWORD_PEPPER is missing. Run `npm run setup` to generate one, or set it in the environment.'
+    );
+  }
+  process.env.PASSWORD_PEPPER = randomHex(16);
+  console.warn('⚠️  PASSWORD_PEPPER is not set — generated a random development-only pepper.');
+}
+
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = 'postgresql://placeholder:placeholder@localhost:5432/learntrack';
 }

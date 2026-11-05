@@ -8,13 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
+import { ClassLogNotes } from '@/components/children/class-log-notes';
+import { ClassNoteImageUpload, type ClassNoteImageDraft } from '@/components/children/class-note-image-upload';
 import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
+import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
+import { schoolDate, loadClassLogs, findClassLog, findLogQuiz, isFutureClassDate } from '@/lib/class-logs';
 import { StudyTimeChart } from '@/components/charts/study-time-chart';
 import {
+  RefreshCw,
   Calendar as CalendarIcon,
   Clock,
   Plus,
@@ -121,39 +126,49 @@ function getSubjectColor(subjectName: any = '') {
 
 export default function KidSchedulePage() {
   const { activeChild, user } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   const studentGrade = user?.grade || activeChild?.grade || 'Class 8';
   const institutionType = getInstitutionType(studentGrade);
-  const instInfo = getInstitutionInfo(institutionType, isBn);
+  const instInfo = getInstitutionInfo(institutionType, t);
 
-  const childId = activeChild?.id || (user as any)?.childId || user?.id || 'demo-child-1';
-  const isTasnim = childId === 'demo-child-2' || user?.email?.includes('tasnim') || activeChild?.name?.includes('Tasnim');
-  const isFahim = childId === 'demo-child-3' || user?.email?.includes('fahim') || activeChild?.name?.includes('Fahim') || studentGrade.includes('11') || studentGrade.includes('12') || institutionType === 'college';
+  // The child whose schedule this is, and the demo dataset that applies (if any).
+  const { childId, isTasnim, isFahim, isDemoChild } = useChildScope();
+  // A college-grade student is treated like Fahim for the preset routines, even when
+  // they are not a demo child — the grade is the real signal there.
+  const isCollegeTrack =
+    isFahim || studentGrade.includes('11') || studentGrade.includes('12') || institutionType === 'college';
 
   const [routines, setRoutines] = useState<any[]>([]);
   const [entries, setEntries] = useState<any[]>([]);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [occurrences, setOccurrences] = useState<any[] | null>(null);
+  const [scheduleRevision, setScheduleRevision] = useState(0);
+  const [rescheduleClass, setRescheduleClass] = useState<any>(null);
+  const [rescheduleForm, setRescheduleForm] = useState({ newDate: '', newStartTime: '' });
   const [studyTime, setStudyTime] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Selected Weekday (0=Sun .. 6=Sat) & Selected Date
   const today = new Date();
   const [selectedWeekday, setSelectedWeekday] = useState<number>(today.getDay());
-  const [selectedDate, setSelectedDate] = useState<string>(today.toISOString().slice(0, 10));
-  const [autoAdvancedToTomorrow, setAutoAdvancedToTomorrow] = useState<boolean>(false);
+  const [selectedDate, setSelectedDate] = useState<string>(schoolDate(today));
 
   // Category filter: 'all' | 'school' | 'tuition'
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'school' | 'tuition'>('school');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'school' | 'tuition'>('all');
 
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Currently active class being logged
   const [activeRoutineForLog, setActiveRoutineForLog] = useState<any>(null);
   const [existingEntryForLog, setExistingEntryForLog] = useState<any>(null);
+  const [noteAttachment, setNoteAttachment] = useState<ClassNoteImageDraft | null>(null);
+  const [classLogSaveError, setClassLogSaveError] = useState('');
 
   // Class Log Form state
   const [logForm, setLogForm] = useState({
@@ -184,32 +199,39 @@ export default function KidSchedulePage() {
   });
 
   // Quick routine presets for easy 1-click routine addition
-  const routinePresets = isFahim
+  //
+  // These are **suggestions**, chosen by the child's grade rather than by their name:
+  // a college-track student gets the college routine, a primary-school student gets
+  // the primary one, everyone else gets the middle-school one. The old code branched
+  // on `isFahim` / `isTasnim` — the two demo children — so every real child was given
+  // the demo student's preset list.
+  const isPrimaryTrack = /Class\s*[45](|$)/.test(studentGrade);
+  const routinePresets = isCollegeTrack
     ? [
-        { name: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র' : 'Physics 1st Paper', periodName: '১ম পিরিয়ড', subject: 'Physics 1st Paper', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '08:30', durationMin: 50 },
-        { name: isBn ? 'রসায়ন ১ম পত্র' : 'Chemistry 1st Paper', periodName: '২য় পিরিয়ড', subject: 'Chemistry 1st Paper', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '09:20', durationMin: 50 },
-        { name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching', periodName: 'কোচিং', subject: 'Physics 1st Paper', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:30', durationMin: 75 },
-        { name: isBn ? 'রসায়ন প্রাইভেট' : 'Chemistry Tuition', periodName: 'প্রাইভেট', subject: 'Chemistry 1st Paper', source: 'tuition', weekdays: [1, 3], startTime: '17:00', durationMin: 60 },
-        { name: isBn ? 'উচ্চতর গণিত সেলফ স্টাডি' : 'Higher Math Self-Study', periodName: 'সেলফ স্টাডি', subject: 'Higher Mathematics', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:30', durationMin: 60 },
+        { name: t('childSchedule.text'), periodName: '১ম পিরিয়ড', subject: 'Physics 1st Paper', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '08:30', durationMin: 50 },
+        { name: t('childSchedule.text_2'), periodName: '২য় পিরিয়ড', subject: 'Chemistry 1st Paper', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '09:20', durationMin: 50 },
+        { name: t('childSchedule.text_3'), periodName: 'কোচিং', subject: 'Physics 1st Paper', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:30', durationMin: 75 },
+        { name: t('childSchedule.text_4'), periodName: 'প্রাইভেট', subject: 'Chemistry 1st Paper', source: 'tuition', weekdays: [1, 3], startTime: '17:00', durationMin: 60 },
+        { name: t('childSchedule.text_5'), periodName: 'সেলফ স্টাডি', subject: 'Higher Mathematics', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:30', durationMin: 60 },
       ]
-    : isTasnim
+    : isPrimaryTrack
     ? [
-        { name: isBn ? 'প্রাথমিক বাংলা' : 'Primary Bangla', periodName: '১ম পিরিয়ড', subject: 'Bangla', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:30', durationMin: 45 },
-        { name: isBn ? 'প্রাথমিক ইংরেজি' : 'Primary English', periodName: '২য় পিরিয়ড', subject: 'English', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:15', durationMin: 45 },
-        { name: isBn ? 'প্রাথমিক গণিত প্রাইভেট' : 'Elementary Math Tuition', periodName: 'প্রাইভেট', subject: 'Mathematics', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:00', durationMin: 60 },
-        { name: isBn ? 'ইংরেজি টিউটর' : 'English Tutor', periodName: 'প্রাইভেট', subject: 'English', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 45 },
-        { name: isBn ? 'সন্ধ্যায় সেলফ স্টাডি' : 'Evening Self-Study', periodName: 'সেলফ স্টাডি', subject: 'General Science', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '18:30', durationMin: 75 },
+        { name: t('childSchedule.text_6'), periodName: '১ম পিরিয়ড', subject: 'Bangla', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:30', durationMin: 45 },
+        { name: t('childSchedule.text_7'), periodName: '২য় পিরিয়ড', subject: 'English', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:15', durationMin: 45 },
+        { name: t('childSchedule.text_8'), periodName: 'প্রাইভেট', subject: 'Mathematics', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:00', durationMin: 60 },
+        { name: t('childSchedule.text_9'), periodName: 'প্রাইভেট', subject: 'English', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 45 },
+        { name: t('childSchedule.text_10'), periodName: 'সেলফ স্টাডি', subject: 'General Science', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '18:30', durationMin: 75 },
       ]
     : [
-        { name: isBn ? '১ম পিরিয়ড: বাংলা ১ম পত্র' : '1st Period: Bangla 1st', periodName: '১ম পিরিয়ড', subject: 'Bangla 1st Paper', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:00', durationMin: 45 },
-        { name: isBn ? '২য় পিরিয়ড: ইংরেজি ১ম পত্র' : '2nd Period: English 1st', periodName: '২য় পিরিয়ড', subject: 'English 1st Paper', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:45', durationMin: 45 },
-        { name: isBn ? 'গণিত প্রাইভেট (রহিম স্যার)' : 'Math Tuition (Rahim Sir)', periodName: 'প্রাইভেট', subject: 'Mathematics', source: 'tuition', weekdays: [0, 2, 5], startTime: '16:00', durationMin: 90 },
-        { name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching', periodName: 'কোচিং', subject: 'General Science', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 60 },
-        { name: isBn ? 'আইসিটি ও কম্পিউটার ক্লাস' : 'ICT & Computer Class', periodName: '৬ষ্ঠ পিরিয়ড', subject: 'ICT', source: 'school', weekdays: [1, 4], startTime: '15:00', durationMin: 60 },
-        { name: isBn ? 'রাতে সেলফ স্টাডি' : 'Night Self-Study', periodName: 'সেলফ স্টাডি', subject: 'Mathematics', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:00', durationMin: 90 },
+        { name: t('childSchedule.text_11'), periodName: '১ম পিরিয়ড', subject: 'Bangla 1st Paper', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:00', durationMin: 45 },
+        { name: t('childSchedule.text_12'), periodName: '২য় পিরিয়ড', subject: 'English 1st Paper', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:45', durationMin: 45 },
+        { name: t('childSchedule.text_13'), periodName: 'প্রাইভেট', subject: 'Mathematics', source: 'tuition', weekdays: [0, 2, 5], startTime: '16:00', durationMin: 90 },
+        { name: t('childSchedule.text_3'), periodName: 'কোচিং', subject: 'General Science', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 60 },
+        { name: t('childSchedule.text_14'), periodName: '৬ষ্ঠ পিরিয়ড', subject: 'ICT', source: 'school', weekdays: [1, 4], startTime: '15:00', durationMin: 60 },
+        { name: t('childSchedule.text_15'), periodName: 'সেলফ স্টাডি', subject: 'Mathematics', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:00', durationMin: 90 },
       ];
 
-  const defaultStudyTimeList = isFahim
+  const defaultStudyTimeList = isCollegeTrack
     ? [
         { date: 'Mon', college: 100, tuition: 75, self_study: 60 },
         { date: 'Tue', college: 100, tuition: 60, self_study: 60 },
@@ -219,7 +241,7 @@ export default function KidSchedulePage() {
         { date: 'Sat', college: 0, tuition: 0, self_study: 90 },
         { date: 'Sun', college: 100, tuition: 75, self_study: 60 },
       ]
-    : isTasnim
+    : isPrimaryTrack
     ? [
         { date: 'Mon', school: 45, tuition: 60, self_study: 45 },
         { date: 'Tue', school: 45, tuition: 50, self_study: 45 },
@@ -240,10 +262,19 @@ export default function KidSchedulePage() {
       ];
 
   const currentStudyTime = (Array.isArray(studyTime) && studyTime.length > 0) ? studyTime : defaultStudyTimeList;
-  const collegeMin = currentStudyTime.reduce((sum, d) => sum + (d?.college || 0), 0) || (isFahim ? 500 : 0);
-  const schoolMin = currentStudyTime.reduce((sum, d) => sum + (d?.school || 0), 0) || (institutionType === 'school' ? (isTasnim ? 220 : 380) : 0);
-  const tuitionMin = currentStudyTime.reduce((sum, d) => sum + (d?.tuition || 0), 0) || (isFahim ? 435 : isTasnim ? 280 : 405);
-  const selfStudyMin = currentStudyTime.reduce((sum, d) => sum + (d?.self_study || 0), 0) || (isFahim ? 450 : isTasnim ? 250 : 340);
+  // The fallback totals are the demo dataset's numbers — they only apply to a demo
+  // child. A real child's totals come from their own logged study time, and stay at
+  // zero when there is none.
+  const collegeMin = currentStudyTime.reduce((sum, d) => sum + (d?.college || 0), 0) || (isDemoChild && isCollegeTrack ? 500 : 0);
+  const schoolMin =
+    currentStudyTime.reduce((sum, d) => sum + (d?.school || 0), 0) ||
+    (isDemoChild && institutionType === 'school' ? (isPrimaryTrack ? 220 : 380) : 0);
+  const tuitionMin =
+    currentStudyTime.reduce((sum, d) => sum + (d?.tuition || 0), 0) ||
+    (isDemoChild ? (isCollegeTrack ? 435 : isPrimaryTrack ? 280 : 405) : 0);
+  const selfStudyMin =
+    currentStudyTime.reduce((sum, d) => sum + (d?.self_study || 0), 0) ||
+    (isDemoChild ? (isCollegeTrack ? 450 : isPrimaryTrack ? 250 : 340) : 0);
 
   const collegeHours = Math.floor(collegeMin / 60);
   const collegeRemMin = collegeMin % 60;
@@ -256,53 +287,31 @@ export default function KidSchedulePage() {
 
   // Load routines, entries, and study-time from backend
   const loadData = async () => {
+    // No child to load for — there is nothing to fetch and nothing to fake.
+    if (!childId) {
+      setRoutines([]);
+      setEntries([]);
+      setStudyTime([]);
+      return;
+    }
     try {
-      const [routinesRes, entriesRes] = await Promise.all([
-        api.get(`/children/${childId}/routines`).catch(() => ({ data: null })),
-        api.get(`/children/${childId}/entries`).catch(() => ({ data: null })),
-      ]);
+      const routinesRes = await api.get(`/children/${childId}/routines`);
 
       const routineList = unpackList(routinesRes?.data);
       if (routineList.length > 0) {
         setRoutines(routineList);
-      } else {
+      } else if (isDemoChild) {
+        // The default routine is a demo fixture — only shown to a demo child.
         setDefaultRoutines();
-      }
-
-      const entryList = unpackList(entriesRes?.data);
-      setEntries(entryList);
-
-      // If today's classes are all logged, auto-show tomorrow's routine
-      const todayKey = new Date().toISOString().slice(0, 10);
-      const todayDay = new Date().getDay();
-      const activeList = routineList.length > 0 ? routineList : [];
-      const todayClasses = activeList.filter((r: any) => parseWeekdays(r?.weekdays).includes(todayDay));
-      if (todayClasses.length > 0 && Array.isArray(entryList) && entryList.length > 0) {
-        const allTodayDone = todayClasses.every((r: any) => {
-          const rSub = safeString(r.subject || r.name).toLowerCase();
-          return entryList.some((e: any) => {
-            const ed = typeof e.date === 'string' ? e.date.slice(0, 10) : '';
-            if (ed !== todayKey) return false;
-            if (e.routineId && e.routineId === r.id) return true;
-            const es = safeString(e.subject || e.subjectName).toLowerCase();
-            return (
-              (es && rSub && (es.includes(rSub) || rSub.includes(es))) ||
-              (r.periodName && e.periodName === r.periodName)
-            );
-          });
-        });
-
-        if (allTodayDone) {
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          setSelectedWeekday(tomorrow.getDay());
-          setSelectedDate(tomorrow.toISOString().slice(0, 10));
-          setAutoAdvancedToTomorrow(true);
-        }
+      } else {
+        setRoutines([]);
       }
     } catch {
-      setDefaultRoutines();
-      setEntries([]);
+      if (isDemoChild) setDefaultRoutines();
+      else {
+        setRoutines([]);
+        setErrorMsg('Could not load class routines. Please refresh.');
+      }
     }
 
     // Load weekly study time
@@ -313,18 +322,20 @@ export default function KidSchedulePage() {
         if (list.length > 0) {
           setStudyTime(list);
         } else {
-          setStudyTime(defaultStudyTimeList);
+          setStudyTime(isDemoChild ? defaultStudyTimeList : []);
         }
       })
-      .catch(() => setStudyTime(defaultStudyTimeList));
+      .catch(() => setStudyTime(isDemoChild ? defaultStudyTimeList : []));
   };
 
   const setDefaultRoutines = () => {
-    if (isFahim) {
+    // Keyed on the grade track, not on the demo children's names — a real Class 11
+    // student gets the college routine, a real Class 4 student gets the primary one.
+    if (isCollegeTrack) {
       setRoutines([
         {
           id: 'rt-f1',
-          name: isBn ? '১ম পিরিয়ড: পদার্থবিজ্ঞান ১ম পত্র' : '1st Period: Physics 1st Paper',
+          name: t('childSchedule.text_16'),
           periodName: '১ম পিরিয়ড',
           subject: 'Physics 1st Paper',
           teacher: 'ড. মাহবুব স্যার',
@@ -336,7 +347,7 @@ export default function KidSchedulePage() {
         },
         {
           id: 'rt-f2',
-          name: isBn ? '২য় পিরিয়ড: রসায়ন ১ম পত্র' : '2nd Period: Chemistry 1st Paper',
+          name: t('childSchedule.text_17'),
           periodName: '২য় পিরিয়ড',
           subject: 'Chemistry 1st Paper',
           teacher: 'তাহমিনা ম্যাডাম',
@@ -348,7 +359,7 @@ export default function KidSchedulePage() {
         },
         {
           id: 'rt-f3',
-          name: isBn ? '৩য় পিরিয়ড: উচ্চতর গণিত ১ম পত্র' : '3rd Period: Higher Mathematics',
+          name: t('childSchedule.text_18'),
           periodName: '৩য় পিরিয়ড',
           subject: 'Higher Mathematics',
           teacher: 'এনামুল স্যার',
@@ -360,7 +371,7 @@ export default function KidSchedulePage() {
         },
         {
           id: 'rt-f4',
-          name: isBn ? '৪র্থ পিরিয়ড: জীববিজ্ঞান ১ম পত্র' : '4th Period: Biology 1st Paper',
+          name: t('childSchedule.text_19'),
           periodName: '৪র্থ পিরিয়ড',
           subject: 'Biology 1st Paper',
           teacher: 'ফারহানা ম্যাডাম',
@@ -372,7 +383,7 @@ export default function KidSchedulePage() {
         },
         {
           id: 'rt-f5',
-          name: isBn ? '৫ম পিরিয়ড: আইসিটি ল্যাব' : '5th Period: ICT Lab',
+          name: t('childSchedule.text_20'),
           periodName: '৫ম পিরিয়ড',
           subject: 'ICT',
           teacher: 'রাকিবুল হাসান',
@@ -384,7 +395,7 @@ export default function KidSchedulePage() {
         },
         {
           id: 'rt-f-t1',
-          name: isBn ? 'পদার্থবিজ্ঞান কোচিং — গতিবিদ্যা' : 'Physics Coaching – Dynamics',
+          name: t('childSchedule.text_21'),
           periodName: 'কোচিং',
           subject: 'Physics 1st Paper',
           teacher: 'আহমেদ স্যার',
@@ -396,7 +407,7 @@ export default function KidSchedulePage() {
         },
         {
           id: 'rt-f-t2',
-          name: isBn ? 'রসায়ন প্রাইভেট — গুণগত রসায়ন' : 'Chemistry Tuition',
+          name: t('childSchedule.text_22'),
           periodName: 'প্রাইভেট',
           subject: 'Chemistry 1st Paper',
           teacher: 'শফিক স্যার',
@@ -408,7 +419,7 @@ export default function KidSchedulePage() {
         },
         {
           id: 'rt-f-s1',
-          name: isBn ? 'উচ্চতর গণিত সেলফ স্টাডি' : 'Higher Math Self-Study',
+          name: t('childSchedule.text_5'),
           periodName: 'সেলফ স্টাডি',
           subject: 'Higher Mathematics',
           teacher: 'নিজে',
@@ -419,7 +430,7 @@ export default function KidSchedulePage() {
           durationMin: 60,
         },
       ]);
-    } else if (isTasnim) {
+    } else if (isPrimaryTrack) {
       setRoutines([
         {
           id: 'rt-p1',
@@ -598,8 +609,92 @@ export default function KidSchedulePage() {
 
   useEffect(() => {
     loadData();
+    // `isBn` is intentionally not a dependency — it re-fires every request on a locale
+    // toggle. The locale is read inside the render instead.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [childId, isBn, isTasnim]);
+  }, [childId, isDemoChild, isCollegeTrack, isPrimaryTrack]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setEntries([]);
+    if (childId) {
+      loadClassLogs(childId, selectedDate)
+        .then((logs) => {
+          if (!cancelled) setEntries(logs);
+        })
+        .catch(() => {
+          if (!cancelled) setErrorMsg(isBn ? 'ক্লাস লগ লোড করা যায়নি।' : 'Could not load class logs.');
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+    // Locale changes do not need another request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childId, selectedDate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setOccurrences(null);
+    if (childId) {
+      api.get(`/children/${childId}/schedule`, { params: { from: selectedDate, to: selectedDate } })
+        .then((response) => {
+          if (!cancelled) setOccurrences(response.data?.data?.occurrences || []);
+        })
+        .catch(() => {
+          if (!cancelled) setErrorMsg(isBn ? 'রুটিন লোড করা যায়নি।' : 'Could not load the updated schedule.');
+        });
+    }
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childId, selectedDate, scheduleRevision, routines]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setQuizzes([]);
+    if (!childId) return;
+    const refresh = async () => {
+      try {
+        const response = await api.get(`/children/${childId}/quizzes`);
+        if (!cancelled) setQuizzes(response.data?.data || []);
+      } catch { /* No quiz action is shown without a confirmed assignment. */ }
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    void refresh();
+    window.addEventListener('focus', refreshWhenVisible);
+    const interval = window.setInterval(refreshWhenVisible, 30000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refreshWhenVisible);
+      window.clearInterval(interval);
+    };
+  }, [childId]);
+
+  const handleReschedule = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!rescheduleClass || loading) return;
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      await api.post(`/routines/${rescheduleClass.id}/exceptions`, {
+        type: 'rescheduled', originalDate: rescheduleClass.originalDate || selectedDate,
+        newDate: rescheduleForm.newDate, newStartTime: rescheduleForm.newStartTime,
+      });
+      const destination = new Date(`${rescheduleForm.newDate}T12:00:00`);
+      setSelectedDate(rescheduleForm.newDate);
+      setSelectedWeekday(destination.getDay());
+      setCategoryFilter('all');
+      setScheduleRevision((revision) => revision + 1);
+      setRescheduleClass(null);
+      setSuccessMsg(isBn ? 'ক্লাসের সময় পরিবর্তন করা হয়েছে।' : 'Class rescheduled.');
+    } catch (error: any) {
+      setErrorMsg(error?.response?.data?.error?.message || 'Could not reschedule the class.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Speech Recognition initialization
   useEffect(() => {
@@ -609,14 +704,21 @@ export default function KidSchedulePage() {
         if (SpeechRecognition) {
           const recognition = new SpeechRecognition();
           recognition.continuous = true;
-          recognition.interimResults = true;
+          recognition.interimResults = false;
           recognition.lang = speechLang;
 
+          // A result can be reported repeatedly as recognition updates it.
+          // Only append finalized results, once per index in each session.
+          const appendedResults = new Set<number>();
+          recognition.onstart = () => appendedResults.clear();
           recognition.onresult = (event: any) => {
-            let currentTranscript = '';
+            const transcripts: string[] = [];
             for (let i = event.resultIndex; i < event.results.length; i++) {
-              currentTranscript += event.results[i][0].transcript;
+              if (!event.results[i].isFinal || appendedResults.has(i)) continue;
+              appendedResults.add(i);
+              transcripts.push(event.results[i][0].transcript.trim());
             }
+            const currentTranscript = transcripts.filter(Boolean).join(' ');
             if (currentTranscript) {
               setLogForm((prev) => ({
                 ...prev,
@@ -635,6 +737,16 @@ export default function KidSchedulePage() {
 
           recognitionRef.current = recognition;
           setSpeechSupported(true);
+          setIsListening(false);
+
+          return () => {
+            recognition.onstart = null;
+            recognition.onresult = null;
+            recognition.onerror = null;
+            recognition.onend = null;
+            recognition.abort();
+            recognitionRef.current = null;
+          };
         } else {
           setSpeechSupported(false);
         }
@@ -666,8 +778,15 @@ export default function KidSchedulePage() {
 
   // Filter routines by selected weekday & category
   const routineList = Array.isArray(routines) ? routines : [];
-  const filteredRoutines = routineList
-    .filter((r) => r && parseWeekdays(r?.weekdays).includes(selectedWeekday))
+  const dailyRoutines = occurrences === null
+    ? routineList.filter((r) => r && r.active !== false && parseWeekdays(r.weekdays).includes(selectedWeekday)
+      && (!r.startsOn || String(r.startsOn).slice(0, 10) <= selectedDate)
+      && (!r.endsOn || String(r.endsOn).slice(0, 10) >= selectedDate))
+    : occurrences.filter((occurrence) => occurrence.status !== 'rescheduled').map((occurrence) => ({
+      ...routineList.find((routine) => routine.id === occurrence.routineId),
+      ...occurrence, id: occurrence.routineId,
+    }));
+  const filteredRoutines = dailyRoutines
     .filter((r) => {
       if (!r) return false;
       if (categoryFilter === 'school') {
@@ -684,30 +803,8 @@ export default function KidSchedulePage() {
     .sort((a, b) => safeString(a?.startTime || '00:00').localeCompare(safeString(b?.startTime || '00:00')));
 
   // Find if an entry exists for a routine on selectedDate
-  const findEntryForRoutine = (routine: any) => {
-    if (!routine || !Array.isArray(entries)) return null;
-    const routineSubjectLower = safeString(routine.subject || routine.name).toLowerCase();
-    return entries.find((e) => {
-      if (!e) return false;
-      let entryDateKey = '';
-      try {
-        if (typeof e.date === 'string') {
-          entryDateKey = e.date.slice(0, 10);
-        } else if (e.date) {
-          entryDateKey = new Date(e.date).toISOString().slice(0, 10);
-        }
-      } catch {
-        entryDateKey = '';
-      }
-      if (entryDateKey !== selectedDate) return false;
-      if (e.routineId && e.routineId === routine.id) return true;
-      const entrySubLower = safeString(e.subject || e.subjectName).toLowerCase();
-      return (
-        (entrySubLower && routineSubjectLower && (entrySubLower.includes(routineSubjectLower) || routineSubjectLower.includes(entrySubLower))) ||
-        (routine.periodName && e.periodName === routine.periodName)
-      );
-    });
-  };
+  const findEntryForRoutine = (routine: any) =>
+    findClassLog(entries, routine?.id, selectedDate);
 
   // Daily statistics for selected day
   const totalClassesToday = filteredRoutines.length;
@@ -717,6 +814,9 @@ export default function KidSchedulePage() {
 
   // Open Log Modal for a specific class
   const handleOpenLogModal = (routine: any) => {
+    if (isFutureClassDate(selectedDate) || loading) return;
+    setNoteAttachment(null);
+    setClassLogSaveError('');
     const existing = findEntryForRoutine(routine);
     setActiveRoutineForLog(routine);
     setExistingEntryForLog(existing || null);
@@ -743,7 +843,15 @@ export default function KidSchedulePage() {
   // Submit class log
   const handleSaveClassLog = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeRoutineForLog || !logForm.topicsText.trim()) return;
+    if (!activeRoutineForLog || !logForm.topicsText.trim() || loading || noteAttachment?.processing) return;
+    if (noteAttachment && !noteAttachment.summary.trim()) {
+      setClassLogSaveError(isBn ? 'ছবির নোট তৈরি করুন অথবা ছবিটি সরিয়ে আবার সংরক্ষণ করুন।' : 'Generate or enter the image note, or remove the image before saving.');
+      return;
+    }
+    if (isFutureClassDate(selectedDate)) {
+      setErrorMsg(isBn ? 'ভবিষ্যতের ক্লাস লগ করা যাবে না।' : 'Future classes cannot be logged.');
+      return;
+    }
 
     if (isListening && recognitionRef.current) {
       try {
@@ -766,41 +874,54 @@ export default function KidSchedulePage() {
       topicsText: logForm.topicsText.trim(),
       homeworkAssigned: logForm.homeworkAssigned.trim() || undefined,
       confidence: logForm.confidence,
-      notes: logForm.notes.trim() || undefined,
+      notes: logForm.notes.trim(),
     };
 
+    let savedLog: any = null;
+    setClassLogSaveError('');
+    const showSavedLog = (entry: any) => {
+      setExistingEntryForLog(entry);
+      setEntries((previous) => [entry, ...previous.filter((item) => item.id !== entry.id)]);
+    };
     try {
-      if (existingEntryForLog?.id) {
-        const res = await api.patch(`/entries/${existingEntryForLog.id}`, payload);
-        const updated = res.data?.data || { ...existingEntryForLog, ...payload };
-        setEntries((prev) => (Array.isArray(prev) ? prev.map((item) => (item.id === existingEntryForLog.id ? updated : item)) : [updated]));
-        setSuccessMsg(isBn ? 'ক্লাসের বিবরণী সফলভাবে আপডেট করা হয়েছে! ✨' : 'Class log updated successfully!');
-      } else {
-        const res = await api.post(`/children/${childId}/entries`, payload);
-        const created = res.data?.data || {
-          id: 'entry-' + Date.now(),
-          childId,
-          ...payload,
-          createdAt: new Date().toISOString(),
-        };
-        setEntries((prev) => (Array.isArray(prev) ? [created, ...prev] : [created]));
-        setSuccessMsg(isBn ? 'অভিনন্দন! ক্লাসের পড়া সফলভাবে লগ করা হয়েছে 🎉' : 'Awesome! Class log submitted successfully!');
+      const response = existingEntryForLog?.id
+        ? await api.patch(`/entries/${existingEntryForLog.id}`, payload)
+        : await api.post(`/children/${childId}/entries`, payload);
+      savedLog = response.data?.data;
+      if (!savedLog?.id) throw new Error('The server did not return the saved class log');
+      // Keep the saved ID even if the image upload fails. Retry updates this log
+      // instead of creating another class log and losing the attachment draft.
+      showSavedLog(savedLog);
+
+      if (noteAttachment) {
+        const form = new FormData();
+        form.append('file', noteAttachment.file);
+        form.append('entryId', savedLog.id);
+        form.append('subject', payload.subject);
+        form.append('date', selectedDate);
+        form.append('title', noteAttachment.title.trim() || `${payload.subject} — ${selectedDate}`);
+        form.append('textClean', noteAttachment.textClean || noteAttachment.summary);
+        form.append('aiSummary', noteAttachment.summary);
+        const uploaded = await api.post(`/children/${childId}/notes`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const note = uploaded.data?.data;
+        if (!note?.id) throw new Error('The server did not return the uploaded note');
+        savedLog = { ...savedLog, linkedNotes: [...(savedLog.linkedNotes || []), note] };
+        showSavedLog(savedLog);
       }
 
+      setSuccessMsg(existingEntryForLog?.id ? t('childSchedule.text_23') : t('childSchedule.text_24'));
+      setNoteAttachment(null);
       setLogModalOpen(false);
       setTimeout(() => setSuccessMsg(''), 4500);
-    } catch {
-      // Fallback local update
-      const fake = {
-        id: existingEntryForLog?.id || 'entry-' + Date.now(),
-        childId,
-        ...payload,
-        createdAt: new Date().toISOString(),
-      };
-      setEntries((prev) => (Array.isArray(prev) ? [fake, ...prev.filter((x) => x.id !== fake.id)] : [fake]));
-      setLogModalOpen(false);
-      setSuccessMsg(isBn ? 'ক্লাসের পড়া সংরক্ষিত হয়েছে! 🎉' : 'Class log saved successfully!');
-      setTimeout(() => setSuccessMsg(''), 4500);
+    } catch (error: any) {
+      const detail = error?.response?.data?.error?.message || error.message || 'Please try again.';
+      const message = savedLog
+        ? (isBn ? 'ক্লাস লগ সংরক্ষিত হয়েছে, কিন্তু ছবির নোট সংরক্ষণ হয়নি। আবার সংরক্ষণ করুন। ' : 'Class log saved, but the image note could not be saved. Retry Save without closing this form. ') + detail
+        : detail;
+      setClassLogSaveError(message);
+      setErrorMsg(message);
     } finally {
       setLoading(false);
     }
@@ -814,10 +935,11 @@ export default function KidSchedulePage() {
 
     try {
       const res = await api.post(`/children/${childId}/routines`, routineForm);
-      const created = res.data?.data || { id: 'r-' + Date.now(), ...routineForm };
+      const created = res.data?.data;
+      if (!created) throw new Error('The server did not return the created routine');
       setRoutines((prev) => (Array.isArray(prev) ? [created, ...prev] : [created]));
       setCreateModalOpen(false);
-      setSuccessMsg(isBn ? 'নতুন ক্লাস সফলভাবে রুটিনে যুক্ত হয়েছে!' : 'New class added to schedule!');
+      setSuccessMsg(t('childSchedule.text_26'));
       setTimeout(() => setSuccessMsg(''), 4000);
       setRoutineForm({
         name: '',
@@ -831,12 +953,10 @@ export default function KidSchedulePage() {
         durationMin: 45,
         startsOn: new Date().toISOString().slice(0, 10),
       });
-    } catch {
-      const fallback = { id: 'r-' + Date.now(), ...routineForm };
-      setRoutines((prev) => (Array.isArray(prev) ? [fallback, ...prev] : [fallback]));
-      setCreateModalOpen(false);
-      setSuccessMsg(isBn ? 'নতুন ক্লাস রুটিনে যুক্ত হয়েছে!' : 'New class added!');
-      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (e: any) {
+      // The routine was NOT created. Adding a local copy and reporting success meant
+      // a class that appeared in the timetable but was never scheduled.
+      setErrorMsg(e?.response?.data?.error?.message || 'The routine could not be created.');
     } finally {
       setLoading(false);
     }
@@ -845,19 +965,21 @@ export default function KidSchedulePage() {
   // Delete routine
   const handleDeleteRoutine = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (typeof window !== 'undefined' && !window.confirm(isBn ? 'এই ক্লাসটি রুটিন থেকে মুছে ফেলতে চাও?' : 'Delete this class from routine?')) return;
+    if (typeof window !== 'undefined' && !window.confirm(t('childSchedule.text_28'))) return;
     try {
       await api.delete(`/routines/${id}`);
       setRoutines((prev) => (Array.isArray(prev) ? prev.filter((r) => r.id !== id) : []));
-      setSuccessMsg(isBn ? 'ক্লাস মুছে ফেলা হয়েছে' : 'Class removed from routine');
+      setSuccessMsg(t('childSchedule.text_29'));
       setTimeout(() => setSuccessMsg(''), 3000);
-    } catch {
-      setRoutines((prev) => (Array.isArray(prev) ? prev.filter((r) => r.id !== id) : []));
+    } catch (e: any) {
+      // Removing it from the list after a failed delete hid a routine that still
+      // existed on the server.
+      setErrorMsg(e?.response?.data?.error?.message || 'The routine could not be deleted.');
     }
   };
 
   // 1-Click Load Routine Templates
-  const handleApplyTemplate = (type: 'school_8' | 'school_5' | 'college_science' | 'college_commerce') => {
+  const handleApplyTemplate = async (type: 'school_8' | 'school_5' | 'college_science' | 'college_commerce') => {
     let newItems: any[] = [];
     if (type === 'school_8') {
       newItems = [
@@ -893,16 +1015,27 @@ export default function KidSchedulePage() {
       ];
     }
 
-    const built = newItems.map((item, idx) => ({
-      id: 'tmpl-' + Date.now() + '-' + idx,
-      ...item,
-      startsOn: new Date().toISOString().slice(0, 10),
-    }));
-
-    setRoutines((prev) => (Array.isArray(prev) ? [...built, ...prev.filter((r) => r.source !== built[0].source)] : built));
-    setTemplateModalOpen(false);
-    setSuccessMsg(isBn ? 'রুটিন টেমপ্লেট সফলভাবে লোড হয়েছে! 🌟' : 'Routine template loaded successfully!');
-    setTimeout(() => setSuccessMsg(''), 4000);
+    if (!childId || loading) return;
+    setLoading(true);
+    try {
+      const missingItems = newItems.filter((item) => !routines.some((routine) =>
+        routine.source === item.source && routine.startTime === item.startTime
+        && routine.subject === item.subject
+        && JSON.stringify([...parseWeekdays(routine.weekdays)].sort()) === JSON.stringify([...item.weekdays].sort())
+      ));
+      await Promise.all(missingItems.map((item) =>
+        api.post(`/children/${childId}/routines`, { ...item, startsOn: schoolDate() })
+      ));
+      await loadData();
+      setTemplateModalOpen(false);
+      setSuccessMsg(t('childSchedule.text_30'));
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (error: any) {
+      setErrorMsg(error?.response?.data?.error?.message || 'The routine template could not be saved.');
+      await loadData();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const selectedWeekdayObj = WEEKDAYS.find((w) => w.index === selectedWeekday) || WEEKDAYS[0];
@@ -921,16 +1054,14 @@ export default function KidSchedulePage() {
                 {instInfo.routineTitle}
               </span>
               <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border border-primary/25 font-bold">
-                {isBn ? `${toBnNum(routines.length)} টি নির্ধারিত ক্লাস` : `${routines.length} Scheduled Classes`}
+                {t('childSchedule.scheduled_classes', { p0: isBn ? toBnNum(routines.length) : routines.length }, `${routines.length} Scheduled Classes`)}
               </Badge>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2.5">
               <span>{instInfo.classesHeading}</span>
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-              {isBn
-                ? 'সপ্তাহের প্রতিটি দিনের পিরিয়ড অনুযায়ী ক্লাসে কী পড়ানো হয়েছে তা সহজে লিখে বা মুখে বলে লগ করো।'
-                : 'Follow your daily period-by-period routine and easily log what was taught in each class!'}
+              {t('childSchedule.text_31')}
             </p>
           </div>
 
@@ -941,14 +1072,14 @@ export default function KidSchedulePage() {
               className="rounded-2xl h-10 px-3.5 text-xs font-bold gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
             >
               <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>{isBn ? 'রুটিন টেমপ্লেট' : 'Templates'}</span>
+              <span>{t('childSchedule.text_32')}</span>
             </Button>
             <Button
               onClick={() => setCreateModalOpen(true)}
               className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-md h-10 px-4 text-xs sm:text-sm gap-1.5"
             >
               <Plus className="w-4 h-4" />
-              <span>{isBn ? 'নতুন ক্লাস যোগ করুন' : 'Add Class'}</span>
+              <span>{t('childSchedule.text_33')}</span>
             </Button>
           </div>
         </div>
@@ -961,38 +1092,18 @@ export default function KidSchedulePage() {
           </div>
         )}
 
-        {/* Auto-Tomorrow Notification Banner */}
-        {autoAdvancedToTomorrow && (
-          <div className="p-4 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 dark:text-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs sm:text-sm font-bold">
-                  {isBn
-                    ? 'আজকের সব ক্লাসের পড়া লগ সম্পন্ন হয়েছে! আগামীকালের রুটিন প্রদর্শিত হচ্ছে।'
-                    : "All of today's classes have been logged! Showing tomorrow's schedule."}
-                </p>
-                <p className="text-[11px] opacity-80 mt-0.5">
-                  {isBn
-                    ? 'আগামীকালের ক্লাস রুটিন অনুযায়ী পড়ার প্রস্তুতি নাও।'
-                    : 'Review upcoming classes and prepare your study materials for tomorrow.'}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedWeekday(today.getDay());
-                setSelectedDate(today.toISOString().slice(0, 10));
-                setAutoAdvancedToTomorrow(false);
-              }}
-              className="h-8 text-xs font-bold border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-900 dark:text-emerald-100 shrink-0 rounded-xl"
+        {/* Error Alert — a failed request is never reported as a success. */}
+        {errorMsg && (
+          <div className="p-3.5 rounded-2xl bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-2 text-xs font-semibold animate-in fade-in">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
+            <button
+              type="button"
+              onClick={() => setErrorMsg('')}
+              className="ml-auto underline underline-offset-2 shrink-0"
             >
-              {isBn ? 'আজকের রুটিন দেখুন' : "View Today's Routine"}
-            </Button>
+              {t('common.close')}
+            </button>
           </div>
         )}
 
@@ -1005,7 +1116,7 @@ export default function KidSchedulePage() {
               <div className="flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4 text-primary" />
                 <span className="text-xs sm:text-sm font-bold text-foreground">
-                  {isBn ? `${selectedWeekdayObj.fullBn} এর ক্লাস রুটিন` : `${selectedWeekdayObj.fullEn}'s Schedule`}
+                  {t('childSchedule.s_schedule', { p0: isBn ? selectedWeekdayObj.fullBn : selectedWeekdayObj.fullEn }, `${selectedWeekdayObj.fullEn}'s Schedule`)}
                 </span>
                 <span className="text-xs text-muted-foreground">({selectedDate})</span>
               </div>
@@ -1032,7 +1143,7 @@ export default function KidSchedulePage() {
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  📚 {isBn ? 'প্রাইভেট ও কোচিং' : 'Tuition'}
+                  📚 {t('childSchedule.text_35')}
                 </button>
                 <button
                   type="button"
@@ -1043,7 +1154,7 @@ export default function KidSchedulePage() {
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  📑 {isBn ? 'সব' : 'All'}
+                  📑 {t('childSchedule.text_36')}
                 </button>
               </div>
             </div>
@@ -1064,7 +1175,7 @@ export default function KidSchedulePage() {
                     type="button"
                     onClick={() => {
                       setSelectedWeekday(w.index);
-                      setSelectedDate(targetDate.toISOString().slice(0, 10));
+                      setSelectedDate(schoolDate(targetDate));
                     }}
                     className={`py-2 sm:py-3 px-0.5 sm:px-1 rounded-xl sm:rounded-2xl border text-center transition-all flex flex-col items-center justify-between relative group ${
                       isSelected
@@ -1078,7 +1189,7 @@ export default function KidSchedulePage() {
                           isSelected ? 'bg-amber-400 text-black' : 'bg-primary text-primary-foreground'
                         }`}
                       >
-                        {isBn ? 'আজ' : 'Today'}
+                        {t('childSchedule.text_37')}
                       </span>
                     )}
 
@@ -1100,12 +1211,8 @@ export default function KidSchedulePage() {
                       }`}
                     >
                       {countOnDay > 0
-                        ? isBn
-                          ? `${toBnNum(countOnDay)} ক্লাস`
-                          : `${countOnDay} cls`
-                        : isBn
-                        ? 'ছুটি'
-                        : 'Off'}
+                        ? t('childSchedule.cls', { p0: isBn ? toBnNum(countOnDay) : countOnDay }, `${countOnDay} cls`)
+                        : t('childSchedule.text_38')}
                     </span>
                   </button>
                 );
@@ -1125,9 +1232,7 @@ export default function KidSchedulePage() {
                   <h3 className="text-sm sm:text-base font-bold text-foreground flex items-center gap-2">
                     <ListChecks className="w-4 h-4 text-emerald-500" />
                     <span>
-                      {isBn
-                        ? `${selectedWeekdayObj.fullBn} এর ক্লাসের অগ্রগতি`
-                        : `${selectedWeekdayObj.fullEn} Class Log Progress`}
+                      {t('childSchedule.class_log_progress', { p0: isBn ? selectedWeekdayObj.fullBn : selectedWeekdayObj.fullEn }, `${selectedWeekdayObj.fullEn} Class Log Progress`)}
                     </span>
                   </h3>
                   <Badge
@@ -1138,19 +1243,13 @@ export default function KidSchedulePage() {
                         : 'bg-primary/15 text-primary border-primary/30'
                     }`}
                   >
-                    {isBn
-                      ? `${toBnNum(loggedClassesToday)}/${toBnNum(totalClassesToday)} টি সম্পন্ন (${toBnNum(completionPercentage)}%)`
-                      : `${loggedClassesToday}/${totalClassesToday} Logged (${completionPercentage}%)`}
+                    {t('childSchedule.logged', { p0: isBn ? toBnNum(loggedClassesToday) : loggedClassesToday, p1: isBn ? toBnNum(totalClassesToday) : totalClassesToday, p2: isBn ? toBnNum(completionPercentage) : completionPercentage }, `${loggedClassesToday}/${totalClassesToday} Logged (${completionPercentage}%)`)}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {completionPercentage === 100
-                    ? isBn
-                      ? '🎉 চমৎকার! আজকের সবকটি ক্লাসের বিবরণী সফলভাবে লগ করা হয়েছে। তোমার স্ট্রিক পয়েন্ট বৃদ্ধি পেয়েছে!'
-                      : '🎉 Awesome! All classes for this day have been logged. Keep up the high streak!'
-                    : isBn
-                    ? `বাকি আছে ${toBnNum(pendingClassesToday)} টি ক্লাস। প্রতিটি ক্লাসের পর নিচে "লগ দিন" বাটনে চাপ দিয়ে কী পড়ানো হয়েছে তা সংরক্ষণ করো।`
-                    : `${pendingClassesToday} class(es) pending. Click "Log What Was Taught" after each class to protect your streak.`}
+                    ? t('childSchedule.text_39')
+                    : t('childSchedule.class_es_pending_click_log_what_was_taught_after', { p0: isBn ? toBnNum(pendingClassesToday) : pendingClassesToday }, `${pendingClassesToday} class(es) pending. Click "Log What Was Taught" after each class to protect your streak.`)}
                 </p>
               </div>
 
@@ -1164,7 +1263,7 @@ export default function KidSchedulePage() {
                 </div>
                 <div className="flex justify-between text-[10px] text-muted-foreground font-semibold px-0.5">
                   <span>০%</span>
-                  <span>{isBn ? `${toBnNum(completionPercentage)}% সম্পন্ন` : `${completionPercentage}% Done`}</span>
+                  <span>{t('childSchedule.done', { p0: isBn ? toBnNum(completionPercentage) : completionPercentage }, `${completionPercentage}% Done`)}</span>
                   <span>১০০%</span>
                 </div>
               </div>
@@ -1180,29 +1279,28 @@ export default function KidSchedulePage() {
             <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
               <CalendarCheck className="w-5 h-5 text-primary" />
               <span>
-                {isBn
-                  ? `${selectedWeekdayObj.fullBn} এর পিরিয়ডভিত্তিক ক্লাস ও বিবরণী`
-                  : `Class-by-Class Schedule (${selectedWeekdayObj.fullEn})`}
+                {t('childSchedule.class_by_class_schedule', { p0: isBn ? selectedWeekdayObj.fullBn : selectedWeekdayObj.fullEn }, `Class-by-Class Schedule (${selectedWeekdayObj.fullEn})`)}
               </span>
             </h2>
 
             <span className="text-xs text-muted-foreground font-medium">
-              {isBn
-                ? `মোট ${toBnNum(filteredRoutines.length)} টি পিরিয়ড`
-                : `${filteredRoutines.length} Period(s) scheduled`}
+              {t('childSchedule.period_s_scheduled', { p0: isBn ? toBnNum(filteredRoutines.length) : filteredRoutines.length }, `${filteredRoutines.length} Period(s) scheduled`)}
             </span>
           </div>
 
+          {occurrences?.filter((occurrence) => occurrence.status === 'rescheduled').map((occurrence) => (
+            <div key={`moved-${occurrence.routineId}-${occurrence.date}`} className="p-3 rounded-xl border bg-amber-500/10 text-sm mb-3">
+              {occurrence.name} — {isBn ? 'পরিবর্তিত সময়' : 'Rescheduled to'} {occurrence.newDate} {occurrence.newStartTime}
+            </div>
+          ))}
           {filteredRoutines.length === 0 ? (
             <Card className="rounded-3xl border border-dashed p-8 text-center bg-muted/10">
               <GraduationCap className="w-12 h-12 mx-auto text-muted-foreground/60 mb-3" />
               <h3 className="text-sm font-bold text-foreground">
-                {isBn ? `${selectedWeekdayObj.fullBn} এ কোনো ক্লাস নির্ধারিত নেই` : `No classes scheduled for ${selectedWeekdayObj.fullEn}`}
+                {t('childSchedule.no_classes_scheduled_for', { p0: isBn ? selectedWeekdayObj.fullBn : selectedWeekdayObj.fullEn }, `No classes scheduled for ${selectedWeekdayObj.fullEn}`)}
               </h3>
               <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                {isBn
-                  ? 'এই বারে তোমার স্কুল বা প্রাইভেট ক্লাসের রুটিন সেট করতে নিচের বাটনে ক্লিক করো অথবা টেমপ্লেট লোড করো।'
-                  : 'Add a period or load a routine template to schedule classes for this weekday.'}
+                {t('childSchedule.text_40')}
               </p>
               <div className="flex justify-center gap-2 mt-4">
                 <Button
@@ -1212,7 +1310,7 @@ export default function KidSchedulePage() {
                   className="rounded-xl text-xs gap-1"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>{isBn ? 'টেমপ্লেট দেখুন' : 'View Templates'}</span>
+                  <span>{t('childSchedule.text_41')}</span>
                 </Button>
                 <Button
                   size="sm"
@@ -1223,7 +1321,7 @@ export default function KidSchedulePage() {
                   className="rounded-xl text-xs gap-1 bg-primary text-primary-foreground font-bold"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>{isBn ? 'এই বারে ক্লাস যোগ করুন' : 'Add Class for this day'}</span>
+                  <span>{t('childSchedule.text_42')}</span>
                 </Button>
               </div>
             </Card>
@@ -1232,6 +1330,7 @@ export default function KidSchedulePage() {
               {filteredRoutines.map((routine, idx) => {
                 const loggedEntry = findEntryForRoutine(routine);
                 const isLogged = !!loggedEntry;
+                const assignedQuiz = findLogQuiz(quizzes, loggedEntry?.id);
                 const subjectColor = getSubjectColor(routine.subject || routine.name);
 
                 return (
@@ -1250,7 +1349,7 @@ export default function KidSchedulePage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             {/* Period Tag */}
                             <Badge className="bg-primary/15 text-primary border-primary/30 font-bold text-[11px] px-2.5 py-0.5">
-                              {routine.periodName || (isBn ? `${toBnNum(idx + 1)}ম পিরিয়ড` : `Period ${idx + 1}`)}
+                              {routine.periodName || (t('childSchedule.period', { p0: isBn ? toBnNum(idx + 1) : idx + 1 }, `Period ${idx + 1}`))}
                             </Badge>
 
                             {/* Time Badge */}
@@ -1258,7 +1357,7 @@ export default function KidSchedulePage() {
                               <Clock className="w-3.5 h-3.5 text-primary" />
                               <span>{routine.startTime || '09:00'}</span>
                               <span>•</span>
-                              <span>{isBn ? `${toBnNum(routine.durationMin || 45)} মিনিট` : `${routine.durationMin || 45}m`}</span>
+                              <span>{t('childSchedule.m', { p0: isBn ? toBnNum(routine.durationMin || 45) : routine.durationMin || 45 }, `${routine.durationMin || 45}m`)}</span>
                             </div>
 
                             {/* Source Badge (School / College / Tuition) */}
@@ -1273,21 +1372,21 @@ export default function KidSchedulePage() {
                               }`}
                             >
                               {routine.source === 'school'
-                                ? isBn ? '🏫 স্কুল' : 'School'
+                                ? t('childSchedule.text_43')
                                 : routine.source === 'college'
-                                ? isBn ? '🏛️ কলেজ' : 'College'
-                                : isBn ? '📚 প্রাইভেট/কোচিং' : 'Tuition'}
+                                ? t('childSchedule.text_44')
+                                : t('childSchedule.text_45')}
                             </Badge>
 
                             {/* Status Badge */}
                             {isLogged ? (
                               <Badge className="bg-emerald-500 text-white font-bold text-[10px] px-2 py-0.5 flex items-center gap-1 shadow-xs">
                                 <Check className="w-3 h-3 stroke-[3]" />
-                                <span>{isBn ? 'লগ সম্পন্ন' : 'Logged'}</span>
+                                <span>{t('childSchedule.text_46')}</span>
                               </Badge>
                             ) : (
                               <Badge variant="outline" className="text-[10px] font-bold border-amber-500/40 text-amber-600 bg-amber-500/10">
-                                {isBn ? '⏳ লগ বাকি' : 'Pending Log'}
+                                {t('childSchedule.text_47')}
                               </Badge>
                             )}
                           </div>
@@ -1307,7 +1406,7 @@ export default function KidSchedulePage() {
                                 )}
                                 {routine.room && (
                                   <span className="text-muted-foreground/70">
-                                    • {isBn ? `কক্ষ: ${routine.room}` : `Room: ${routine.room}`}
+                                    • {t('childSchedule.room', { p0: routine.room }, `Room: ${routine.room}`)}
                                   </span>
                                 )}
                               </p>
@@ -1319,19 +1418,21 @@ export default function KidSchedulePage() {
                             <div className="mt-3 p-3.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-2">
                               <div>
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block mb-0.5">
-                                  {isBn ? '📖 আজকের ক্লাসে যা পড়ানো হয়েছে:' : '📖 Topics Taught in this Class:'}
+                                  {t('childSchedule.text_48')}
                                 </span>
                                 <p className="text-xs sm:text-sm text-foreground leading-relaxed font-medium">
                                   {loggedEntry.topicsText}
                                 </p>
                               </div>
 
+                              <ClassLogNotes entry={loggedEntry} isBn={isBn} collapsible />
+
                               {/* Homework Assigned callout */}
                               {loggedEntry.homeworkAssigned && (
                                 <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
                                   <Award className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
                                   <div>
-                                    <span className="font-bold">{isBn ? 'বাড়ির কাজ: ' : 'Homework: '}</span>
+                                    <span className="font-bold">{t('childSchedule.text_49')}</span>
                                     <span>{loggedEntry.homeworkAssigned}</span>
                                   </div>
                                 </div>
@@ -1340,7 +1441,7 @@ export default function KidSchedulePage() {
                               {/* Understanding / Confidence Level */}
                               <div className="flex items-center justify-between text-xs pt-1 border-t border-emerald-500/15">
                                 <span className="text-muted-foreground">
-                                  {isBn ? 'বোঝার মাত্রা:' : 'Understanding:'}
+                                  {t('childSchedule.text_50')}
                                 </span>
                                 <div className="flex items-center gap-1 text-amber-500 font-bold">
                                   {Array.from({ length: 5 }, (_, i) => (
@@ -1361,16 +1462,7 @@ export default function KidSchedulePage() {
                             </div>
                           )}
 
-                          {/* Pending Prompt (If Not Logged Yet) */}
-                          {!isLogged && (
-                            <div className="p-3 rounded-2xl bg-amber-500/5 border border-dashed border-amber-500/30 flex items-center justify-between gap-3 text-xs">
-                              <p className="text-muted-foreground">
-                                {isBn
-                                  ? 'এই ক্লাসে কী শেখানো হয়েছে তা এখনই ১ মিনিটে লিখে বা ভয়েসে বলে ফেলো!'
-                                  : 'Log what was taught in this class to track your learning & keep your streak!'}
-                              </p>
-                            </div>
-                          )}
+
                         </div>
 
                         {/* Right Actions: Log Button / Edit / Delete */}
@@ -1380,43 +1472,52 @@ export default function KidSchedulePage() {
                               <Button
                                 size="sm"
                                 variant="outline"
+                                disabled={isFutureClassDate(selectedDate)}
                                 onClick={() => handleOpenLogModal(routine)}
                                 className="h-9 px-3 text-xs font-bold rounded-xl border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 gap-1.5 flex-1 md:flex-none w-auto"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
-                                <span>{isBn ? 'বিবরণী এডিট' : 'Edit Log'}</span>
+                                <span>{t('childSchedule.text_52')}</span>
                               </Button>
 
-                              <Link
-                                href="/child/quiz"
-                                className="flex-1 md:flex-none w-auto"
-                              >
-                                <Button
-                                  size="sm"
-                                  className="h-9 px-3 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white gap-1 w-full"
-                                >
-                                  <Sparkles className="w-3.5 h-3.5" />
-                                  <span>{isBn ? 'কুইজ দাও' : 'Quiz'}</span>
-                                </Button>
-                              </Link>
+                              {assignedQuiz && (
+                                <Link href={`/child/quiz/${assignedQuiz.id}`} className="flex-1 md:flex-none w-auto">
+                                  <Button size="sm" className="h-9 px-3 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white gap-1 w-full">
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    <span>{t('childSchedule.text_53')}</span>
+                                  </Button>
+                                </Link>
+                              )}
                             </>
                           ) : (
                             <Button
                               size="sm"
+                              disabled={isFutureClassDate(selectedDate)}
+                              title={isFutureClassDate(selectedDate) ? (isBn ? 'নির্ধারিত দিনে লগ করা যাবে' : 'Logging is available on the scheduled date') : undefined}
                               onClick={() => handleOpenLogModal(routine)}
                               className="h-10 px-4 text-xs font-bold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm gap-2 w-full md:w-auto"
                             >
                               <BookOpen className="w-4 h-4" />
-                              <span>{isBn ? 'ক্লাসের পড়া লগ দিন' : 'Log What Was Taught'}</span>
+                              <span>{isFutureClassDate(selectedDate) ? (isBn ? 'ভবিষ্যতের ক্লাস' : 'Future class') : t('childSchedule.text_54')}</span>
                               <Mic className="w-3.5 h-3.5 text-rose-300 animate-pulse" />
                             </Button>
                           )}
 
+                          {!isLogged && (
+                            <Button size="sm" variant="outline" className="h-9 rounded-xl gap-1.5 text-xs"
+                              onClick={() => {
+                                setRescheduleClass(routine);
+                                setRescheduleForm({ newDate: selectedDate, newStartTime: routine.startTime || '09:00' });
+                              }}>
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              {isBn ? 'সময় পরিবর্তন' : 'Reschedule'}
+                            </Button>
+                          )}
                           <button
                             type="button"
                             onClick={(e) => handleDeleteRoutine(routine.id, e)}
                             className="text-muted-foreground/60 hover:text-destructive p-1.5 rounded-lg transition-colors ml-auto md:ml-0"
-                            title={isBn ? 'রুটিন থেকে সরান' : 'Remove routine'}
+                            title={t('childSchedule.text_55')}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1440,12 +1541,12 @@ export default function KidSchedulePage() {
                 <div>
                   <CardTitle className="text-base font-bold flex items-center gap-2">
                     <Clock className="w-4 h-4 text-primary" />
-                    <span>{isBn ? 'সাপ্তাহিক পড়ার সময়কাল (বার চার্ট)' : 'Weekly Study Time Chart'}</span>
+                    <span>{t('childSchedule.text_56')}</span>
                   </CardTitle>
                   <CardDescription className="text-xs">
                     {institutionType === 'college'
-                      ? (isBn ? 'কলেজ ক্লাস, প্রাইভেট কোচিং ও সেলফ স্টাডির দৈনিক সময়কাল' : 'Daily hours spent across college lectures, tuition, and self-study')
-                      : (isBn ? 'স্কুল ক্লাস, প্রাইভেট টিউশন ও সেলফ স্টাডির দৈনিক সময়কাল' : 'Daily hours spent across school classes, tuition, and self-study')}
+                      ? (t('childSchedule.text_57'))
+                      : (t('childSchedule.text_58'))}
                   </CardDescription>
                 </div>
               </div>
@@ -1458,10 +1559,10 @@ export default function KidSchedulePage() {
           <Card className="rounded-3xl border shadow-sm flex flex-col justify-between min-w-0 overflow-hidden">
             <CardHeader className="p-4 sm:p-6 pb-2">
               <CardTitle className="text-base font-bold">
-                {isBn ? 'পড়ার সময়ের বিবরণী' : 'Study Hours Breakdown'}
+                {t('childSchedule.text_59')}
               </CardTitle>
               <CardDescription className="text-xs">
-                {isBn ? 'সপ্তাহের মোট সময় কোন মাধ্যমে কতক্ষণ লেগেছে' : 'Time distribution across educational sources'}
+                {t('childSchedule.text_60')}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0 space-y-2.5">
@@ -1472,12 +1573,12 @@ export default function KidSchedulePage() {
                       🏛️
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-foreground">{isBn ? 'কলেজ ক্লাসের সময়' : 'College Lecture Time'}</p>
-                      <p className="text-[10px] text-muted-foreground">{isBn ? 'পিরিয়ডভিত্তিক একাডেমিক ক্লাস' : 'Academic periods'}</p>
+                      <p className="text-xs font-bold text-foreground">{t('childSchedule.text_61')}</p>
+                      <p className="text-[10px] text-muted-foreground">{t('childSchedule.text_62')}</p>
                     </div>
                   </div>
                   <span className="text-sm font-black text-cyan-600 dark:text-cyan-400">
-                    {isBn ? `${toBnNum(collegeHours)}ঘ ${toBnNum(collegeRemMin)}মি` : `${collegeHours}h ${collegeRemMin}m`}
+                    {t('childSchedule.h_m', { p0: isBn ? toBnNum(collegeHours) : collegeHours, p1: isBn ? toBnNum(collegeRemMin) : collegeRemMin }, `${collegeHours}h ${collegeRemMin}m`)}
                   </span>
                 </div>
               )}
@@ -1488,12 +1589,12 @@ export default function KidSchedulePage() {
                       🏫
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-foreground">{isBn ? 'স্কুল ক্লাসের সময়' : 'School Class Time'}</p>
-                      <p className="text-[10px] text-muted-foreground">{isBn ? 'স্কুল পিরিয়ডভিত্তিক ক্লাস' : 'Academic periods'}</p>
+                      <p className="text-xs font-bold text-foreground">{t('childSchedule.text_63')}</p>
+                      <p className="text-[10px] text-muted-foreground">{t('childSchedule.text_64')}</p>
                     </div>
                   </div>
                   <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
-                    {isBn ? `${toBnNum(schoolHours)}ঘ ${toBnNum(schoolRemMin)}মি` : `${schoolHours}h ${schoolRemMin}m`}
+                    {t('childSchedule.h_m', { p0: isBn ? toBnNum(collegeHours) : collegeHours, p1: isBn ? toBnNum(collegeRemMin) : collegeRemMin }, `${collegeHours}h ${collegeRemMin}m`)}
                   </span>
                 </div>
               )}
@@ -1503,12 +1604,12 @@ export default function KidSchedulePage() {
                     📚
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-foreground">{institutionType === 'admission' ? (isBn ? 'এডমিশন কোচিং ও টেস্ট' : 'Admission Coaching') : (isBn ? 'প্রাইভেট ও কোচিং' : 'Tuition & Coaching')}</p>
-                    <p className="text-[10px] text-muted-foreground">{isBn ? 'গৃহশিক্ষক ও প্রাইভেট ক্লাস' : 'Private lessons'}</p>
+                    <p className="text-xs font-bold text-foreground">{institutionType === 'admission' ? (t('childSchedule.text_65')) : (t('childSchedule.text_35'))}</p>
+                    <p className="text-[10px] text-muted-foreground">{t('childSchedule.text_66')}</p>
                   </div>
                 </div>
                 <span className="text-sm font-black text-amber-600 dark:text-amber-400">
-                  {isBn ? `${toBnNum(tuitionHours)}ঘ ${toBnNum(tuitionRemMin)}মি` : `${tuitionHours}h ${tuitionRemMin}m`}
+                  {t('childSchedule.h_m', { p0: isBn ? toBnNum(collegeHours) : collegeHours, p1: isBn ? toBnNum(collegeRemMin) : collegeRemMin }, `${collegeHours}h ${collegeRemMin}m`)}
                 </span>
               </div>
               <div className="p-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/5 flex items-center justify-between">
@@ -1517,12 +1618,12 @@ export default function KidSchedulePage() {
                     📖
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-foreground">{isBn ? 'সেলফ-স্টাডি ও রিভিশন' : 'Self-Study & Revision'}</p>
-                    <p className="text-[10px] text-muted-foreground">{isBn ? 'পড়ার টেবিলে স্ব-শিক্ষা' : 'Independent study'}</p>
+                    <p className="text-xs font-bold text-foreground">{t('childSchedule.text_67')}</p>
+                    <p className="text-[10px] text-muted-foreground">{t('childSchedule.text_68')}</p>
                   </div>
                 </div>
                 <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                  {isBn ? `${toBnNum(selfStudyHours)}ঘ ${toBnNum(selfStudyRemMin)}মি` : `${selfStudyHours}h ${selfStudyRemMin}m`}
+                  {t('childSchedule.h_m', { p0: isBn ? toBnNum(collegeHours) : collegeHours, p1: isBn ? toBnNum(collegeRemMin) : collegeRemMin }, `${collegeHours}h ${collegeRemMin}m`)}
                 </span>
               </div>
             </CardContent>
@@ -1536,12 +1637,10 @@ export default function KidSchedulePage() {
           <CardHeader className="p-4 sm:p-6 pb-2">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>{isBn ? 'রুটিন তৈরি ও পরিবর্তনের সহজ নিয়ম' : 'Helpful Schedule Tips'}</span>
+              <span>{t('childSchedule.text_69')}</span>
             </CardTitle>
             <CardDescription className="text-xs">
-              {isBn
-                ? 'স্কুল বা কলেজের ক্লাস শেষ হওয়ার সাথে সাথে ১ ক্লিকে ভয়েস বা টেক্সট দিয়ে ক্লাসে যা পড়ানো হয়েছে তা জমা দাও। এটি অভিভাবকের ড্যাশবোর্ডে সাথে সাথে দেখতে পাওয়া যায়।'
-                : 'Log lessons right after each class period. Your parents can track your consistency and AI prepares quizzes based on topics taught.'}
+              {t('childSchedule.text_70')}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -1553,6 +1652,7 @@ export default function KidSchedulePage() {
       <Modal
         isOpen={logModalOpen}
         onClose={() => {
+          if (loading) return;
           if (isListening && recognitionRef.current) {
             try {
               recognitionRef.current.stop();
@@ -1562,9 +1662,7 @@ export default function KidSchedulePage() {
           setLogModalOpen(false);
         }}
         title={
-          isBn
-            ? `ক্লাস বিবরণী লগ করুন: ${activeRoutineForLog?.periodName || 'ক্লাস'}`
-            : `Log Class: ${activeRoutineForLog?.periodName || 'Period'}`
+          t('childSchedule.log_class', { p0: isBn ? activeRoutineForLog?.periodName || 'ক্লাস' : activeRoutineForLog?.periodName || 'Period' }, `Log Class: ${activeRoutineForLog?.periodName || 'Period'}`)
         }
         description={
           activeRoutineForLog
@@ -1583,7 +1681,7 @@ export default function KidSchedulePage() {
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   {activeRoutineForLog.teacher ? `${activeRoutineForLog.teacher} • ` : ''}
-                  {isBn ? `${toBnNum(activeRoutineForLog.durationMin || 45)} মিনিট ক্লাস` : `${activeRoutineForLog.durationMin || 45} mins`}
+                  {t('childSchedule.mins', { p0: isBn ? toBnNum(activeRoutineForLog.durationMin || 45) : activeRoutineForLog.durationMin || 45 }, `${activeRoutineForLog.durationMin || 45} mins`)}
                 </p>
               </div>
               <Badge className="bg-primary text-primary-foreground font-bold text-[10px]">
@@ -1597,7 +1695,7 @@ export default function KidSchedulePage() {
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                 <Mic className="w-3.5 h-3.5 text-rose-500" />
-                <span>{isBn ? 'মুখে বলে ক্লাসের পড়া দিন (ভয়েস ইনপুট)' : 'Voice Input (Speak to Log)'}</span>
+                <span>{t('childSchedule.text_71')}</span>
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -1623,58 +1721,50 @@ export default function KidSchedulePage() {
                 {isListening ? (
                   <>
                     <MicOff className="w-3.5 h-3.5" />
-                    <span>{isBn ? 'শুনছি... বলা থামান' : 'Listening... Stop'}</span>
+                    <span>{t('childSchedule.text_72')}</span>
                   </>
                 ) : (
                   <>
                     <Mic className="w-3.5 h-3.5" />
-                    <span>{isBn ? 'মাইক্রোফোন চালু করুন' : 'Start Speaking'}</span>
+                    <span>{t('childSchedule.text_73')}</span>
                   </>
                 )}
               </button>
               <span className="text-[11px] text-muted-foreground">
                 {isListening
-                  ? isBn
-                    ? 'স্পষ্টভাবে বলো, টেক্সট বক্সে স্বয়ংক্রিয়ভাবে লেখা হবে...'
-                    : 'Speaking now... text is being typed below'
-                  : isBn
-                  ? 'মুখে বললে নিচে সরাসরি লেখা হয়ে যাবে'
-                  : 'Tap and speak to transcribe automatically'}
+                  ? t('childSchedule.text_74')
+                  : t('childSchedule.text_75')}
               </span>
             </div>
 
             {/* Quick Sample Voice Chips */}
             <div className="pt-1 flex flex-wrap gap-1.5">
               <span className="text-[10px] font-semibold text-muted-foreground self-center">
-                {isBn ? 'নমুনা:' : 'Sample:'}
+                {t('childSchedule.text_76')}
               </span>
               <button
                 type="button"
                 onClick={() =>
                   setLogForm((p) => ({
                     ...p,
-                    topicsText: isBn
-                      ? 'আজকের ক্লাসে বীজগণিতের ৪.১ এর বর্গের সূত্রাবলি বুঝিয়েছেন এবং ১ থেকে ১০ নং অংক সমাধান করিয়েছেন।'
-                      : 'Class 8 Math: Chapter 4 Algebraic Formulae (a+b)^2 and exercises 1 to 10 solved.',
+                    topicsText: t('childSchedule.text_77'),
                   }))
                 }
                 className="text-[10px] px-2 py-0.5 rounded-lg border bg-card hover:bg-muted text-foreground transition-colors"
               >
-                {isBn ? 'গণিত বর্গের সূত্র ও অনুশীলন' : 'Math Formulas'}
+                {t('childSchedule.text_78')}
               </button>
               <button
                 type="button"
                 onClick={() =>
                   setLogForm((p) => ({
                     ...p,
-                    topicsText: isBn
-                      ? 'বিজ্ঞানের দ্বিতীয় অধ্যায়ের গতির ৩টি সমীকরণ ও ত্বরণ নির্ণয় বিস্তারিত আলোচনা হয়েছে।'
-                      : 'Science: Equations of motion and acceleration calculation.',
+                    topicsText: t('childSchedule.text_79'),
                   }))
                 }
                 className="text-[10px] px-2 py-0.5 rounded-lg border bg-card hover:bg-muted text-foreground transition-colors"
               >
-                {isBn ? 'বিজ্ঞান গতির সমীকরণ' : 'Science Motion'}
+                {t('childSchedule.text_80')}
               </button>
             </div>
           </div>
@@ -1683,19 +1773,17 @@ export default function KidSchedulePage() {
           <div>
             <div className="flex items-center justify-between mb-1">
               <Label className="text-xs font-bold text-foreground">
-                {isBn ? 'আজ ক্লাসে কী কী পড়ানো হয়েছে? (আবশ্যক)' : 'What was taught in this class? (Required)'}
+                {t('childSchedule.text_81')}
               </Label>
               <span className="text-[10px] text-muted-foreground">
-                {isBn ? 'অধ্যায়, সূত্র বা অনুশীলনীর বিবরণ' : 'Chapter, topics, exercises'}
+                {t('childSchedule.text_82')}
               </span>
             </div>
             <textarea
               value={logForm.topicsText}
               onChange={(e) => setLogForm({ ...logForm, topicsText: e.target.value })}
               placeholder={
-                isBn
-                  ? 'যেমন: অধ্যায় ৪ এর বীজগণিতীয় সূত্রাবলী ৪.১ বর্গের সূত্রাবলী প্রয়োগ ও ১ থেকে ১০ নং অংক সমাধান...'
-                  : 'e.g. Chapter 4: Algebraic identities, solved problems 1 to 10...'
+                t('childSchedule.text_83')
               }
               rows={4}
               required
@@ -1731,15 +1819,41 @@ export default function KidSchedulePage() {
             </div>
           </div>
 
+          {classLogSaveError && (
+            <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">{classLogSaveError}</p>
+          )}
+          <ClassNoteImageUpload childId={childId} subject={activeRoutineForLog?.subject || activeRoutineForLog?.name || 'Class'}
+            date={selectedDate} draft={noteAttachment} onChange={setNoteAttachment} disabled={loading} isBn={isBn} />
+          {existingEntryForLog?.linkedNotes?.some((note: any) => note.fileUrl) && (
+            <details className="rounded-xl border p-3">
+              <summary className="cursor-pointer text-xs font-semibold">{isBn ? 'সংরক্ষিত ক্লাস নোট' : 'Previously saved class notes'}</summary>
+              <ClassLogNotes entry={existingEntryForLog} isBn={isBn} />
+            </details>
+          )}
+
+          {/* Class notes are saved to the library and linked to this class log. */}
+          <div>
+            <Label htmlFor="class-notes" className="text-xs font-bold block mb-1">
+              {isBn ? 'ক্লাস নোট (ঐচ্ছিক)' : 'Class notes (optional)'}
+            </Label>
+            <textarea id="class-notes" value={logForm.notes}
+              onChange={(event) => setLogForm({ ...logForm, notes: event.target.value })}
+              placeholder={isBn ? 'ক্লাসের বিস্তারিত নোট, সূত্র বা উদাহরণ লিখুন…' : 'Write detailed notes, formulas, or examples from this class…'}
+              rows={5} className="w-full px-3 py-2 text-sm rounded-2xl border bg-background focus:outline-none focus:ring-2 focus:ring-primary/40" />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {isBn ? 'এই নোট ক্লাস লগ ও নোটের পাতায় দেখা যাবে।' : 'These notes will appear with this class log and on the Notes page.'}
+            </p>
+          </div>
+
           {/* Homework / Assignment Input */}
           <div>
             <Label className="text-xs font-bold text-foreground block mb-1">
-              {isBn ? 'বাড়ির কাজ বা অ্যাসাইনমেন্ট (যদি দিয়ে থাকেন)' : 'Homework / Assignment (Optional)'}
+              {t('childSchedule.text_84')}
             </Label>
             <Input
               value={logForm.homeworkAssigned}
               onChange={(e) => setLogForm({ ...logForm, homeworkAssigned: e.target.value })}
-              placeholder={isBn ? 'যেমন: অনুশীলনী ৪.১ এর ১১ থেকে ১৫ নং অংক খাতায় করে আনা' : 'e.g. Solve exercises 11 to 15 in notebook'}
+              placeholder={t('childSchedule.text_85')}
               className="text-xs"
             />
           </div>
@@ -1747,7 +1861,7 @@ export default function KidSchedulePage() {
           {/* Confidence / Understanding Stars */}
           <div>
             <Label className="text-xs font-bold text-foreground block mb-1.5">
-              {isBn ? 'ক্লাসের পড়া কেমন বুঝতে পেরেছ?' : 'How well did you understand this class?'}
+              {t('childSchedule.text_86')}
             </Label>
             <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
               {[
@@ -1787,6 +1901,7 @@ export default function KidSchedulePage() {
               type="button"
               variant="outline"
               size="sm"
+              disabled={loading}
               onClick={() => {
                 if (isListening && recognitionRef.current) {
                   try {
@@ -1797,19 +1912,19 @@ export default function KidSchedulePage() {
                 setLogModalOpen(false);
               }}
             >
-              {isBn ? 'বাতিল' : 'Cancel'}
+              {t('childSchedule.text_87')}
             </Button>
             <Button
               type="submit"
               size="sm"
-              disabled={loading || !logForm.topicsText.trim()}
+              disabled={loading || !!noteAttachment?.processing || (!!noteAttachment && !noteAttachment.summary.trim()) || !logForm.topicsText.trim() || isFutureClassDate(selectedDate)}
               className="bg-primary text-primary-foreground font-bold rounded-xl px-4 gap-1.5"
             >
               <Check className="w-4 h-4 stroke-[2.5]" />
               <span>
                 {loading
-                  ? isBn ? 'সংরক্ষণ হচ্ছে...' : 'Saving...'
-                  : isBn ? 'ক্লাসের পড়া অনুমোদন ও সংরক্ষণ করুন 🎉' : 'Approve & Save Class Log 🎉'}
+                  ? t('childSchedule.text_88')
+                  : t('childSchedule.text_89')}
               </span>
             </Button>
           </div>
@@ -1822,11 +1937,9 @@ export default function KidSchedulePage() {
       <Modal
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
-        title={isBn ? 'রুটিনে নতুন ক্লাস বা পিরিয়ড যোগ করুন' : 'Add Class / Period to Schedule'}
+        title={t('childSchedule.text_90')}
         description={
-          isBn
-            ? 'তোমার স্কুল বা কলেজের সাপ্তাহিক ক্লাসের সময়সূচী সেট করো।'
-            : 'Set up recurring classes for each weekday.'
+          t('childSchedule.text_91')
         }
         maxWidth="md"
       >
@@ -1834,7 +1947,7 @@ export default function KidSchedulePage() {
           {/* Quick Presets inside modal */}
           <div>
             <Label className="text-xs font-semibold text-muted-foreground mb-1 block">
-              {isBn ? 'পরামর্শ / দ্রুত প্রিসেট নির্বাচন করুন:' : 'Quick Presets:'}
+              {t('childSchedule.text_92')}
             </Label>
             <div className="flex flex-wrap gap-1.5">
               {routinePresets.map((p, i) => (
@@ -1865,7 +1978,7 @@ export default function KidSchedulePage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-semibold">{isBn ? 'পিরিয়ড নাম' : 'Period Name'}</Label>
+              <Label className="text-xs font-semibold">{t('childSchedule.text_93')}</Label>
               <select
                 value={routineForm.periodName}
                 onChange={(e) => setRoutineForm({ ...routineForm, periodName: e.target.value })}
@@ -1884,30 +1997,30 @@ export default function KidSchedulePage() {
               </select>
             </div>
             <div>
-              <Label className="text-xs font-semibold">{isBn ? 'প্রতিষ্ঠান / উৎস' : 'Institution / Source'}</Label>
+              <Label className="text-xs font-semibold">{t('childSchedule.text_94')}</Label>
               <select
                 value={routineForm.source}
                 onChange={(e) => setRoutineForm({ ...routineForm, source: e.target.value })}
                 className="w-full mt-1 px-3 py-2 text-xs rounded-xl border bg-background text-foreground"
               >
                 {institutionType === 'school' && (
-                  <option value="school">{isBn ? 'স্কুল (School)' : 'School'}</option>
+                  <option value="school">{t('childSchedule.school')}</option>
                 )}
                 {institutionType === 'college' && (
-                  <option value="college">{isBn ? 'কলেজ (College)' : 'College'}</option>
+                  <option value="college">{t('childSchedule.college')}</option>
                 )}
-                <option value="tuition">{institutionType === 'admission' ? (isBn ? 'এডমিশন কোচিং / টেস্ট' : 'Admission Coaching') : (isBn ? 'প্রাইভেট / কোচিং' : 'Tuition / Coaching')}</option>
-                <option value="self_study">{institutionType === 'admission' ? (isBn ? 'সেলফ স্টাডি ও প্রশ্নব্যাংক' : 'Self-Study & Question Bank') : (isBn ? 'সেলফ স্টাডি' : 'Self Study')}</option>
+                <option value="tuition">{institutionType === 'admission' ? (t('childSchedule.text_95')) : (t('childSchedule.text_96'))}</option>
+                <option value="self_study">{institutionType === 'admission' ? (t('childSchedule.text_97')) : (t('childSchedule.text_98'))}</option>
               </select>
             </div>
           </div>
 
           <div>
-            <Label className="text-xs font-semibold">{isBn ? 'ক্লাস / বিষয়ের নাম' : 'Class / Subject Name'}</Label>
+            <Label className="text-xs font-semibold">{t('childSchedule.text_99')}</Label>
             <Input
               value={routineForm.name}
               onChange={(e) => setRoutineForm({ ...routineForm, name: e.target.value })}
-              placeholder={isBn ? 'যেমন: ৩য় পিরিয়ড: সাধারণ গণিত' : 'e.g. 3rd Period: General Mathematics'}
+              placeholder={t('childSchedule.text_100')}
               required
               className="mt-1"
             />
@@ -1915,20 +2028,20 @@ export default function KidSchedulePage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-semibold">{isBn ? 'শিক্ষকের নাম (ঐচ্ছিক)' : 'Teacher Name'}</Label>
+              <Label className="text-xs font-semibold">{t('childSchedule.text_101')}</Label>
               <Input
                 value={routineForm.teacher}
                 onChange={(e) => setRoutineForm({ ...routineForm, teacher: e.target.value })}
-                placeholder={isBn ? 'যেমন: আবুল হোসেন স্যার' : 'e.g. Kabir Sir'}
+                placeholder={t('childSchedule.text_102')}
                 className="mt-1 text-xs"
               />
             </div>
             <div>
-              <Label className="text-xs font-semibold">{isBn ? 'রুম / ল্যাব (ঐচ্ছিক)' : 'Room / Lab'}</Label>
+              <Label className="text-xs font-semibold">{t('childSchedule.text_103')}</Label>
               <Input
                 value={routineForm.room}
                 onChange={(e) => setRoutineForm({ ...routineForm, room: e.target.value })}
-                placeholder={isBn ? 'যেমন: রুম ৩০২' : 'e.g. Room 302'}
+                placeholder={t('childSchedule.text_104')}
                 className="mt-1 text-xs"
               />
             </div>
@@ -1937,7 +2050,7 @@ export default function KidSchedulePage() {
           {/* Weekday selector */}
           <div>
             <Label className="text-xs font-semibold block mb-1">
-              {isBn ? 'সাপ্তাহিক দিনসমূহ (যে যে বারে ক্লাস হয়):' : 'Weekdays:'}
+              {t('childSchedule.text_105')}
             </Label>
             <div className="grid grid-cols-7 gap-1">
               {WEEKDAYS.map((w) => {
@@ -1969,7 +2082,7 @@ export default function KidSchedulePage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-semibold">{isBn ? 'শুরুর সময়' : 'Start Time'}</Label>
+              <Label className="text-xs font-semibold">{t('childSchedule.text_106')}</Label>
               <Input
                 type="time"
                 value={routineForm.startTime}
@@ -1979,7 +2092,7 @@ export default function KidSchedulePage() {
               />
             </div>
             <div>
-              <Label className="text-xs font-semibold">{isBn ? 'সময়কাল (মিনিট)' : 'Duration (mins)'}</Label>
+              <Label className="text-xs font-semibold">{t('childSchedule.text_107')}</Label>
               <Input
                 type="number"
                 value={routineForm.durationMin}
@@ -1993,10 +2106,10 @@ export default function KidSchedulePage() {
 
           <div className="flex justify-end gap-2 pt-3 border-t">
             <Button type="button" variant="outline" size="sm" onClick={() => setCreateModalOpen(false)}>
-              {isBn ? 'বাতিল' : 'Cancel'}
+              {t('childSchedule.text_87')}
             </Button>
             <Button type="submit" size="sm" disabled={loading} className="bg-primary text-primary-foreground font-bold">
-              {loading ? (isBn ? 'সংরক্ষণ হচ্ছে...' : 'Saving...') : (isBn ? 'রুটিনে যোগ করুন' : 'Add to Schedule')}
+              {loading ? (t('childSchedule.text_88')) : (t('childSchedule.text_108'))}
             </Button>
           </div>
         </form>
@@ -2008,11 +2121,9 @@ export default function KidSchedulePage() {
       <Modal
         isOpen={templateModalOpen}
         onClose={() => setTemplateModalOpen(false)}
-        title={isBn ? 'বাংলাদেশি স্কুল ও কলেজ রুটিন টেমপ্লেট' : 'Schedule Templates'}
+        title={t('childSchedule.text_109')}
         description={
-          isBn
-            ? 'তোমার শ্রেণি বা বিভাগের প্রস্তুতকৃত সম্পূর্ণ রুটিন এক ক্লিকে লোড করো।'
-            : 'Load a standard pre-built schedule for your grade in 1 click.'
+          t('childSchedule.text_110')
         }
         maxWidth="md"
       >
@@ -2027,16 +2138,14 @@ export default function KidSchedulePage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
                     <School className="w-4 h-4 text-primary" />
-                    {isBn ? 'অষ্টম শ্রেণি — পূর্ণাঙ্গ স্কুল রুটিন (Class 8)' : 'Class 8 High School Routine'}
+                    {t('childSchedule.class_8')}
                   </span>
                   <Badge variant="outline" className="text-[10px]">
-                    {isBn ? '৬টি পিরিয়ড/দিন' : '6 Periods/Day'}
+                    {t('childSchedule.text_111')}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  {isBn
-                    ? 'রবি-বৃহস্পতি: বাংলা, ইংরেজি, সাধারণ গণিত, সাধারণ বিজ্ঞান, বিজিএস ও আইসিটি।'
-                    : 'Sun-Thu: Bangla, English, Math, Science, BGS, ICT.'}
+                  {t('childSchedule.text_112')}
                 </p>
               </button>
 
@@ -2048,16 +2157,14 @@ export default function KidSchedulePage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
                     <School className="w-4 h-4 text-emerald-500" />
-                    {isBn ? 'পঞ্চম শ্রেণি — প্রাথমিক বিদ্যালয় রুটিন (Class 5)' : 'Class 5 Primary School Routine'}
+                    {t('childSchedule.class_5')}
                   </span>
                   <Badge variant="outline" className="text-[10px]">
-                    {isBn ? '৫টি পিরিয়ড/দিন' : '5 Periods/Day'}
+                    {t('childSchedule.text_113')}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  {isBn
-                    ? 'রবি-বৃহস্পতি: বাংলা, ইংরেজি, গণিত, প্রাথমিক বিজ্ঞান ও বাংলাদেশ ও বিশ্বপরিচয়।'
-                    : 'Sun-Thu: Bangla, English, Math, Science, BGS.'}
+                  {t('childSchedule.text_114')}
                 </p>
               </button>
             </>
@@ -2074,16 +2181,14 @@ export default function KidSchedulePage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
                     <Building2 className="w-4 h-4 text-purple-500" />
-                    {isBn ? 'এইচএসসি / কলেজ — বিজ্ঞান বিভাগ (HSC Science)' : 'HSC College Science Routine'}
+                    {t('childSchedule.hsc_science')}
                   </span>
                   <Badge variant="outline" className="text-[10px]">
-                    {isBn ? '৫টি পিরিয়ড/দিন' : '5 Periods/Day'}
+                    {t('childSchedule.text_113')}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  {isBn
-                    ? 'রবি-বৃহস্পতি: পদার্থবিজ্ঞান, রসায়ন, উচ্চতর গণিত, জীববিজ্ঞান ও আইসিটি ল্যাব।'
-                    : 'Sun-Thu: Physics, Chemistry, Higher Math, Biology, ICT.'}
+                  {t('childSchedule.text_115')}
                 </p>
               </button>
 
@@ -2095,16 +2200,14 @@ export default function KidSchedulePage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
                     <Building2 className="w-4 h-4 text-blue-500" />
-                    {isBn ? 'এইচএসসি / কলেজ — ব্যবসায় শিক্ষা (HSC Commerce)' : 'HSC Commerce Routine'}
+                    {t('childSchedule.hsc_commerce')}
                   </span>
                   <Badge variant="outline" className="text-[10px]">
-                    {isBn ? '৪টি পিরিয়ড/দিন' : '4 Periods/Day'}
+                    {t('childSchedule.text_116')}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  {isBn
-                    ? 'রবি-বৃহস্পতি: হিসাববিজ্ঞান, ব্যবসায় সংগঠন, ফিন্যান্স ও অর্থনীতি।'
-                    : 'Sun-Thu: Accounting, Business, Finance, Economics.'}
+                  {t('childSchedule.text_117')}
                 </p>
               </button>
             </>
@@ -2121,21 +2224,39 @@ export default function KidSchedulePage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
                     <GraduationCap className="w-4 h-4 text-amber-500" />
-                    {isBn ? 'মেডিকেল ও বিশ্ববিদ্যালয় এডমিশন প্রস্তুতি রুটিন' : 'Medical & Varsity Admission Routine'}
+                    {t('childSchedule.text_118')}
                   </span>
                   <Badge variant="outline" className="text-[10px]">
-                    {isBn ? 'মডেল টেস্ট ও রিভিশন' : 'Mock Tests & Revision'}
+                    {t('childSchedule.text_119')}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  {isBn
-                    ? 'প্রতিদিন: জীববিজ্ঞান ও রসায়ন প্রশ্নব্যাংক, পদার্থবিজ্ঞান ম্যাথ সলভিং ও ডেইলি ফুল-লেংথ মডেল টেস্ট।'
-                    : 'Daily: Biology & Chemistry Question Bank, Physics Math Solving, Full-length Mock Tests.'}
+                  {t('childSchedule.text_120')}
                 </p>
               </button>
             </>
           )}
         </div>
+      </Modal>
+      <Modal isOpen={!!rescheduleClass} onClose={() => setRescheduleClass(null)}
+        title={isBn ? 'ক্লাসের সময় পরিবর্তন' : 'Reschedule class'} maxWidth="sm">
+        <form onSubmit={handleReschedule} className="space-y-4 pt-2">
+          <p className="text-sm font-semibold">{rescheduleClass?.name}</p>
+          <div>
+            <Label>{isBn ? 'নতুন তারিখ' : 'New date'}</Label>
+            <Input type="date" required value={rescheduleForm.newDate}
+              onChange={(event) => setRescheduleForm({ ...rescheduleForm, newDate: event.target.value })} />
+          </div>
+          <div>
+            <Label>{isBn ? 'নতুন সময়' : 'New time'}</Label>
+            <Input type="time" required value={rescheduleForm.newStartTime}
+              onChange={(event) => setRescheduleForm({ ...rescheduleForm, newStartTime: event.target.value })} />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setRescheduleClass(null)}>{t('common.cancel', 'Cancel')}</Button>
+            <Button type="submit" disabled={loading}>{loading ? t('common.saving', 'Saving…') : (isBn ? 'সময় পরিবর্তন করুন' : 'Confirm reschedule')}</Button>
+          </div>
+        </form>
       </Modal>
     </KidShell>
   );

@@ -22,6 +22,7 @@ import {
 } from 'recharts';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/lib/i18n-context';
 
 const COLORS = [
   '#4F46E5', // Indigo
@@ -49,6 +50,10 @@ export function StudyTimeChart({
   institutionType?: 'school' | 'college' | 'admission';
   isBn?: boolean;
 }) {
+  // The chart takes `isBn` as a prop, but the *strings* come from the dictionary.
+  // Reading the locale from the context here means the labels follow the user's
+  // chosen locale rather than whatever the parent page happened to pass down.
+  const { t } = useI18n();
   const hasCollegeData = data?.some((d) => (d.college || 0) > 0);
   const showCollege = institutionType === 'college' || hasCollegeData;
   const showSchool = (institutionType === 'school' || data?.some((d) => (d.school || 0) > 0)) && !showCollege;
@@ -58,34 +63,34 @@ export function StudyTimeChart({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>
           <XAxis dataKey="date" fontSize={12} />
-          <YAxis fontSize={12} unit={isBn ? ' মি' : ' m'} />
+          <YAxis fontSize={12} unit={t('charts.axis_unit')} />
           <Tooltip
             formatter={(value: any, name: any) => {
               const v = Number(value) || 0;
               const h = Math.floor(v / 60);
               const m = v % 60;
               const formatted = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-              return [`${v} ${isBn ? 'মিনিট' : 'mins'} (${formatted})`, name];
+              return [`${v} ${t('charts.minutes')} (${formatted})`, name];
             }}
           />
           <Legend />
           {showSchool && (
-            <Bar dataKey="school" stackId="a" fill="#4F46E5" name={isBn ? 'স্কুল' : 'School'} />
+            <Bar dataKey="school" stackId="a" fill="#4F46E5" name={t('charts.text_3')} />
           )}
           {showCollege && (
-            <Bar dataKey="college" stackId="a" fill="#06B6D4" name={isBn ? 'কলেজ' : 'College'} />
+            <Bar dataKey="college" stackId="a" fill="#06B6D4" name={t('charts.text_4')} />
           )}
           <Bar
             dataKey="tuition"
             stackId="a"
             fill="#F59E0B"
-            name={institutionType === 'admission' ? (isBn ? 'কোচিং / টেস্ট' : 'Coaching / Test') : (isBn ? 'প্রাইভেট / টিউশন' : 'Tuition')}
+            name={institutionType === 'admission' ? (t('charts.text_5')) : (t('charts.text_6'))}
           />
           <Bar
             dataKey="self_study"
             stackId="a"
             fill="#10B981"
-            name={isBn ? 'সেলফ-স্টাডি' : 'Self-study'}
+            name={t('charts.text_7')}
           />
         </BarChart>
       </ResponsiveContainer>
@@ -115,6 +120,7 @@ export function SubjectDonut({
   data: any[];
   isBn?: boolean;
 }) {
+  const { t } = useI18n();
   const validData = Array.isArray(data)
     ? data.filter((d) => Number(d?.value || d?.count || 0) > 0)
     : [];
@@ -125,7 +131,7 @@ export function SubjectDonut({
     return (
       <div className="w-full min-h-[200px] flex flex-col items-center justify-center text-xs text-muted-foreground gap-1.5">
         <span className="text-2xl">📚</span>
-        <span>{isBn ? 'কোনো বিষয়ের পাঠ এখনও লগ করা হয়নি' : 'No subject lesson data yet'}</span>
+        <span>{t('charts.text_8')}</span>
       </div>
     );
   }
@@ -156,7 +162,7 @@ export function SubjectDonut({
                 const val = Number(value) || 0;
                 const pct = totalLessons > 0 ? Math.round((val / totalLessons) * 100) : 0;
                 return [
-                  `${isBn ? toBnNum(val) : val} ${isBn ? 'টি পাঠ' : 'lessons'} (${isBn ? toBnNum(pct) : pct}%)`,
+                  `${isBn ? toBnNum(val) : val} ${t('charts.text_9')} (${isBn ? toBnNum(pct) : pct}%)`,
                   name,
                 ];
               }}
@@ -175,7 +181,7 @@ export function SubjectDonut({
             {isBn ? toBnNum(totalLessons) : totalLessons}
           </span>
           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-0.5">
-            {isBn ? 'পাঠ' : 'Lessons'}
+            {t('charts.text_10')}
           </span>
         </div>
       </div>
@@ -204,10 +210,10 @@ export function SubjectDonut({
               </div>
               <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground font-semibold">
                 <span className="text-foreground font-bold">
-                  {isBn ? `${toBnNum(val)}টি` : `${val}`}
+                  {t('charts.lesson_count', { p0: isBn ? toBnNum(val) : val }, `${val}`)}
                 </span>
                 <span className="text-[11px] text-muted-foreground/70 min-w-[38px] text-right">
-                  {isBn ? `${toBnNum(pct)}%` : `${pct}%`}
+                  {t('charts.percentage', { p0: isBn ? toBnNum(pct) : pct }, `${pct}%`)}
                 </span>
               </div>
             </div>
@@ -275,6 +281,7 @@ export function MonthlyActivityCalendar({
   data: Record<string, number>;
   isBn?: boolean;
 }) {
+  const { t } = useI18n();
   const [viewDate, setViewDate] = useState(() => new Date());
 
   const year = viewDate.getFullYear();
@@ -340,7 +347,7 @@ export function MonthlyActivityCalendar({
               onClick={goToToday}
               className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
             >
-              {isBn ? 'বর্তমান মাস' : 'Current Month'}
+              {t('charts.text_11')}
             </button>
           )}
         </div>
@@ -353,7 +360,7 @@ export function MonthlyActivityCalendar({
             size="icon"
             className="h-8 w-8 rounded-lg border-border/60 hover:bg-muted"
             onClick={goToPrevMonth}
-            title={isBn ? 'পূর্ববর্তী মাস' : 'Previous Month'}
+            title={t('charts.text_12')}
             aria-label="Previous Month"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -364,7 +371,7 @@ export function MonthlyActivityCalendar({
             size="icon"
             className="h-8 w-8 rounded-lg border-border/60 hover:bg-muted"
             onClick={goToNextMonth}
-            title={isBn ? 'পরবর্তী মাস' : 'Next Month'}
+            title={t('charts.text_13')}
             aria-label="Next Month"
           >
             <ChevronRight className="w-4 h-4" />
@@ -416,15 +423,13 @@ export function MonthlyActivityCalendar({
 
           let tooltipText = `${dStr}`;
           if (status === 'completed') {
-            tooltipText += isBn
-              ? `: পড়াশোনা সম্পন্ন (${toBnNum(val)}টি সেশন)`
-              : `: Study logged (${val} session${val > 1 ? 's' : ''})`;
+            tooltipText += t('charts.study_logged_session', { p0: isBn ? toBnNum(val) : val, p1: val > 1 ? 's' : '' }, `: Study logged (${val} session${val > 1 ? 's' : ''})`);
           } else if (status === 'missed') {
-            tooltipText += isBn ? ': পড়াশোনা মিস হয়েছে' : ': Missed study session';
+            tooltipText += t('charts.text_14');
           } else if (status === 'future') {
-            tooltipText += isBn ? ': ভবিষ্যৎ তারিখ' : ': Upcoming date';
+            tooltipText += t('charts.text_15');
           } else {
-            tooltipText += isBn ? ': কোনো লগ নেই' : ': No logs recorded';
+            tooltipText += t('charts.text_16');
           }
 
           // Lighter tone styles to match the theme
@@ -455,7 +460,7 @@ export function MonthlyActivityCalendar({
                 </span>
                 {isToday && (
                   <span className="text-[8px] sm:text-[9px] uppercase tracking-wider font-extrabold text-primary px-1 py-0.5 rounded bg-primary/10">
-                    {isBn ? 'আজ' : 'Today'}
+                    {t('charts.text_17')}
                   </span>
                 )}
               </div>
@@ -484,26 +489,26 @@ export function MonthlyActivityCalendar({
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-md bg-emerald-500/20 border border-emerald-500/40 inline-block" />
             <span className="text-muted-foreground">
-              {isBn ? 'সম্পন্ন' : 'Completed'}{' '}
+              {t('charts.text_18')}{' '}
               {completedCount > 0 ? `(${isBn ? toBnNum(completedCount) : completedCount})` : ''}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-md bg-rose-500/20 border border-rose-500/40 inline-block" />
             <span className="text-muted-foreground">
-              {isBn ? 'মিস হয়েছে' : 'Missed'}{' '}
+              {t('charts.text_19')}{' '}
               {missedCount > 0 ? `(${isBn ? toBnNum(missedCount) : missedCount})` : ''}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-md bg-muted/40 border border-border/40 inline-block" />
-            <span className="text-muted-foreground">{isBn ? 'অন্যান্য / ভবিষ্যৎ' : 'Rest / Future'}</span>
+            <span className="text-muted-foreground">{t('charts.text_20')}</span>
           </div>
         </div>
 
         {loggedDays > 0 && (
           <div className="text-muted-foreground font-medium">
-            {isBn ? 'ধারাবাহিকতা:' : 'Consistency:'}{' '}
+            {t('charts.text_21')}{' '}
             <span className="font-bold text-foreground">
               {isBn ? toBnNum(consistencyRate) : consistencyRate}%
             </span>

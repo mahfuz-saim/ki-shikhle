@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from '../platform/express-compat';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
-import { unauthorized } from '../utils/errors';
+import { unauthorized, forbidden } from '../utils/errors';
+import { resolveActor, type Actor, type Role } from '../core/tenancy';
 
 export interface AuthUser {
   userId: string;
@@ -9,69 +10,84 @@ export interface AuthUser {
   email?: string;
   childId?: string; // for child scope
   type?: string; // access | child
+  /**
+   * The resolved tenancy scope for this request.
+   *
+   * Set by the `auth` middleware after the account was looked up. Handlers should read
+   * `ownerId`/`childId` from here rather than re-deriving them from the token.
+   */
+  actor?: Actor;
 }
 
-export function auth(requiredRole?: string | string[]) {
-  return (req: Request, _res: Response, next: NextFunction) => {
+/**
+ * Authenticate a request.
+ *
+ * There used to be a fallback here that accepted any token starting with `demo-parent`,
+ * and any token merely *containing* `tasnim` / `rahim` / `fahim` / `parent`, and turned it
+ * into a session for the seeded demo family. That was an unauthenticated login bypass in
+ * production. It is gone.
+ *
+ * The demo account does not need it: `parent@demo.com` logs in with a real password and
+ * receives a real signed JWT, exactly like any other account. A token that fails
+ * verification is simply not authenticated.
+ *
+ * The role check is made against the **database**, not against the JWT claim. A JWT stays
+ * valid for its whole lifetime (7 days by default), so a token minted before an account
+ * was demoted would otherwise keep its old powers for days. `resolveActor` re-reads the
+ * account row and rejects unknown or deleted accounts outright.
+ */
+export function auth(requiredRole?: Role | Role[]) {
+  return async (req: Request, _res: Response, next: NextFunction) => {
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) return next(unauthorized('Missing token'));
+
     const token = header.slice(7);
 
+    let payload: AuthUser & { exp: number };
     try {
-      const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as AuthUser & { exp: number };
+      payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as AuthUser & { exp: number };
+    } catch {
+      return next(unauthorized('Invalid or expired token'));
+    }
+    if (!payload?.userId) return next(unauthorized('Invalid token'));
+
+    try {
+      const actor = await resolveActor({
+        userId: payload.userId,
+        childId: payload.childId,
+        role: payload.role,
+        email: payload.email,
+      });
+
       if (requiredRole) {
         const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-        if (!roles.includes(payload.role)) return next(unauthorized('Forbidden role'));
+        if (!roles.includes(actor.role)) return next(forbidden('Forbidden role'));
       }
-      req.user = payload;
+
+      req.user = { ...payload, role: actor.role, childId: actor.childId || payload.childId, actor };
       return next();
-    } catch {
-      // Graceful fallback for mock/demo offline tokens
-      if (token === 'demo-parent-token' || token.startsWith('demo-parent') || token.startsWith('demo-access-token') || token.startsWith('demo-parent-')) {
-        req.user = { userId: 'parent-demo', role: 'parent', email: 'parent@demo.com' };
-        if (requiredRole && !['parent', 'admin'].includes(Array.isArray(requiredRole) ? requiredRole[0] : requiredRole)) {
-          return next(unauthorized('Forbidden role'));
-        }
-        return next();
-      }
-
-      if (token === 'demo-child-token-tasnim' || token.includes('demo-child-2') || token.includes('tasnim')) {
-        req.user = { userId: 'parent-demo', childId: 'demo-child-2', role: 'child', email: 'tasnim@demo.com' };
-        return next();
-      }
-
-      if (token === 'demo-child-token-rahim' || token.includes('demo-child-1') || token.includes('rahim')) {
-        req.user = { userId: 'parent-demo', childId: 'demo-child-1', role: 'child', email: 'rahim@demo.com' };
-        return next();
-      }
-
-      if (token === 'demo-child-token-fahim' || token.includes('demo-child-3') || token.includes('fahim')) {
-        req.user = { userId: 'parent-demo', childId: 'demo-child-3', role: 'child', email: 'fahim@demo.com' };
-        return next();
-      }
-
-      return next(unauthorized('Invalid or expired token'));
+    } catch (e: any) {
+      return next(e);
     }
   };
 }
 
+/**
+ * Attach the caller when a valid token is present, otherwise leave the request anonymous.
+ *
+ * Used by endpoints that are public but can personalise their response. It never invents
+ * an identity — an invalid token simply means "anonymous".
+ */
 export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return next();
+
   const token = header.slice(7);
   try {
     const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as AuthUser;
-    req.user = payload;
+    if (payload?.userId) req.user = payload;
   } catch {
-    if (token.includes('parent') || token.startsWith('demo-access-token')) {
-      req.user = { userId: 'parent-demo', role: 'parent', email: 'parent@demo.com' };
-    } else if (token.includes('tasnim')) {
-      req.user = { userId: 'parent-demo', childId: 'demo-child-2', role: 'child', email: 'tasnim@demo.com' };
-    } else if (token.includes('rahim')) {
-      req.user = { userId: 'parent-demo', childId: 'demo-child-1', role: 'child', email: 'rahim@demo.com' };
-    } else if (token.includes('fahim')) {
-      req.user = { userId: 'parent-demo', childId: 'demo-child-3', role: 'child', email: 'fahim@demo.com' };
-    }
+    // Not authenticated — continue as an anonymous caller.
   }
-  next();
+  return next();
 }

@@ -6,28 +6,28 @@ import { AppError, badRequest, conflict, notFound, unauthorized } from '../../ut
 import { env } from '../../config/env';
 import jwt from 'jsonwebtoken';
 import { randomId } from '../../utils/crypto';
-import { memChildren } from '../children/children.service';
+import { store, ensureDemoCredentials, sanitizeChild } from '../../core/store';
 
 const ACCESS_TTL = env.JWT_ACCESS_TTL || '7d';
 const TRIAL_DAYS = env.TRIAL_DAYS || 15;
 
-export const memUsers: any[] = [
-  {
-    id: 'parent-demo',
-    name: 'Rafiqul Islam',
-    email: 'parent@demo.com',
-    password: 'Password123!',
-    role: 'parent',
-    language: 'en',
-    country: 'BD',
-    timezone: 'Asia/Dhaka',
-    trialEndsAt: null,
-    createdAt: new Date().toISOString(),
-  },
-];
+/**
+ * The in-memory user list.
+ *
+ * Re-exported for backwards compatibility, but the source of truth is `core/store`, which
+ * partitions records by owner. There is no longer a bare `parent-demo` entry here: the demo
+ * tenant lives in the store with a real id, so no code path can resolve an arbitrary
+ * account to it.
+ */
+export const memUsers: any[] = [];
 
 function createAccessToken(user: { id?: string; userId?: string; email?: string; role?: string; childId?: string }) {
-  const uid = user.id || user.userId || 'parent-demo';
+  const uid = user.id || user.userId;
+  if (!uid) {
+    // Previously this fell back to 'parent-demo', which minted a demo session for any
+    // caller that reached it with no id.
+    throw new AppError(500, 'Cannot issue a token without a subject');
+  }
   return jwt.sign(
     { userId: uid, email: user.email, role: user.role || 'parent', childId: user.childId },
     env.JWT_ACCESS_SECRET,
@@ -65,8 +65,13 @@ export async function registerUser(input: {
       },
     });
 
-    // create free freemium subscription
-    const plan = (await prisma.plan.findFirst({ where: { code: 'free' } })) || (await prisma.plan.findUnique({ where: { code: 'trial' } }));
+    // Create the free subscription.
+    //
+    // This used to fall back to the `trial` plan, which was a different plan with
+    // different limits (two children, forty quizzes, twelve months of history). A
+    // new account silently received a legacy plan nobody had asked for, and the
+    // fallback made the seed's plan list load-bearing for registration.
+    const plan = await prisma.plan.findFirst({ where: { code: 'free' } });
     if (plan) {
       await prisma.subscription.create({
         data: { userId: user.id, planId: plan.id, status: 'active', currentPeriodEnd: null, childSlots: 1 },
@@ -91,21 +96,25 @@ export async function registerUser(input: {
     if (e instanceof AppError) throw e;
     // Fallback mock for dev without DB
     console.warn('Auth register DB fallback:', e.message);
-    const existing = memUsers.find((u) => u.email.toLowerCase() === input.email.trim().toLowerCase());
+    const normEmail = input.email.trim().toLowerCase();
+    const existing = store.users.byEmail(normEmail);
     if (existing) throw conflict('Email already registered');
 
+    // Store the argon2id hash, never the plaintext password.
+    const passwordHash = await hashPassword(input.password);
     const mockUser = {
       id: 'parent-' + Date.now(),
-      email: input.email.trim().toLowerCase(),
+      email: normEmail,
       name: input.name,
-      password: input.password,
-      role: 'parent',
+      passwordHash,
+      role: 'parent' as const,
       language: input.language || 'en',
       country: input.country || 'BD',
       timezone: input.timezone || 'Asia/Dhaka',
       trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 3600000).toISOString(),
       createdAt: new Date().toISOString(),
     };
+    store.users.add(mockUser);
     memUsers.push(mockUser);
     const accessToken = createAccessToken({ id: mockUser.id, email: mockUser.email, role: 'parent' });
     return {
@@ -191,52 +200,67 @@ export async function loginUser(email: string, password: string, meta: { ip?: st
     if (e instanceof AppError) throw e;
     console.warn('Login DB fallback:', e.message);
 
-    // In-memory fallback for dev mode without DB:
+    // In-memory fallback for dev mode without DB.
+    // The password is ALWAYS verified against the stored hash. There used to be a bypass
+    // here where the passwords 'Password123!' and 'DemoPass1' matched any account, and a
+    // branch where 'parent@demo.com' logged in with no password check at all.
+    await ensureDemoCredentials();
     const norm = email.trim().toLowerCase();
 
-    // 1. Check parent accounts in memUsers
-    const memUser = memUsers.find((u: any) => u.email?.toLowerCase() === norm);
+    // 1. Parent / child login identities in the store.
+    const memUser = store.users.byEmail(norm);
     if (memUser) {
-      if (memUser.password && memUser.password !== password && password !== 'Password123!' && password !== 'DemoPass1') {
-        throw unauthorized('Invalid credentials');
+      const ok = await verifyPassword(memUser.passwordHash || '', password);
+      if (!ok) throw unauthorized('Invalid credentials');
+
+      let childId: string | undefined;
+      let grade: string | undefined;
+      let curriculum: string | undefined;
+
+      if (memUser.role === 'child') {
+        const c = store.children.findByField('email', norm);
+        if (c) {
+          childId = c.id;
+          grade = c.grade || undefined;
+          curriculum = c.curriculum;
+        }
       }
-      const accessToken = createAccessToken({ id: memUser.id, email: memUser.email, role: 'parent' });
-      return { user: sanitize(memUser), accessToken, refreshToken: 'mock-refresh-' + memUser.id };
+
+      const accessToken = createAccessToken({
+        id: memUser.id,
+        email: memUser.email,
+        role: memUser.role,
+        childId,
+      });
+      return {
+        user: { ...sanitize(memUser), childId, grade, curriculum },
+        accessToken,
+        refreshToken: 'mock-refresh-' + memUser.id,
+      };
     }
 
-    // 2. Check student accounts in memChildren (Rahim, Tasnim, etc.)
-    const memChild = memChildren.find(
-      (c: any) =>
-        c.email?.toLowerCase() === norm ||
-        (norm === 'student@demo.com' && c.id === 'demo-child-1')
-    );
-    if (memChild) {
-      if (memChild.password && memChild.password !== password && password !== 'Password123!' && password !== 'DemoPass1') {
-        throw unauthorized('Invalid credentials');
-      }
+    // 2. A child that has credentials on the Child row but no login identity yet.
+    const memChild = store.children.findByField('email', norm);
+    if (memChild && memChild.passwordHash) {
+      const ok = await verifyPassword(memChild.passwordHash, password);
+      if (!ok) throw unauthorized('Invalid credentials');
+
       const mockChildUser = {
         id: memChild.id,
         name: memChild.name,
         email: memChild.email,
         role: 'child',
         childId: memChild.id,
-        parentId: memChild.parentId,
+        parentId: memChild.ownerId,
         grade: memChild.grade,
         curriculum: memChild.curriculum,
       };
       const token = jwt.sign(
-        { userId: memChild.parentId || 'parent-demo', childId: memChild.id, email: memChild.email, role: 'child' },
+        { userId: memChild.ownerId, childId: memChild.id, email: memChild.email, role: 'child' },
         env.JWT_ACCESS_SECRET,
         { expiresIn: (env.JWT_ACCESS_TTL || '7d') as any }
       );
       return { user: mockChildUser, accessToken: token, refreshToken: 'mock-refresh-' + memChild.id };
-    }
-
-    // 3. Fallback for demo parent
-    if (norm === 'parent@demo.com') {
-      const defaultParent = memUsers[0];
-      const accessToken = createAccessToken({ id: defaultParent.id, email: defaultParent.email, role: 'parent' });
-      return { user: sanitize(defaultParent), accessToken, refreshToken: 'mock-refresh-parent' };
     }
 
     throw unauthorized('Invalid credentials');
@@ -262,74 +286,14 @@ export async function createRefreshToken(userId: string, meta?: { ip?: string; u
 }
 
 export async function refreshTokens(oldRefreshToken: string) {
-  // 1. Handle mock/demo refresh tokens
-  if (oldRefreshToken.startsWith('mock-refresh') || oldRefreshToken.includes('demo')) {
-    if (oldRefreshToken.includes('tasnim') || oldRefreshToken.includes('child-2')) {
-      const child = memChildren.find((c: any) => c.id === 'demo-child-2') || {
-        id: 'demo-child-2',
-        name: 'Tasnim Islam',
-        email: 'tasnim@demo.com',
-        role: 'child',
-        childId: 'demo-child-2',
-        grade: 'Class 5',
-        curriculum: 'NCTB',
-      };
-      const token = jwt.sign(
-        { userId: 'parent-demo', childId: 'demo-child-2', email: 'tasnim@demo.com', role: 'child' },
-        env.JWT_ACCESS_SECRET,
-        { expiresIn: (env.JWT_ACCESS_TTL || '7d') as any }
-      );
-      return { accessToken: token, refreshToken: 'mock-refresh-tasnim', user: { ...child, role: 'child' } };
-    }
+  // Refresh tokens are opaque, single-use, server-side records. There used to be a branch
+  // here that treated any token starting with 'mock-refresh' — or merely *containing* the
+  // word 'demo' — as a valid session for the seeded demo family. Because this endpoint is
+  // public, that was an unauthenticated login bypass: POST /auth/refresh with
+  // {refreshToken:"mock-refresh-parent"} returned a signed access token.
+  //
+  // A refresh token that is not a verifiable JWT is simply invalid.
 
-    if (oldRefreshToken.includes('fahim') || oldRefreshToken.includes('child-3')) {
-      const child = memChildren.find((c: any) => c.id === 'demo-child-3') || {
-        id: 'demo-child-3',
-        name: 'Fahim Islam',
-        email: 'fahim@demo.com',
-        role: 'child',
-        childId: 'demo-child-3',
-        grade: 'Class 11',
-        curriculum: 'NCTB',
-      };
-      const token = jwt.sign(
-        { userId: 'parent-demo', childId: 'demo-child-3', email: 'fahim@demo.com', role: 'child' },
-        env.JWT_ACCESS_SECRET,
-        { expiresIn: (env.JWT_ACCESS_TTL || '7d') as any }
-      );
-      return { accessToken: token, refreshToken: 'mock-refresh-fahim', user: { ...child, role: 'child' } };
-    }
-
-    if (oldRefreshToken.includes('rahim') || oldRefreshToken.includes('child-1')) {
-      const child = memChildren.find((c: any) => c.id === 'demo-child-1') || {
-        id: 'demo-child-1',
-        name: 'Rahim Ahmed',
-        email: 'rahim@demo.com',
-        role: 'child',
-        childId: 'demo-child-1',
-        grade: 'Class 8',
-        curriculum: 'NCTB',
-      };
-      const token = jwt.sign(
-        { userId: 'parent-demo', childId: 'demo-child-1', email: 'rahim@demo.com', role: 'child' },
-        env.JWT_ACCESS_SECRET,
-        { expiresIn: (env.JWT_ACCESS_TTL || '7d') as any }
-      );
-      return { accessToken: token, refreshToken: 'mock-refresh-rahim', user: { ...child, role: 'child' } };
-    }
-
-    const defaultParent = memUsers[0] || {
-      id: 'parent-demo',
-      name: 'Rafiqul Islam',
-      email: 'parent@demo.com',
-      role: 'parent',
-      trialEndsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
-    };
-    const accessToken = createAccessToken({ id: defaultParent.id, email: defaultParent.email, role: 'parent' });
-    return { accessToken, refreshToken: 'mock-refresh-parent', user: sanitize(defaultParent) };
-  }
-
-  // 2. Real DB JWT refresh tokens
   try {
     const payload: any = jwt.verify(oldRefreshToken, env.JWT_REFRESH_SECRET);
     const hash = hashToken(oldRefreshToken);
@@ -359,7 +323,10 @@ export async function refreshTokens(oldRefreshToken: string) {
           { expiresIn: (env.JWT_ACCESS_TTL || '7d') as any }
         );
         const newRefresh = await createRefreshToken(child.id);
-        return { accessToken: newAccess, refreshToken: newRefresh, user: sanitize(child) };
+        // `sanitize` strips only `passwordHash` — a Child row also carries
+        // `pinHash`, the PIN used for child-mode entry. That hash was reaching the
+        // client on every refresh. `sanitizeChild` strips both.
+        return { accessToken: newAccess, refreshToken: newRefresh, user: sanitizeChild(child) };
       }
       throw unauthorized('User not found');
     }
@@ -369,14 +336,12 @@ export async function refreshTokens(oldRefreshToken: string) {
     return { accessToken: newAccess, refreshToken: newRefresh, user: sanitize(user) };
   } catch (e: any) {
     if (e instanceof AppError) throw e;
-    const defaultParent = memUsers[0] || {
-      id: 'parent-demo',
-      name: 'Rafiqul Islam',
-      email: 'parent@demo.com',
-      role: 'parent',
-      trialEndsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
-    };
-    return { accessToken: createAccessToken(defaultParent), refreshToken: 'mock-refresh-parent', user: sanitize(defaultParent) };
+    // A database blip during refresh must NOT escalate the caller to another account.
+    // The client retries on any 401, so returning a demo session here silently swapped a
+    // real parent's identity for the seeded demo family — the exact bug this project is
+    // fixing. Fail closed instead.
+    console.warn('Refresh failed:', e?.message);
+    throw unauthorized('Session refresh failed — please log in again');
   }
 }
 
@@ -450,6 +415,17 @@ export async function changePassword(userId: string, curr: string, next: string)
     if (!ok) throw badRequest('Current password incorrect');
     const passwordHash = await hashPassword(next);
     await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+    // A child-role account has a second copy of the same credential on its `Child` row.
+    // Write it there too, so the two can never diverge.
+    if (user.role === 'child') {
+      try {
+        await prisma.child.updateMany({ where: { email: user.email }, data: { passwordHash } });
+      } catch {}
+      const memChild = store.children.findByField('email', user.email);
+      if (memChild) memChild.passwordHash = passwordHash;
+    }
+
     return { message: 'Password changed successfully' };
   } catch (e: any) {
     if (e instanceof AppError) throw e;
@@ -461,7 +437,26 @@ export async function me(userId: string) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { subscriptions: { include: { plan: true } }, children: true },
+      include: {
+        subscriptions: { include: { plan: true } },
+        // The children relation is projected, NOT included wholesale: `Child` carries
+        // `passwordHash` and `pinHash`, so `include: { children: true }` sent every
+        // child's argon2id hash to the owning parent on every `/auth/me` call.
+        children: {
+          select: {
+            id: true,
+            name: true,
+            nickname: true,
+            grade: true,
+            curriculum: true,
+            medium: true,
+            avatar: true,
+            email: true,
+            slug: true,
+            demoProfile: true,
+          },
+        },
+      },
     });
     if (!user) {
       // Check if this userId corresponds to a Child in DB
@@ -478,14 +473,11 @@ export async function me(userId: string) {
         };
       }
 
-      // Check if this userId corresponds to a user in memUsers
-      const memU = memUsers.find((u: any) => u.id === userId || u.email?.toLowerCase() === userId.toLowerCase());
-      if (memU) {
-        return sanitize(memU);
-      }
+      // The in-memory store, scoped to the requested id.
+      const memU = store.users.byId(userId);
+      if (memU) return sanitize(memU);
 
-      // Check if this userId corresponds to a child in memChildren
-      const memC = memChildren.find((c: any) => c.id === userId || c.email === userId);
+      const memC = store.children.findByField('email', userId) || store.children.findAny(userId);
       if (memC) {
         return {
           id: memC.id,
@@ -497,7 +489,11 @@ export async function me(userId: string) {
           curriculum: memC.curriculum,
         };
       }
-      return { id: userId, email: 'parent@demo.com', name: 'Rafiqul Islam', role: 'parent' };
+
+      // An unknown id is an authentication failure. It used to return the demo parent here,
+      // which meant every session reported itself as the demo family when the database was
+      // unreachable.
+      throw notFound('User not found');
     }
 
     if (user.role === 'child') {
@@ -507,16 +503,32 @@ export async function me(userId: string) {
         childId: child?.id,
         grade: child?.grade,
         curriculum: child?.curriculum,
+        // The demo dataset selector, so a demo child sees the demo content on their own
+        // dashboard. It is chosen by the server and only ever reaches this child.
+        demoProfile: child?.demoProfile ?? null,
       };
     }
 
     return sanitize(user);
-  } catch {
-    const memU = memUsers.find((u: any) => u.id === userId || u.email?.toLowerCase() === userId.toLowerCase());
+  } catch (e: any) {
+    if (e instanceof AppError) throw e;
+    // Degraded mode — the store is scoped exactly like the database.
+    const memU = store.users.byId(userId);
     if (memU) return sanitize(memU);
-    const memC = memChildren.find((c: any) => c.id === userId || c.email === userId);
-    if (memC) return { id: memC.id, name: memC.name, email: memC.email, role: 'child', childId: memC.id, grade: memC.grade, curriculum: memC.curriculum };
-    return { id: userId, email: 'parent@demo.com', name: 'Rafiqul Islam', role: 'parent' };
+    const memC = store.children.findByField('email', userId) || store.children.findAny(userId);
+    if (memC) {
+      return {
+        id: memC.id,
+        name: memC.name,
+        email: memC.email,
+        role: 'child',
+        childId: memC.id,
+        grade: memC.grade,
+        curriculum: memC.curriculum,
+        demoProfile: memC.demoProfile ?? null,
+      };
+    }
+    throw notFound('User not found');
   }
 }
 
@@ -533,7 +545,42 @@ export async function restoreAccount(userId: string) {
 }
 
 export async function exportData(userId: string) {
-  const user = await prisma.user.findUnique({ where: { id: userId }, include: { children: true, subscriptions: true } }).catch(() => null);
+  // Same projection rule as `me()`: a data export must not include the credential
+  // columns of the account or of its children.
+  const user = await prisma.user
+    .findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        language: true,
+        country: true,
+        timezone: true,
+        emailVerifiedAt: true,
+        trialEndsAt: true,
+        createdAt: true,
+        updatedAt: true,
+        children: {
+          select: {
+            id: true,
+            name: true,
+            nickname: true,
+            grade: true,
+            curriculum: true,
+            medium: true,
+            avatar: true,
+            email: true,
+            slug: true,
+            demoProfile: true,
+            createdAt: true,
+          },
+        },
+        subscriptions: { include: { plan: true } },
+      },
+    })
+    .catch(() => null);
   return user || { message: 'Export mock', userId };
 }
 

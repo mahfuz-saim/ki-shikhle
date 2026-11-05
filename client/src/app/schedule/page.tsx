@@ -1,22 +1,26 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
+import { ClassLogNotes } from '@/components/children/class-log-notes';
+import { UnloggedStudyAlert } from '@/components/children/unlogged-study-alert';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
-import { useI18n } from '@/lib/i18n-context';
+import { useI18n, type Translator } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
+import { quizLanguage } from '@/lib/quiz-language';
+import { loadClassLogs, findClassLog, findLogQuiz } from '@/lib/class-logs';
+import { demoProfileOf, type DemoProfile } from '@/lib/child-scope';
 import {
   Calendar as CalendarIcon,
   Clock,
   Plus,
-  RefreshCw,
   Trash2,
   CalendarCheck,
   ChevronLeft,
@@ -27,9 +31,9 @@ import {
   School,
   GraduationCap,
   Building2,
-  Check,
   UserCheck,
   ChevronDown,
+  AlertCircle,
 } from 'lucide-react';
 
 const WEEKDAYS = [
@@ -97,61 +101,100 @@ function getWeekOffsetForDate(target: Date, base: Date = new Date()): number {
   return Math.round(diffTime / (7 * 86400000));
 }
 
-function formatFullDate(date: Date, isBn: boolean): string {
+/**
+ * The full date, in the locale's format.
+ *
+ * `t` is passed in rather than read from `useI18n()`: this is a module-level
+ * function, and a hook cannot be called outside a component.
+ */
+function formatFullDate(date: Date, isBn: boolean, t: Translator): string {
   const dayObj = WEEKDAYS[date.getDay()];
   const dayName = isBn ? dayObj.fullBn : dayObj.fullEn;
   const monthName = isBn ? BN_MONTHS[date.getMonth()] : EN_MONTHS[date.getMonth()];
   const dateNum = isBn ? toBnNum(date.getDate()) : date.getDate();
   const yearNum = isBn ? toBnNum(date.getFullYear()) : date.getFullYear();
 
-  return isBn
-    ? `${dayName}, ${dateNum} ${monthName} ${yearNum}`
-    : `${dayName}, ${monthName} ${dateNum}, ${yearNum}`;
+  return t(
+    'schedule.full_date',
+    { p0: dayName, p1: dateNum, p2: monthName, p3: yearNum },
+    `${dayName}, ${monthName} ${dateNum}, ${yearNum}`
+  );
 }
 
-function getDefaultRoutines(childId: string, isBn: boolean) {
-  if (childId === 'demo-child-2') {
+/**
+ * The demo timetable for a child profile.
+ *
+ * Selected by the server-assigned `demoProfile` — the ids moved to UUIDs, so
+ * `childId === 'demo-child-2'` never matched and every demo child saw Rahim's
+ * timetable.
+ *
+ * `t` is passed in rather than read from `useI18n()`: this is a module-level
+ * function, and a hook cannot be called outside a component.
+ */
+function getDefaultRoutines(profile: DemoProfile | null, isBn: boolean, t: Translator) {
+  if (profile === 'tasnim') {
     return [
-      { id: 'r-t-p1', name: isBn ? '১ম পিরিয়ড: প্রাথমিক বাংলা' : '1st Period: Primary Bangla', periodName: '১ম পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:30', durationMin: 45, subject: 'Bangla', teacher: 'ফরিদা ইয়াসমিন ম্যাডাম' },
-      { id: 'r-t-p2', name: isBn ? '২য় পিরিয়ড: প্রাথমিক ইংরেজি' : '2nd Period: Primary English', periodName: '২য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:15', durationMin: 45, subject: 'English', teacher: 'সায়মা সুলতানা ম্যাডাম' },
-      { id: 'r-t-p3', name: isBn ? '৩য় পিরিয়ড: প্রাথমিক গণিত' : '3rd Period: Primary Math', periodName: '৩য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '11:15', durationMin: 45, subject: 'Mathematics', teacher: 'তানিয়া রহমান ম্যাডাম' },
-      { id: 'r-t1', name: isBn ? 'প্রাথমিক গণিত প্রাইভেট' : 'Elementary Math Tuition', periodName: 'প্রাইভেট', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:00', durationMin: 60, subject: 'Mathematics', teacher: 'রোকেয়া আপা' },
-      { id: 'r-t2', name: isBn ? 'ইংরেজি টিউটর' : 'English Tutor', periodName: 'প্রাইভেট', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 45, subject: 'English', teacher: 'শরীফ স্যার' },
-      { id: 'r-t3', name: isBn ? 'সন্ধ্যায় হোমওয়ার্ক ও সেলফ স্টাডি' : 'Evening Homework & Self-Study', periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '18:30', durationMin: 75, subject: 'Self-Study' },
+      { id: 'r-t-p1', name: t('schedule.text'), periodName: '১ম পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:30', durationMin: 45, subject: 'Bangla', teacher: 'ফরিদা ইয়াসমিন ম্যাডাম' },
+      { id: 'r-t-p2', name: t('schedule.text_2'), periodName: '২য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:15', durationMin: 45, subject: 'English', teacher: 'সায়মা সুলতানা ম্যাডাম' },
+      { id: 'r-t-p3', name: t('schedule.text_3'), periodName: '৩য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '11:15', durationMin: 45, subject: 'Mathematics', teacher: 'তানিয়া রহমান ম্যাডাম' },
+      { id: 'r-t1', name: t('schedule.text_4'), periodName: 'প্রাইভেট', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:00', durationMin: 60, subject: 'Mathematics', teacher: 'রোকেয়া আপা' },
+      { id: 'r-t2', name: t('schedule.text_5'), periodName: 'প্রাইভেট', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 45, subject: 'English', teacher: 'শরীফ স্যার' },
+      { id: 'r-t3', name: t('schedule.text_6'), periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '18:30', durationMin: 75, subject: 'Self-Study' },
     ];
   }
-  if (childId === 'demo-child-3') {
+  if (profile === 'fahim') {
     return [
-      { id: 'r-f-c1', name: isBn ? '১ম পিরিয়ড: পদার্থবিজ্ঞান ১ম পত্র' : '1st Period: Physics 1st Paper', periodName: '১ম পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '08:30', durationMin: 50, subject: 'Physics', teacher: 'ড. মাহবুব স্যার' },
-      { id: 'r-f-c2', name: isBn ? '২য় পিরিয়ড: রসায়ন ১ম পত্র' : '2nd Period: Chemistry 1st Paper', periodName: '২য় পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '09:20', durationMin: 50, subject: 'Chemistry', teacher: 'তাহমিনা ম্যাডাম' },
-      { id: 'r-f-c3', name: isBn ? '৩য় পিরিয়ড: উচ্চতর গণিত ১ম পত্র' : '3rd Period: Higher Math 1st Paper', periodName: '৩য় পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '10:10', durationMin: 50, subject: 'Higher Mathematics', teacher: 'এনামুল স্যার' },
-      { id: 'r-f1', name: isBn ? 'পদার্থবিজ্ঞান কোচিং — গতিবিদ্যা' : 'Physics Coaching', periodName: 'কোচিং', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:30', durationMin: 75, subject: 'Physics', teacher: 'আহমেদ স্যার' },
-      { id: 'r-f2', name: isBn ? 'রসায়ন প্রাইভেট' : 'Chemistry Tuition', periodName: 'প্রাইভেট', source: 'tuition', weekdays: [1, 3], startTime: '17:00', durationMin: 60, subject: 'Chemistry', teacher: 'কামরুল স্যার' },
-      { id: 'r-f3', name: isBn ? 'উচ্চতর গণিত সেলফ স্টাডি' : 'Higher Math Self-Study', periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:30', durationMin: 60, subject: 'Higher Mathematics' },
+      { id: 'r-f-c1', name: t('schedule.text_7'), periodName: '১ম পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '08:30', durationMin: 50, subject: 'Physics', teacher: 'ড. মাহবুব স্যার' },
+      { id: 'r-f-c2', name: t('schedule.text_8'), periodName: '২য় পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '09:20', durationMin: 50, subject: 'Chemistry', teacher: 'তাহমিনা ম্যাডাম' },
+      { id: 'r-f-c3', name: t('schedule.text_9'), periodName: '৩য় পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '10:10', durationMin: 50, subject: 'Higher Mathematics', teacher: 'এনামুল স্যার' },
+      { id: 'r-f1', name: t('schedule.text_10'), periodName: 'কোচিং', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:30', durationMin: 75, subject: 'Physics', teacher: 'আহমেদ স্যার' },
+      { id: 'r-f2', name: t('schedule.text_11'), periodName: 'প্রাইভেট', source: 'tuition', weekdays: [1, 3], startTime: '17:00', durationMin: 60, subject: 'Chemistry', teacher: 'কামরুল স্যার' },
+      { id: 'r-f3', name: t('schedule.text_12'), periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:30', durationMin: 60, subject: 'Higher Mathematics' },
     ];
   }
   return [
-    { id: 'r-r-p1', name: isBn ? '১ম পিরিয়ড: বাংলা ১ম পত্র' : '1st Period: Bangla 1st Paper', periodName: '১ম পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:00', durationMin: 45, subject: 'Bangla', teacher: 'কবির আহমেদ স্যার' },
-    { id: 'r-r-p2', name: isBn ? '২য় পিরিয়ড: ইংরেজি ১ম পত্র' : '2nd Period: English 1st Paper', periodName: '২য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:45', durationMin: 45, subject: 'English', teacher: 'নাসরিন সুলতানা ম্যাডাম' },
-    { id: 'r-r-p3', name: isBn ? '৩য় পিরিয়ড: সাধারণ গণিত' : '3rd Period: Mathematics', periodName: '৩য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:30', durationMin: 45, subject: 'Mathematics', teacher: 'আবুল হোসেন স্যার' },
-    { id: 'r1', name: isBn ? 'গণিত প্রাইভেট — রহিম স্যার' : 'Math Tuition – Rahim Sir', periodName: 'প্রাইভেট', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:00', durationMin: 90, subject: 'Mathematics', teacher: 'রহিম স্যার' },
-    { id: 'r2', name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching', periodName: 'কোচিং', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 60, subject: 'Science', teacher: 'আহমেদ স্যার' },
-    { id: 'r3', name: isBn ? 'সন্ধ্যায় সেলফ স্টাডি ও রিভিশন' : 'Evening Self-Study & Revision', periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:00', durationMin: 90, subject: 'Self-Study' },
+    { id: 'r-r-p1', name: t('schedule.text_13'), periodName: '১ম পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:00', durationMin: 45, subject: 'Bangla', teacher: 'কবির আহমেদ স্যার' },
+    { id: 'r-r-p2', name: t('schedule.text_14'), periodName: '২য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:45', durationMin: 45, subject: 'English', teacher: 'নাসরিন সুলতানা ম্যাডাম' },
+    { id: 'r-r-p3', name: t('schedule.text_15'), periodName: '৩য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:30', durationMin: 45, subject: 'Mathematics', teacher: 'আবুল হোসেন স্যার' },
+    { id: 'r1', name: t('schedule.text_16'), periodName: 'প্রাইভেট', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:00', durationMin: 90, subject: 'Mathematics', teacher: 'রহিম স্যার' },
+    { id: 'r2', name: t('schedule.text_17'), periodName: 'কোচিং', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 60, subject: 'Science', teacher: 'আহমেদ স্যার' },
+    { id: 'r3', name: t('schedule.text_18'), periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:00', durationMin: 90, subject: 'Self-Study' },
   ];
 }
 
 export default function SchedulePage() {
-  const { activeChild, setActiveChild, childrenList } = useAuth();
+  const { activeChild, childrenList } = useAuth();
   const { t, isBn } = useI18n();
 
-  const childId = activeChild?.id || childrenList[0]?.id || 'demo-child-1';
-  const currentChild = childrenList.find((c) => c.id === childId) || activeChild || childrenList[0];
+  // No hardcoded fallback id: an account with no children gets no child, and
+  // the page renders its empty state instead of the demo tenant's data.
+  const childId = activeChild?.id || childrenList[0]?.id || null;
+  const currentChild = activeChild || childrenList[0] || null;
+  const demoProfile = demoProfileOf(currentChild);
+  const isDemoChild = demoProfile !== null;
   const institutionType = getInstitutionType(currentChild?.grade);
-  const instInfo = getInstitutionInfo(institutionType, isBn);
+  const instInfo = getInstitutionInfo(institutionType, t);
 
   const [routines, setRoutines] = useState<any[]>([]);
   const [schedule, setSchedule] = useState<any>(null);
-  const [completedMap, setCompletedMap] = useState<Record<string, boolean>>({});
+  const [classLogs, setClassLogs] = useState<any[]>([]);
+
+  /**
+   * The locale is read through a ref rather than as an effect dependency.
+   *
+   * `isBn` was a dependency of `loadRoutines`, so switching the UI language
+   * re-fetched the timetable. The locale only affects the *copy* of the demo
+   * fixture, so it is read at call time.
+   *
+   * `t` is held the same way: it is a new function whenever the locale changes, and
+   * putting it in the dependency list would re-fetch on every language toggle.
+   */
+  const isBnRef = useRef(isBn);
+  const tRef = useRef(t);
+  useEffect(() => {
+    isBnRef.current = isBn;
+    tRef.current = t;
+  }, [isBn, t]);
 
   // Date and Slider State
   const today = useMemo(() => new Date(), []);
@@ -164,15 +207,15 @@ export default function SchedulePage() {
 
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [weekOffset, setWeekOffset] = useState<number>(0);
-  const [autoAdvancedToTomorrow, setAutoAdvancedToTomorrow] = useState<boolean>(false);
-  const [hasUserManuallySelectedDate, setHasUserManuallySelectedDate] = useState<boolean>(false);
 
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
-  const [selectedRoutine, setSelectedRoutine] = useState<any>(null);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [assigningLog, setAssigningLog] = useState<string | null>(null);
+  const quizRequestBusy = useRef(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Form for new routine
   const [form, setForm] = useState({
@@ -184,62 +227,43 @@ export default function SchedulePage() {
     startsOn: todayStr,
   });
 
-  // Form for reschedule
-  const [rescheduleForm, setRescheduleForm] = useState({
-    originalDate: todayStr,
-    newDate: tomorrowStr,
-    newStartTime: '16:00',
-  });
-
-  // Load completed items from localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(`ki_completed_schedule_${childId}`);
-        if (stored) {
-          setCompletedMap(JSON.parse(stored));
-        } else {
-          setCompletedMap({});
-        }
-      } catch {
-        setCompletedMap({});
-      }
-    }
-  }, [childId]);
-
-  // Save completed items to localStorage
-  const saveCompletedMap = (newMap: Record<string, boolean>) => {
-    setCompletedMap(newMap);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(`ki_completed_schedule_${childId}`, JSON.stringify(newMap));
-      } catch {}
-    }
-  };
-
   // Load routines from API
   const loadRoutines = useCallback(async () => {
+    if (!childId) {
+      setRoutines([]);
+      return;
+    }
     try {
       const r = await api.get(`/children/${childId}/routines`);
       const list = r.data?.data || [];
       if (list && list.length > 0) {
         setRoutines(list);
       } else {
-        setRoutines(getDefaultRoutines(childId, isBn));
+        // Only the demo tenant has a curated timetable fixture.
+        setRoutines(isDemoChild ? getDefaultRoutines(demoProfile, isBnRef.current, tRef.current) : []);
       }
     } catch {
-      setRoutines(getDefaultRoutines(childId, isBn));
+      setRoutines(isDemoChild ? getDefaultRoutines(demoProfile, isBnRef.current, tRef.current) : []);
     }
-  }, [childId, isBn]);
+    // `isBn` and `t` are deliberately NOT dependencies — they only affect the copy of
+    // the demo fixture, and including them re-fetched the timetable on every locale
+    // toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childId, isDemoChild, demoProfile]);
 
   // Load computed schedule from API
   const loadSchedule = useCallback(async () => {
-    const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 14).toISOString().slice(0, 10);
-    const to = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 28).toISOString().slice(0, 10);
+    const dates = getWeekDates(weekOffset, today);
+    const from = formatDateKey(dates[0]);
+    const to = formatDateKey(dates[6]);
 
+    if (!childId) {
+      setSchedule(null);
+      return;
+    }
     try {
       const r = await api.get(`/children/${childId}/schedule?from=${from}&to=${to}`);
-      if (r.data?.data?.occurrences?.length) {
+      if (Array.isArray(r.data?.data?.occurrences)) {
         setSchedule(r.data.data);
       } else {
         setSchedule(null);
@@ -247,7 +271,7 @@ export default function SchedulePage() {
     } catch {
       setSchedule(null);
     }
-  }, [childId, today]);
+  }, [childId, today, weekOffset]);
 
   useEffect(() => {
     loadRoutines();
@@ -259,15 +283,55 @@ export default function SchedulePage() {
     return getWeekDates(weekOffset, today);
   }, [weekOffset, today]);
 
+  // Completion is read-only for parents and comes only from the child's saved log.
+  useEffect(() => {
+    let cancelled = false;
+    let requestId = 0;
+    setClassLogs([]);
+    setQuizzes([]);
+    if (!childId) return;
+    const from = formatDateKey(weekDates[0]);
+    const to = formatDateKey(weekDates[6]);
+    const refreshLogs = async () => {
+      const currentRequest = ++requestId;
+      try {
+        const [logs, quizResponse, scheduleResponse] = await Promise.all([
+          loadClassLogs(childId, from, to), api.get(`/children/${childId}/quizzes`),
+          api.get(`/children/${childId}/schedule`, { params: { from, to } }),
+        ]);
+        if (!cancelled && currentRequest === requestId) {
+          setClassLogs(logs);
+          setQuizzes(quizResponse.data?.data || []);
+          setSchedule(scheduleResponse.data?.data || null);
+        }
+      } catch {
+        if (!cancelled && currentRequest === requestId) {
+          setErrorMsg(tRef.current('schedule.logs_load_failed', 'Could not load class logs. Please refresh.'));
+        }
+      }
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshLogs();
+    };
+    void refreshLogs();
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    const interval = window.setInterval(refreshWhenVisible, 30000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.clearInterval(interval);
+    };
+  }, [childId, weekDates]);
+
   // Build occurrences for a given date from server schedule or local routines
   const getSessionsForDate = useCallback(
     (dateKey: string) => {
       // 1. Check if server returned computed occurrences for this date
-      if (schedule?.occurrences?.length) {
+      if (Array.isArray(schedule?.occurrences)) {
         const serverMatches = schedule.occurrences.filter((o: any) => o.date === dateKey);
-        if (serverMatches.length > 0) {
-          return [...serverMatches].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
-        }
+        return [...serverMatches].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
       }
 
       // 2. Compute directly from active routines
@@ -299,67 +363,14 @@ export default function SchedulePage() {
     [schedule, routines]
   );
 
-  const getOccurrenceId = useCallback((childKey: string, session: any) => {
-    return `${childKey}_${session.date}_${session.routineId || session.name}_${session.startTime}`;
-  }, []);
-
   const isSessionCompleted = useCallback(
-    (session: any) => {
-      const key = getOccurrenceId(childId, session);
-      return completedMap[key] === true || session.status === 'completed';
-    },
-    [childId, completedMap, getOccurrenceId]
+    (session: any) => !!findClassLog(classLogs, session.routineId, session.date),
+    [classLogs]
   );
-
-  const toggleSessionCompletion = (session: any) => {
-    const key = getOccurrenceId(childId, session);
-    const updated = { ...completedMap, [key]: !completedMap[key] };
-    saveCompletedMap(updated);
-
-    // If toggling on today and this completes all of today's classes
-    if (session.date === todayStr && updated[key]) {
-      const todaySessions = getSessionsForDate(todayStr);
-      const isNowAllDone = todaySessions.length > 0 && todaySessions.every((s) => {
-        const k = getOccurrenceId(childId, s);
-        return updated[k] === true || s.status === 'completed';
-      });
-
-      if (isNowAllDone) {
-        setMsg(
-          isBn
-            ? '🎉 আজকের সব শিডিউল সম্পন্ন হয়েছে! চমৎকার কাজ।'
-            : "🎉 All of today's schedule is now complete! Great job."
-        );
-      }
-    }
-  };
-
-  // Intelligent initialization on page load:
-  // "When page loaded it will show today's routine. After all schedule completed of a day, show tomorrow's routine."
-  useEffect(() => {
-    if (hasUserManuallySelectedDate) return;
-
-    const todaySessions = getSessionsForDate(todayStr);
-    if (todaySessions.length > 0) {
-      const allTodayCompleted = todaySessions.every((s) => isSessionCompleted(s));
-      if (allTodayCompleted) {
-        setSelectedDate(tomorrowStr);
-        setWeekOffset(getWeekOffsetForDate(parseDateKey(tomorrowStr), today));
-        setAutoAdvancedToTomorrow(true);
-        return;
-      }
-    }
-
-    // Default to today
-    setSelectedDate(todayStr);
-    setWeekOffset(0);
-    setAutoAdvancedToTomorrow(false);
-  }, [todayStr, tomorrowStr, getSessionsForDate, isSessionCompleted, hasUserManuallySelectedDate, today]);
 
   // Handle selecting any date from the slider or picker
   const handleSelectDate = (dateKey: string) => {
     setSelectedDate(dateKey);
-    setHasUserManuallySelectedDate(true);
     const offset = getWeekOffsetForDate(parseDateKey(dateKey), today);
     setWeekOffset(offset);
   };
@@ -367,7 +378,6 @@ export default function SchedulePage() {
   const goToToday = () => {
     setSelectedDate(todayStr);
     setWeekOffset(0);
-    setHasUserManuallySelectedDate(true);
   };
 
   const toggleWeekday = (idx: number) => {
@@ -394,57 +404,59 @@ export default function SchedulePage() {
         durationMin: 90,
         startsOn: todayStr,
       });
-      setMsg(isBn ? 'রুটিন সফলভাবে তৈরি হয়েছে' : 'Routine created successfully');
-    } catch {
-      setRoutines((prev) => [...prev, { id: 'r-' + Date.now(), ...form }]);
-      setCreateModalOpen(false);
+      setMsg(t('schedule.text_20'));
+    } catch (e: any) {
+      // The routine was NOT created. Adding a local copy put a class in the
+      // timetable that the server had never heard of.
+      setErrorMsg(e?.response?.data?.error?.message || 'The routine could not be created.');
     } finally {
       setLoading(false);
     }
   };
 
-  const openRescheduleModal = (session: any) => {
-    setSelectedRoutine(session);
-    setRescheduleForm({
-      originalDate: session.date || todayStr,
-      newDate: tomorrowStr,
-      newStartTime: session.startTime || '16:00',
-    });
-    setRescheduleModalOpen(true);
-  };
-
-  const handleRescheduleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedRoutine) return;
-    setLoading(true);
+  const handleAssignLogQuiz = async (entry: any, session: any) => {
+    if (!childId || quizRequestBusy.current) return;
+    quizRequestBusy.current = true;
+    setAssigningLog(entry.id);
+    setErrorMsg('');
     try {
-      const routineId = selectedRoutine.routineId || selectedRoutine.id;
-      if (routineId) {
-        await api.post(`/routines/${routineId}/exceptions`, {
-          originalDate: rescheduleForm.originalDate,
-          type: 'rescheduled',
-          newDate: rescheduleForm.newDate,
-          newStartTime: rescheduleForm.newStartTime,
+      // Refresh first, and reuse a draft if an earlier assignment request failed.
+      const current = await api.get(`/children/${childId}/quizzes`);
+      let quiz = findLogQuiz(current.data?.data || [], entry.id, false);
+      if (!quiz) {
+        const generated = await api.post(`/children/${childId}/quizzes/generate`, {
+          scope: 'entries', entryIds: [entry.id], numQuestions: 5,
+          difficulty: 'mixed', types: ['mcq', 'true_false'],
+          language: quizLanguage(currentChild?.medium, entry.subject || entry.subjectName || session.subject || session.name || ''),
+          title: `${session.subject || session.name} — ${session.date}`,
         });
+        quiz = generated.data?.data;
       }
-      await loadSchedule();
-      setRescheduleModalOpen(false);
-      setMsg(isBn ? 'সেশন পুনর্নির্ধারণ করা হয়েছে' : 'Session rescheduled successfully');
-    } catch {
-      setRescheduleModalOpen(false);
+      if (!quiz?.id) throw new Error('No quiz was generated');
+      if (quiz.status !== 'assigned' && quiz.status !== 'completed') {
+        const assigned = await api.post(`/quizzes/${quiz.id}/assign`);
+        quiz = { ...quiz, ...assigned.data?.data, status: 'assigned' };
+      }
+      setQuizzes((previous) => [quiz, ...previous.filter((q) => q.id !== quiz.id)]);
+      setMsg(isBn ? 'কুইজ তৈরি করে সন্তানকে দেওয়া হয়েছে।' : 'Quiz generated and assigned to this child.');
+    } catch (error: any) {
+      setErrorMsg(error?.response?.data?.error?.message || error.message || 'Could not generate and assign quiz.');
     } finally {
-      setLoading(false);
+      quizRequestBusy.current = false;
+      setAssigningLog(null);
     }
   };
 
   const handleDeleteRoutine = async (id: string) => {
-    if (!confirm(isBn ? 'এই রুটিনটি মুছে ফেলতে চান?' : 'Delete this routine?')) return;
+    if (!confirm(t('schedule.text_22'))) return;
     try {
       await api.delete(`/routines/${id}`);
       loadRoutines();
       loadSchedule();
-    } catch {
-      setRoutines((prev) => prev.filter((r) => r.id !== id));
+    } catch (e: any) {
+      // Removing it from the list after a failed delete hid a routine that still
+      // existed on the server.
+      setErrorMsg(e?.response?.data?.error?.message || 'The routine could not be deleted.');
     }
   };
 
@@ -473,7 +485,7 @@ export default function SchedulePage() {
   return (
     <AppShell>
       <div className="space-y-6 max-w-6xl mx-auto">
-        {/* Page Title & Child Switcher */}
+        {/* Page Title & Routine Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
           <div>
             <div className="flex items-center gap-2">
@@ -489,25 +501,8 @@ export default function SchedulePage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Child Selector Pills if multiple children exist */}
-            {childrenList && childrenList.length > 1 && (
-              <div className="flex items-center bg-muted/40 p-1 rounded-xl border">
-                {childrenList.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setActiveChild(c)}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      c.id === childId
-                        ? 'bg-primary text-primary-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {c.nickname || c.name.split(' ')[0]}
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {currentChild && <UnloggedStudyAlert key={currentChild.id} currentChild={currentChild} />}
 
             <Button
               onClick={() => {
@@ -518,7 +513,7 @@ export default function SchedulePage() {
               className="gap-1.5 text-xs h-9 shadow-sm bg-primary text-primary-foreground font-bold"
             >
               <Plus className="w-4 h-4" />
-              <span>{t('schedule.createRoutine', 'Add Routine')}</span>
+              <span>{t('schedule.add_routine', 'Add Routine')}</span>
             </Button>
           </div>
         </div>
@@ -531,7 +526,20 @@ export default function SchedulePage() {
               {msg}
             </span>
             <button onClick={() => setMsg('')} className="underline text-[11px] font-bold">
-              Dismiss
+              {t('common.dismiss')}
+            </button>
+          </div>
+        )}
+
+        {/* Error Banner — a failed request is never shown as a success. */}
+        {errorMsg && (
+          <div className="p-3.5 rounded-2xl bg-destructive/10 border border-destructive/30 text-destructive text-xs font-semibold flex items-center justify-between shadow-xs">
+            <span className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {errorMsg}
+            </span>
+            <button onClick={() => setErrorMsg('')} className="underline text-[11px] font-bold">
+              {t('common.dismiss')}
             </button>
           </div>
         )}
@@ -549,30 +557,24 @@ export default function SchedulePage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-base sm:text-lg font-extrabold text-foreground tracking-tight">
-                    {isBn
-                      ? `${BN_MONTHS[weekDates[3].getMonth()]} ${toBnNum(weekDates[3].getFullYear())}`
-                      : `${EN_MONTHS[weekDates[3].getMonth()]} ${weekDates[3].getFullYear()}`}
+                    {t('schedule.week_of_month', { p0: isBn ? BN_MONTHS[weekDates[3].getMonth()] : EN_MONTHS[weekDates[3].getMonth()], p1: isBn ? toBnNum(weekDates[3].getFullYear()) : weekDates[3].getFullYear() }, `${EN_MONTHS[weekDates[3].getMonth()]} ${weekDates[3].getFullYear()}`)}
                   </h2>
                   {weekOffset !== 0 && (
                     <Badge variant="outline" className="text-[10px] font-semibold text-muted-foreground">
                       {weekOffset > 0
-                        ? isBn
-                          ? `+${toBnNum(weekOffset)} সপ্তাহ`
-                          : `+${weekOffset} wk`
-                        : isBn
-                        ? `${toBnNum(weekOffset)} সপ্তাহ`
-                        : `${weekOffset} wk`}
+                        ? t('schedule.wk', { p0: isBn ? toBnNum(weekOffset) : weekOffset }, `+${weekOffset} wk`)
+                        : t('schedule.wk_2', { p0: isBn ? toBnNum(weekOffset) : weekOffset }, `${weekOffset} wk`)}
                     </Badge>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground font-medium">
-                  {isBn
-                    ? `${toBnNum(weekDates[0].getDate())} ${BN_MONTHS[weekDates[0].getMonth()]} – ${toBnNum(
+                  {t('schedule.week_date_range', { p0: isBn ? toBnNum(weekDates[0].getDate()) : EN_MONTHS[weekDates[0].getMonth()].slice(0, 3), p1: isBn ? BN_MONTHS[weekDates[0].getMonth()] : weekDates[0].getDate(), p2: isBn ? toBnNum(
                         weekDates[6].getDate()
-                      )} ${BN_MONTHS[weekDates[6].getMonth()]}`
-                    : `${EN_MONTHS[weekDates[0].getMonth()].slice(0, 3)} ${weekDates[0].getDate()} – ${EN_MONTHS[
+                      ) : EN_MONTHS[
                         weekDates[6].getMonth()
-                      ].slice(0, 3)} ${weekDates[6].getDate()}`}
+                      ].slice(0, 3), p3: isBn ? BN_MONTHS[weekDates[6].getMonth()] : weekDates[6].getDate() }, `${EN_MONTHS[weekDates[0].getMonth()].slice(0, 3)} ${weekDates[0].getDate()} – ${EN_MONTHS[
+                        weekDates[6].getMonth()
+                      ].slice(0, 3)} ${weekDates[6].getDate()}`)}
                 </p>
               </div>
             </div>
@@ -584,7 +586,7 @@ export default function SchedulePage() {
                 size="sm"
                 onClick={() => setWeekOffset((prev) => prev - 1)}
                 className="h-8 w-8 p-0 rounded-xl"
-                title={isBn ? 'পূর্ববর্তী সপ্তাহ' : 'Previous week'}
+                title={t('schedule.text_23')}
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -595,7 +597,7 @@ export default function SchedulePage() {
                 onClick={goToToday}
                 className="h-8 px-3 rounded-xl text-xs font-bold gap-1.5 transition-all"
               >
-                <span>{isBn ? 'আজ' : 'Today'}</span>
+                <span>{t('schedule.text_24')}</span>
                 {selectedDate !== todayStr && (
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block animate-pulse" />
                 )}
@@ -606,7 +608,7 @@ export default function SchedulePage() {
                 size="sm"
                 onClick={() => setWeekOffset((prev) => prev + 1)}
                 className="h-8 w-8 p-0 rounded-xl"
-                title={isBn ? 'পরবর্তী সপ্তাহ' : 'Next week'}
+                title={t('schedule.text_25')}
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -620,7 +622,7 @@ export default function SchedulePage() {
                     if (e.target.value) handleSelectDate(e.target.value);
                   }}
                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                  title={isBn ? 'যেকোনো তারিখ নির্বাচন করুন' : 'Pick any date'}
+                  title={t('schedule.text_26')}
                 />
                 <Button
                   variant="outline"
@@ -628,7 +630,7 @@ export default function SchedulePage() {
                   className="h-8 px-2.5 rounded-xl text-xs gap-1.5 text-muted-foreground hover:text-foreground"
                 >
                   <CalendarCheck className="w-3.5 h-3.5 text-primary" />
-                  <span className="hidden sm:inline font-semibold">{isBn ? 'তারিখ নির্বাচন' : 'Pick Date'}</span>
+                  <span className="hidden sm:inline font-semibold">{t('schedule.text_27')}</span>
                 </Button>
               </div>
             </div>
@@ -663,7 +665,7 @@ export default function SchedulePage() {
                         isSelected ? 'bg-amber-400 text-black' : 'bg-primary text-primary-foreground'
                       }`}
                     >
-                      {isBn ? 'আজ' : 'Today'}
+                      {t('schedule.text_24')}
                     </span>
                   )}
 
@@ -690,16 +692,10 @@ export default function SchedulePage() {
                     }`}
                   >
                     {isDone
-                      ? isBn
-                        ? 'সম্পূর্ণ ✓'
-                        : 'Done ✓'
+                      ? t('schedule.text_28')
                       : daySessions.length > 0
-                      ? isBn
-                        ? `${toBnNum(daySessions.length)} ক্লাস`
-                        : `${daySessions.length} cls`
-                      : isBn
-                      ? 'ছুটি'
-                      : 'Off'}
+                      ? t('schedule.cls', { p0: isBn ? toBnNum(daySessions.length) : daySessions.length }, `${daySessions.length} cls`)
+                      : t('schedule.text_29')}
                   </span>
                 </button>
               );
@@ -718,14 +714,10 @@ export default function SchedulePage() {
               </div>
               <div>
                 <p className="text-sm font-bold">
-                  {isBn
-                    ? 'আজকের সব শিডিউল সম্পন্ন হয়েছে! আগামীকালের রুটিন প্রদর্শিত হচ্ছে।'
-                    : "Today's schedule is 100% completed! Showing tomorrow's routine."}
+                  {t('schedule.today_s_schedule_is_100_completed_showing_tomorr')}
                 </p>
                 <p className="text-xs opacity-80 mt-0.5">
-                  {isBn
-                    ? 'আজকের সব ক্লাস সম্পন্ন হয়েছে। আগামীকালের ক্লাসের রুটিন ও প্রস্তুতি নিচে দেখুন।'
-                    : 'All sessions for today are complete. Review upcoming sessions and lesson preparation for tomorrow.'}
+                  {t('schedule.text_30')}
                 </p>
               </div>
             </div>
@@ -735,7 +727,7 @@ export default function SchedulePage() {
               onClick={() => handleSelectDate(todayStr)}
               className="h-8 text-xs font-bold border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-900 dark:text-emerald-100 shrink-0"
             >
-              {isBn ? 'আজকের রুটিন দেখুন' : "View Today's Routine"}
+              {t('schedule.view_today_s_routine')}
             </Button>
           </div>
         )}
@@ -749,29 +741,25 @@ export default function SchedulePage() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-lg sm:text-2xl font-extrabold text-foreground tracking-tight">
-                  {formatFullDate(selectedDateObj, isBn)}
+                  {formatFullDate(selectedDateObj, isBn, t)}
                 </h2>
                 {selectedDate === todayStr && (
                   <Badge className="bg-primary text-primary-foreground text-[10px] font-extrabold px-2 py-0.5">
-                    {isBn ? 'আজকের রুটিন' : "Today's Routine"}
+                    {t('schedule.today_s_routine')}
                   </Badge>
                 )}
                 {selectedDate === tomorrowStr && (
                   <Badge className="bg-amber-500 text-black text-[10px] font-extrabold px-2 py-0.5">
-                    {isBn ? 'আগামীকালের রুটিন' : "Tomorrow's Routine"}
+                    {t('schedule.tomorrow_s_routine')}
                   </Badge>
                 )}
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                 {selectedSessions.length > 0
-                  ? isBn
-                    ? `মোট ${toBnNum(selectedSessions.length)}টি ক্লাস/সেশন • আনুমানিক ${toBnNum(
+                  ? t('schedule.session_s_scheduled_approx_mins_total', { p0: isBn ? toBnNum(selectedSessions.length) : selectedSessions.length, p1: isBn ? toBnNum(
                         totalMinutesInSelected
-                      )} মিনিট সময়সূচি`
-                    : `${selectedSessions.length} session(s) scheduled • approx ${totalMinutesInSelected} mins total`
-                  : isBn
-                  ? 'এই দিনে কোনো নিয়মিত ক্লাস বা সেশন নির্ধারিত নেই'
-                  : 'No classes scheduled for this day'}
+                      ) : totalMinutesInSelected }, `${selectedSessions.length} session(s) scheduled • approx ${totalMinutesInSelected} mins total`)
+                  : t('schedule.text_31')}
               </p>
             </div>
 
@@ -779,9 +767,7 @@ export default function SchedulePage() {
               <div className="flex items-center gap-3 bg-card p-2 px-3 rounded-2xl border shadow-xs">
                 <div className="text-right">
                   <span className="text-xs font-bold text-foreground block">
-                    {isBn
-                      ? `${toBnNum(completedInSelected)}/${toBnNum(selectedSessions.length)} সম্পন্ন`
-                      : `${completedInSelected}/${selectedSessions.length} Completed`}
+                    {t('schedule.completed', { p0: isBn ? toBnNum(completedInSelected) : completedInSelected, p1: isBn ? toBnNum(selectedSessions.length) : selectedSessions.length }, `${completedInSelected}/${selectedSessions.length} Completed`)}
                   </span>
                   <span className="text-[10px] text-muted-foreground font-semibold">
                     {Math.round((completedInSelected / selectedSessions.length) * 100)}%
@@ -806,12 +792,10 @@ export default function SchedulePage() {
                 <GraduationCap className="w-7 h-7" />
               </div>
               <h3 className="text-base sm:text-lg font-bold text-foreground">
-                {isBn ? 'এই দিনে কোনো ক্লাস নির্ধারিত নেই' : 'No classes scheduled for this day'}
+                {t('schedule.text_32')}
               </h3>
               <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
-                {isBn
-                  ? 'এই বারে কোনো স্কুল পিরিয়ড বা প্রাইভেট ক্লাস নেই। চাইলে নিচের বাটনে ক্লিক করে নতুন রুটিন যোগ করতে পারেন।'
-                  : 'There are no sessions scheduled for this day. You can add a period or study routine below.'}
+                {t('schedule.text_33')}
               </p>
               <div className="pt-2">
                 <Button
@@ -823,9 +807,7 @@ export default function SchedulePage() {
                 >
                   <Plus className="w-4 h-4" />
                   <span>
-                    {isBn
-                      ? `${WEEKDAYS[selectedDateObj.getDay()].bn} বারে রুটিন যোগ করুন`
-                      : `Add routine for ${WEEKDAYS[selectedDateObj.getDay()].en}`}
+                    {t('schedule.add_routine_for', { p0: isBn ? WEEKDAYS[selectedDateObj.getDay()].bn : WEEKDAYS[selectedDateObj.getDay()].en }, `Add routine for ${WEEKDAYS[selectedDateObj.getDay()].en}`)}
                   </span>
                 </Button>
               </div>
@@ -833,7 +815,8 @@ export default function SchedulePage() {
           ) : (
             <div className="space-y-3">
               {selectedSessions.map((session: any, idx: number) => {
-                const isCompleted = isSessionCompleted(session);
+                const classLog = findClassLog(classLogs, session.routineId, session.date);
+                const isCompleted = !!classLog;
                 const isRescheduled = session.status === 'rescheduled';
 
                 return (
@@ -854,7 +837,7 @@ export default function SchedulePage() {
                           {/* Period Badge */}
                           <Badge className="bg-primary/15 text-primary border-primary/30 font-bold text-[11px] px-2.5 py-0.5">
                             {session.periodName ||
-                              (isBn ? `${toBnNum(idx + 1)}ম পিরিয়ড` : `Period ${idx + 1}`)}
+                              (t('schedule.period', { p0: isBn ? toBnNum(idx + 1) : idx + 1 }, `Period ${idx + 1}`))}
                           </Badge>
 
                           {/* Time Badge */}
@@ -863,9 +846,7 @@ export default function SchedulePage() {
                             <span>{session.startTime}</span>
                             <span>•</span>
                             <span>
-                              {isBn
-                                ? `${toBnNum(session.durationMin || 45)} মিনিট`
-                                : `${session.durationMin || 45}m`}
+                              {t('schedule.m', { p0: isBn ? toBnNum(session.durationMin || 45) : session.durationMin || 45 }, `${session.durationMin || 45}m`)}
                             </span>
                           </div>
 
@@ -883,18 +864,18 @@ export default function SchedulePage() {
                             }`}
                           >
                             {session.source === 'school'
-                              ? isBn ? '🏫 স্কুল' : 'School'
+                              ? t('schedule.text_34')
                               : session.source === 'college'
-                              ? isBn ? '🏛️ কলেজ' : 'College'
+                              ? t('schedule.text_35')
                               : session.source === 'tuition'
-                              ? isBn ? '📚 টিউশন/কোচিং' : 'Tuition'
-                              : isBn ? '📖 সেলফ-স্টাডি' : 'Self-Study'}
+                              ? t('schedule.text_36')
+                              : t('schedule.text_37')}
                           </Badge>
 
                           {/* Rescheduled Badge */}
                           {isRescheduled && (
                             <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold">
-                              {isBn ? 'পুনর্নির্ধারিত' : 'Rescheduled'}
+                              {t('schedule.text_38')}
                             </Badge>
                           )}
                         </div>
@@ -919,7 +900,7 @@ export default function SchedulePage() {
                               )}
                               {session.room && (
                                 <span className="text-muted-foreground/70">
-                                  • {isBn ? `কক্ষ: ${session.room}` : `Room: ${session.room}`}
+                                  • {t('schedule.room', { p0: session.room }, `Room: ${session.room}`)}
                                 </span>
                               )}
                             </p>
@@ -927,34 +908,49 @@ export default function SchedulePage() {
                         </div>
                       </div>
 
-                      {/* Right: Actions (Mark Complete, Reschedule) */}
+                      {/* Parents review completion; only a saved class log completes a class. */}
                       <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-                        <Button
-                          size="sm"
-                          variant={isCompleted ? 'outline' : 'default'}
-                          onClick={() => toggleSessionCompletion(session)}
-                          className={`text-xs h-9 px-3.5 rounded-xl font-bold gap-1.5 transition-all ${
-                            isCompleted
-                              ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20'
-                              : 'bg-primary text-primary-foreground shadow-xs'
-                          }`}
-                        >
-                          <Check className={`w-3.5 h-3.5 stroke-[3] ${isCompleted ? 'text-emerald-600' : ''}`} />
-                          <span>{isCompleted ? (isBn ? 'সম্পন্ন ✓' : 'Completed ✓') : (isBn ? 'সম্পন্ন করুন' : 'Mark Done')}</span>
-                        </Button>
+                        <Badge variant="outline" className={isCompleted
+                          ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10'
+                          : 'text-muted-foreground'}>
+                          {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 mr-1" />}
+                          {isCompleted ? (isBn ? 'সম্পন্ন' : 'Completed') : (isBn ? 'লগ অপেক্ষমাণ' : 'Awaiting log')}
+                        </Badge>
 
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openRescheduleModal(session)}
-                          className="text-xs h-9 px-3 rounded-xl gap-1 text-muted-foreground hover:text-foreground"
-                          title={isBn ? 'সেশন পুনর্নির্ধারণ' : 'Reschedule'}
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">{isBn ? 'পুনর্নির্ধারণ' : 'Reschedule'}</span>
-                        </Button>
+
+                        {classLog && (
+                          <Button size="sm" disabled={!!assigningLog || !!findLogQuiz(quizzes, classLog.id)}
+                            onClick={() => handleAssignLogQuiz(classLog, session)}
+                            className="text-xs h-9 rounded-xl gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            {assigningLog === classLog.id ? (isBn ? 'তৈরি হচ্ছে…' : 'Generating…')
+                              : findLogQuiz(quizzes, classLog.id) ? (isBn ? 'কুইজ দেওয়া হয়েছে' : 'Quiz assigned')
+                              : (isBn ? 'কুইজ তৈরি ও প্রদান' : 'Generate & assign quiz')}
+                          </Button>
+                        )}
                       </div>
                     </div>
+                    {classLog && (
+                      <details className="border-t border-emerald-500/20 px-4 sm:px-5 py-3">
+                        <summary className="cursor-pointer text-xs font-semibold text-primary">
+                          {isBn ? 'ক্লাস লগ দেখুন' : 'View class log'}
+                        </summary>
+                        <div className="mt-3 space-y-3 text-sm">
+                          <p className="whitespace-pre-wrap break-words">{classLog.topicsText}</p>
+                          {classLog.homeworkAssigned && (
+                            <div className="rounded-xl bg-amber-500/10 p-3">
+                              <p className="font-semibold text-xs">{isBn ? 'হোমওয়ার্ক' : 'Homework'}</p>
+                              <p className="whitespace-pre-wrap break-words">{classLog.homeworkAssigned}</p>
+                            </div>
+                          )}
+                          <ClassLogNotes entry={classLog} isBn={isBn} />
+                          <p className="text-xs text-muted-foreground">
+                            {classLog.durationMin ?? 0} {isBn ? 'মিনিট' : 'minutes'}
+                            {classLog.confidence != null && ` • ${isBn ? 'আত্মবিশ্বাস' : 'Confidence'}: ${classLog.confidence}/5`}
+                          </p>
+                        </div>
+                      </details>
+                    )}
                   </Card>
                 );
               })}
@@ -972,9 +968,9 @@ export default function SchedulePage() {
                 <BookOpen className="w-4 h-4" />
               </div>
               <div>
-                <span>{isBn ? 'সকল নিয়মিত রুটিনসমূহ পরিচালনা' : 'Manage All Recurring Routines'}</span>
+                <span>{t('schedule.text_43')}</span>
                 <span className="text-xs text-muted-foreground font-normal ml-2">
-                  ({routines.length} {isBn ? 'টি রুটিন' : 'routines configured'})
+                  ({routines.length} {t('schedule.text_44')})
                 </span>
               </div>
             </div>
@@ -983,9 +979,7 @@ export default function SchedulePage() {
 
           <div className="p-4 sm:p-5 pt-0 border-t space-y-3">
             <p className="text-xs text-muted-foreground">
-              {isBn
-                ? 'সপ্তাহভিত্তিক নিয়মিত পিরিয়ড ও প্রাইভেট ক্লাসের রুলস। এখান থেকে নতুন রুটিন যোগ বা মুছতে পারেন।'
-                : 'Configured recurring routine templates that automatically generate daily study schedules.'}
+              {t('schedule.text_45')}
             </p>
 
             <div className="space-y-2.5">
@@ -999,12 +993,12 @@ export default function SchedulePage() {
                       <span className="font-bold text-sm text-foreground truncate">{r.name}</span>
                       <Badge variant="outline" className="text-[10px] font-semibold">
                         {r.source === 'school'
-                          ? isBn ? 'স্কুল' : 'School'
+                          ? t('schedule.text_46')
                           : r.source === 'college'
-                          ? isBn ? 'কলেজ' : 'College'
+                          ? t('schedule.text_47')
                           : r.source === 'tuition'
-                          ? isBn ? 'টিউশন' : 'Tuition'
-                          : isBn ? 'সেলফ-স্টাডি' : 'Self-study'}
+                          ? t('schedule.text_48')
+                          : t('schedule.text_49')}
                       </Badge>
                     </div>
 
@@ -1035,15 +1029,7 @@ export default function SchedulePage() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openRescheduleModal(r)}
-                      className="text-xs h-8 gap-1 border-primary/30 text-primary hover:bg-primary/5 rounded-xl"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>{isBn ? 'পুনর্নির্ধারণ' : 'Reschedule'}</span>
-                    </Button>
+
                     <Button
                       size="sm"
                       variant="ghost"
@@ -1070,16 +1056,10 @@ export default function SchedulePage() {
         title={t('schedule.createRoutine', 'Add Recurring Routine')}
         description={
           institutionType === 'college'
-            ? isBn
-              ? 'কলেজ ক্লাস ও প্রাইভেট টিউশনের রুটিন যুক্ত করুন।'
-              : 'Set up recurring days and times for college lectures or private tuition.'
+            ? t('schedule.text_50')
             : institutionType === 'admission'
-            ? isBn
-              ? 'কোচিং, টেস্ট ও সেলফ-স্টাডির রুটিন যুক্ত করুন।'
-              : 'Set up recurring days and times for admission coaching or self-study.'
-            : isBn
-            ? 'স্কুল ক্লাস ও প্রাইভেট টিউশনের রুটিন যুক্ত করুন।'
-            : 'Set up recurring days and times for school periods or private tuition.'
+            ? t('schedule.text_51')
+            : t('schedule.text_52')
         }
       >
         <form onSubmit={handleCreateRoutine} className="space-y-4 pt-1">
@@ -1088,7 +1068,7 @@ export default function SchedulePage() {
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={isBn ? 'যেমন: গণিত প্রাইভেট — রহিম স্যার' : 'e.g. Math Tuition – Rahim Sir'}
+              placeholder={t('schedule.text_53')}
               required
               className="mt-1 rounded-xl"
             />
@@ -1102,25 +1082,17 @@ export default function SchedulePage() {
                 onChange={(e) => setForm({ ...form, source: e.target.value })}
                 className="h-10 w-full border rounded-xl px-3 bg-background text-sm mt-1"
               >
-                {institutionType === 'school' && <option value="school">{isBn ? 'স্কুল' : 'School'}</option>}
-                {institutionType === 'college' && <option value="college">{isBn ? 'কলেজ' : 'College'}</option>}
+                {institutionType === 'school' && <option value="school">{t('schedule.text_46')}</option>}
+                {institutionType === 'college' && <option value="college">{t('schedule.text_47')}</option>}
                 <option value="tuition">
                   {institutionType === 'admission'
-                    ? isBn
-                      ? 'কোচিং / প্রাইভেট'
-                      : 'Coaching / Tuition'
-                    : isBn
-                    ? 'প্রাইভেট / কোচিং'
-                    : 'Tuition / Private'}
+                    ? t('schedule.text_54')
+                    : t('schedule.text_55')}
                 </option>
                 <option value="self_study">
                   {institutionType === 'admission'
-                    ? isBn
-                      ? 'সেলফ-স্টাডি ও মডেল টেস্ট'
-                      : 'Self-Study & Mock Tests'
-                    : isBn
-                    ? 'সেলফ-স্টাডি'
-                    : 'Self-Study'}
+                    ? t('schedule.text_56')
+                    : t('schedule.text_49')}
                 </option>
               </select>
             </div>
@@ -1186,71 +1158,12 @@ export default function SchedulePage() {
               {t('common.cancel', 'Cancel')}
             </Button>
             <Button type="submit" size="sm" disabled={loading} className="rounded-xl font-bold">
-              {loading ? t('common.loading', 'Saving...') : t('common.save', 'Create Routine')}
+              {loading ? t('common.saving', 'Saving...') : t('schedule.create_routine', 'Create Routine')}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* ========================================================= */}
-      {/* RESCHEDULE MODAL                                          */}
-      {/* ========================================================= */}
-      <Modal
-        isOpen={rescheduleModalOpen}
-        onClose={() => setRescheduleModalOpen(false)}
-        title={t('schedule.reschedule', 'Reschedule Session')}
-        description={`Move a specific class of "${selectedRoutine?.name}" to a different date or time.`}
-        maxWidth="sm"
-      >
-        <form onSubmit={handleRescheduleSubmit} className="space-y-4 pt-1">
-          <div>
-            <Label className="text-xs font-semibold">Original Scheduled Date</Label>
-            <Input
-              type="date"
-              value={rescheduleForm.originalDate}
-              onChange={(e) => setRescheduleForm({ ...rescheduleForm, originalDate: e.target.value })}
-              required
-              className="mt-1 rounded-xl"
-            />
-          </div>
-
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs font-semibold">New Date</Label>
-              <Input
-                type="date"
-                value={rescheduleForm.newDate}
-                onChange={(e) => setRescheduleForm({ ...rescheduleForm, newDate: e.target.value })}
-                required
-                className="mt-1 rounded-xl"
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-semibold">New Time</Label>
-              <Input
-                type="time"
-                value={rescheduleForm.newStartTime}
-                onChange={(e) => setRescheduleForm({ ...rescheduleForm, newStartTime: e.target.value })}
-                required
-                className="mt-1 rounded-xl"
-              />
-            </div>
-          </div>
-
-          <p className="text-[11px] text-muted-foreground">
-            The session will appear on your child&apos;s schedule for the newly selected date.
-          </p>
-
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" size="sm" onClick={() => setRescheduleModalOpen(false)} className="rounded-xl">
-              {t('common.cancel', 'Cancel')}
-            </Button>
-            <Button type="submit" size="sm" disabled={loading} className="rounded-xl font-bold">
-              {loading ? 'Rescheduling...' : 'Confirm Reschedule'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </AppShell>
   );
 }

@@ -1,25 +1,121 @@
 import React from 'react';
+import katex from 'katex';
 
 /**
- * Strips markdown symbols for clean snippet previews on note cards
+ * Markdown + LaTeX rendering for note cards and the AI-explanation panel.
+ *
+ * Three bugs this file used to have, all fixed here:
+ *
+ *  1. `stripMarkdown`'s `_(.*?)_` italic rule ate the `\f` of `\frac`, turning
+ *     `\frac{1}{2}` into `rac{1}{2}`. Math spans are now extracted **before**
+ *     any emphasis rule runs, and restored afterwards.
+ *  2. `stripMarkdown` removed `\(...\)` while `FormattedMarkdown` rendered it, so
+ *     the card excerpt and the modal body disagreed. Both now use the same
+ *     math handling.
+ *  3. The inline regex used a lookbehind (`(?<!\*)`), which is a **SyntaxError**
+ *     on Safari < 16.4 and on any non-V8 engine — the module failed to parse and
+ *     the whole page went blank. The lookbehind is gone.
+ *
+ * Math is rendered with KaTeX. The note corpus is full of `\frac`, `\pm` and
+ * `\sqrt`, which previously displayed literally.
+ */
+
+const MATH_INLINE = '\\(([^\\]*?)\\)';
+const MATH_DISPLAY = '\\[([^\\]*?)\\]';
+
+/** Placeholder-protected math segments. */
+interface MathSegment {
+  token: string;
+  tex: string;
+  display: boolean;
+}
+
+function extractMath(md: string): { text: string; segments: MathSegment[] } {
+  const segments: MathSegment[] = [];
+  let counter = 0;
+
+  // Display math first — `\[ ... \]` is rarer and more specific.
+  const withDisplay = md.replace(/\\\[([\s\S]*?)\\\]/g, (_m, tex: string) => {
+    const token = `%%MATH${counter}%%`;
+    segments.push({ token, tex, display: true });
+    counter++;
+    return token;
+  });
+
+  const text = withDisplay.replace(/\\\(([\s\S]*?)\\\)/g, (_m, tex: string) => {
+    const token = `%%MATH${counter}%%`;
+    segments.push({ token, tex, display: false });
+    counter++;
+    return token;
+  });
+
+  return { text, segments };
+}
+
+function restoreMath(text: string, segments: MathSegment[]): string {
+  let out = text;
+  for (const seg of segments) {
+    out = out.split(seg.token).join(seg.tex);
+  }
+  return out;
+}
+
+/**
+ * Strips markdown symbols for clean snippet previews on note cards.
+ *
+ * Math is preserved verbatim (the delimiters are removed but the LaTeX body is
+ * kept) so a preview of `\frac{1}{2}` does not become `rac{1}{2}`.
  */
 export function stripMarkdown(md: string = ''): string {
   if (!md || typeof md !== 'string') return '';
-  return md
+
+  const { text, segments } = extractMath(md);
+
+  const stripped = text
     .replace(/^#+\s+/gm, '') // Remove #, ##, ### headers
     .replace(/\*\*(.*?)\*\*/g, '$1') // Remove **bold**
     .replace(/__(.*?)__/g, '$1') // Remove __bold__
     .replace(/\*(.*?)\*/g, '$1') // Remove *italic*
-    .replace(/_(.*?)_/g, '$1') // Remove _italic_
+    .replace(/(^|[^\w\\])_(.*?)_(?=$|[^\w])/g, '$1$2') // Remove _italic_ without eating \frac
     .replace(/`{1,3}(.*?)`{1,3}/g, '$1') // Remove inline code / code blocks
-    .replace(/\\\(|\\\)/g, '') // Remove \( and \)
-    .replace(/\\\[|\\\]/g, '') // Remove \[ and \]
     .replace(/^\s*[-*•]\s+/gm, '') // Remove bullet points
     .replace(/^\s*\d+[\.\)]\s+/gm, '') // Remove numbered list prefixes
     .replace(/^\s*>\s+/gm, '') // Remove blockquotes
     .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove links [text](url)
     .replace(/\s+/g, ' ') // Collapse multiple whitespace/newlines
     .trim();
+
+  return restoreMath(stripped, segments);
+}
+
+/** Renders a LaTeX segment with KaTeX. Falls back to the raw source on error. */
+function renderMath(tex: string, display: boolean, key: string): React.ReactNode {
+  try {
+    const html = katex.renderToString(tex, {
+      displayMode: display,
+      throwOnError: false,
+      output: 'html',
+      strict: 'ignore',
+    });
+    return (
+      <span
+        key={key}
+        className={display ? 'block my-2 overflow-x-auto text-foreground' : 'inline-block align-middle'}
+        // KaTeX output is generated locally from the note body. `trust: false`
+        // (the default) means no `\href`/`\url` escapes, so no HTML is injected.
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    );
+  } catch {
+    return (
+      <span
+        key={key}
+        className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded-md bg-primary/10 text-primary font-mono text-[11px] sm:text-xs font-semibold border border-primary/20 align-middle"
+      >
+        {tex}
+      </span>
+    );
+  }
 }
 
 /**
@@ -34,9 +130,10 @@ function renderInlineText(text: string): React.ReactNode[] {
   // 3. Bold: ** ... ** or __ ... __
   // 4. Italic: * ... * or _ ... _
   // 5. Links: [text](url)
-
-  // Combined regex with capturing groups
-  const regex = /(\\\([\s\S]*?\\\)|\s*\\\[[\s\S]*?\\\]\s*|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|(?<!\*)\*[^*]+(?!\*)|\[[^\]]+\]\([^)]+\))/g;
+  //
+  // NOTE: no lookbehind here — `(?<!\*)` is a SyntaxError on older Safari and on
+  // any non-V8 engine, which broke the whole page at module-parse time.
+  const regex = /(\\\([\s\S]*?\\\)|\\[\s\S]*?\\\]|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|\[[^\]]+\]\([^)]+\))/g;
 
   const parts = text.split(regex);
 
@@ -45,26 +142,10 @@ function renderInlineText(text: string): React.ReactNode[] {
 
     // 1. Math formula \( ... \) or \[ ... \]
     if (part.startsWith('\\(') && part.endsWith('\\)')) {
-      const math = part.slice(2, -2).trim();
-      return (
-        <span
-          key={idx}
-          className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded-md bg-primary/10 text-primary font-mono text-[11px] sm:text-xs font-semibold border border-primary/20 align-middle shadow-2xs"
-        >
-          {math}
-        </span>
-      );
+      return renderMath(part.slice(2, -2).trim(), false, `math-${idx}`);
     }
     if (part.startsWith('\\[') && part.endsWith('\\]')) {
-      const math = part.slice(2, -2).trim();
-      return (
-        <span
-          key={idx}
-          className="inline-flex items-center px-2 py-0.5 mx-0.5 rounded-md bg-primary/10 text-primary font-mono text-xs font-semibold border border-primary/20 align-middle shadow-2xs"
-        >
-          {math}
-        </span>
-      );
+      return renderMath(part.slice(2, -2).trim(), true, `math-${idx}`);
     }
 
     // 2. Inline code: `code`
@@ -183,6 +264,17 @@ export function FormattedMarkdown({ content, className = '' }: FormattedMarkdown
       continue;
     }
 
+    // 0. Display math on its own line: \[ ... \]
+    if (trimmed.startsWith('\\[') && trimmed.endsWith('\\]')) {
+      flushList();
+      blocks.push(
+        <div key={`math-block-${blocks.length}`}>
+          {renderMath(trimmed.slice(2, -2).trim(), true, `math-block-${blocks.length}`)}
+        </div>
+      );
+      continue;
+    }
+
     // 1. Heading 1: # Title
     if (trimmed.startsWith('# ')) {
       flushList();
@@ -221,23 +313,17 @@ export function FormattedMarkdown({ content, className = '' }: FormattedMarkdown
 
       // Check thematic styling based on emoji / keywords
       let themeClass = 'bg-primary/10 border-primary/30 text-primary';
-      let iconColor = 'text-primary';
 
       if (title.includes('📌') || title.toLowerCase().includes('concept') || title.includes('সংজ্ঞা')) {
         themeClass = 'bg-indigo-500/10 border-indigo-500/30 text-indigo-700 dark:text-indigo-300';
-        iconColor = 'text-indigo-500';
       } else if (title.includes('📐') || title.toLowerCase().includes('equation') || title.includes('সূত্র')) {
         themeClass = 'bg-violet-500/10 border-violet-500/30 text-violet-700 dark:text-violet-300';
-        iconColor = 'text-violet-500';
       } else if (title.includes('⚡') || title.toLowerCase().includes('law') || title.includes('নিয়ম')) {
         themeClass = 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300';
-        iconColor = 'text-amber-500';
       } else if (title.includes('💡') || title.toLowerCase().includes('tip') || title.includes('টিপস')) {
         themeClass = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300';
-        iconColor = 'text-emerald-500';
       } else if (title.includes('⚠️') || title.toLowerCase().includes('exam') || title.includes('প্রশ্ন')) {
         themeClass = 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300';
-        iconColor = 'text-rose-500';
       }
 
       blocks.push(
@@ -332,3 +418,5 @@ export function FormattedMarkdown({ content, className = '' }: FormattedMarkdown
 
   return <div className={`space-y-1 ${className}`}>{blocks}</div>;
 }
+
+export default FormattedMarkdown;

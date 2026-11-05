@@ -28,54 +28,83 @@ export default function QuizDetailPage() {
   const id = (params as any)?.id as string;
   const [quiz, setQuiz] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [assigned, setAssigned] = useState(false);
+  const [assignError, setAssignError] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLoadError('');
     api
       .get(`/quizzes/${id}`)
-      .then((r) => setQuiz(r.data.data))
-      .catch(() => {
-        setQuiz({
-          id,
-          title: isBn ? 'পদার্থবিজ্ঞান ও নিউটনের সূত্র কুইজ' : 'Physics & Mechanics Chapter Quiz',
-          status: 'assigned',
-          timeLimitMin: 15,
-          questions: [
-            {
-              id: 'q1',
-              type: 'mcq',
-              prompt: isBn ? 'নিউটনের দ্বিতীয় গতিসূত্র কোনটি?' : 'What is Newton\'s Second Law of Motion?',
-              optionsJson: ['F = ma', 'E = mc²', 'v = u + at', 'W = Fd'],
-              correctAnswer: 'F = ma',
-              explanation: 'Force is the product of mass and acceleration.',
-            },
-            {
-              id: 'q2',
-              type: 'true_false',
-              prompt: isBn ? 'ক্রিয়া এবং প্রতিক্রিয়া বল সর্বদা পরস্পর সমান ও বিপরীতমুখী।' : 'Action and reaction forces are always equal and opposite.',
-              optionsJson: ['True', 'False'],
-              correctAnswer: 'True',
-              explanation: 'Newton\'s Third Law states every action has an equal and opposite reaction.',
-            },
-          ],
-        });
+      .then((r) => {
+        if (cancelled) return;
+        setQuiz(r.data.data);
       })
-      .finally(() => setLoading(false));
-  }, [id, isBn]);
+      .catch((err) => {
+        if (cancelled) return;
+        // The old code substituted a **hardcoded Newton-laws quiz** on failure, so
+        // a request that never succeeded still rendered a confident-looking quiz
+        // with an answer key. A failure is a failure.
+        setQuiz(null);
+        setLoadError(
+          err?.response?.data?.error?.message ||
+            (t('quizDetail.text'))
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // `isBn` is deliberately not a dependency — a locale toggle must not re-fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const handleAssign = async () => {
+    setAssignError('');
     try {
       await api.post(`/quizzes/${id}/assign`);
       setAssigned(true);
-    } catch {
-      setAssigned(true);
+    } catch (err: any) {
+      // The old code set `assigned` in the catch branch too, so the button said
+      // "Assigned to Child" even though the server had rejected the request.
+      setAssignError(
+        err?.response?.data?.error?.message ||
+          (t('quizDetail.text_2'))
+      );
     }
   };
 
   if (loading) {
     return (
       <AppShell>
-        <div className="p-8 text-center text-xs text-muted-foreground">{t('common.loading', 'Loading quiz...')}</div>
+        <div className="p-8 text-center text-xs text-muted-foreground">{t('common.loading_quiz', 'Loading quiz...')}</div>
+      </AppShell>
+    );
+  }
+
+  if (loadError || !quiz) {
+    return (
+      <AppShell>
+        <div className="space-y-4 max-w-xl">
+          <div className="flex items-center gap-2">
+            <Link href="/quizzes">
+              <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>{t('quizDetail.text_3')}</span>
+              </Button>
+            </Link>
+          </div>
+          <Card className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 space-y-2">
+            <p className="text-sm font-bold text-destructive">
+              {t('quizDetail.text_4')}
+            </p>
+            <p className="text-xs text-muted-foreground">{loadError}</p>
+          </Card>
+        </div>
       </AppShell>
     );
   }
@@ -118,6 +147,9 @@ export default function QuizDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {assignError && (
+              <span className="text-xs font-bold text-destructive">{assignError}</span>
+            )}
             <Button
               onClick={handleAssign}
               disabled={assigned || quiz.status === 'assigned'}
@@ -153,9 +185,9 @@ export default function QuizDetailPage() {
                 </Badge>
               </div>
 
-              {q.optionsJson && (
+              {(q.optionsJson || q.options) && (
                 <div className="grid sm:grid-cols-2 gap-2 pl-8">
-                  {q.optionsJson.map((opt: string, j: number) => {
+                  {(q.optionsJson || q.options).map((opt: string, j: number) => {
                     const isCorrect = opt === q.correctAnswer;
                     return (
                       <div

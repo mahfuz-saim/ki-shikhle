@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { CardGridSkeleton } from '@/components/ui/skeleton';
 import { Modal } from '@/components/ui/modal';
 import { KidShell } from '@/components/layout/kid-shell';
 import { useAuth } from '@/components/auth/auth-context';
+import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import { FormattedMarkdown, stripMarkdown } from '@/components/ui/formatted-markdown';
@@ -34,6 +35,7 @@ import {
   Clock,
   ImageIcon,
   ChevronDown,
+  AlertCircle,
 } from 'lucide-react';
 
 function toBnNum(num: number | string): string {
@@ -62,10 +64,10 @@ function formatDate(dateStr: string, isBn: boolean): string {
 export default function KidNotesPage() {
   const router = useRouter();
   const { activeChild, user } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
-  const childId = activeChild?.id || (user as any)?.childId || user?.id || 'demo-child-1';
-  const isTasnim = childId === 'demo-child-2' || user?.email?.includes('tasnim') || activeChild?.name?.includes('Tasnim');
+  // The child whose notes this is, and the demo dataset that applies (if any).
+  const { childId, isTasnim, isDemoChild } = useChildScope();
 
   // Notes state
   const [notes, setNotes] = useState<any[]>([]);
@@ -74,6 +76,7 @@ export default function KidNotesPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [successToast, setSuccessToast] = useState('');
+  const [errorToast, setErrorToast] = useState('');
 
   // Filters & Sorting state
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,27 +98,50 @@ export default function KidNotesPage() {
   const [activeTabInModal, setActiveTabInModal] = useState<'ai' | 'raw'>('ai');
   const [aiPreviewMode, setAiPreviewMode] = useState<'formatted' | 'edit'>('formatted');
 
+  /**
+   * Guards against a state update after the component unmounts.
+   *
+   * The load request writes to state from `.then()`; without this guard,
+   * navigating away mid-flight produced React warnings and could resurrect a
+   * stale note list on the next mount.
+   */
+  const isMounted = useRef(true);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   // Load notes from backend
   const loadNotes = async () => {
     setLoading(true);
     try {
+      if (!childId) {
+        if (isMounted.current) setNotes([]);
+        return;
+      }
       const res = await api.get(`/children/${childId}/notes`);
+      if (!isMounted.current) return;
       const list = res.data?.data;
       if (list && list.length > 0) {
         setNotes(list);
       } else {
-        setNotes(isTasnim ? fallbackTasnimNotes : fallbackRahimNotes);
+        // The fallback notes are the demo dataset — only for a demo child.
+        setNotes(isDemoChild ? (isTasnim ? fallbackTasnimNotes : fallbackRahimNotes) : []);
       }
     } catch {
-      setNotes(isTasnim ? fallbackTasnimNotes : fallbackRahimNotes);
+      if (isMounted.current) {
+        setNotes(isDemoChild ? (isTasnim ? fallbackTasnimNotes : fallbackRahimNotes) : []);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadNotes();
-  }, [childId, isTasnim]);
+  }, [childId, isTasnim, isDemoChild]);
 
   // Handle direct file upload to Claude Vision AI
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -265,21 +291,15 @@ export default function KidNotesPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      const saved = res.data?.data || {
-        id: 'note-' + Date.now(),
-        subject,
-        date: assignDate,
-        title: noteTitle,
-        fileUrl: imagePreview,
-        textClean: rawText || `[AI Vision Note: ${noteTitle}]`,
-        aiSummary: aiNoteContent,
-        ocrConfidence: confidence || 0.98,
-        createdAt: new Date().toISOString(),
-      };
+      // The server's row is the note. If the response body is empty there is no
+      // note to show, and inventing one locally produced a note that looked saved
+      // and was not.
+      const saved = res.data?.data;
+      if (!saved) throw new Error('The server did not return the saved note');
 
       setNotes((prev) => [saved, ...prev]);
       setUploadModalOpen(false);
-      setSuccessToast(isBn ? 'এআই স্টাডি নোট সফলভাবে সংরক্ষিত হয়েছে!' : 'AI study note saved successfully!');
+      setSuccessToast(t('childNotes.text'));
       setTimeout(() => setSuccessToast(''), 4000);
 
       // Reset form
@@ -289,22 +309,11 @@ export default function KidNotesPage() {
       setAiNoteContent('');
       setTitle('');
       setConfidence(null);
-    } catch {
-      const saved = {
-        id: 'note-' + Date.now(),
-        subject,
-        date: assignDate,
-        title: noteTitle,
-        fileUrl: imagePreview,
-        textClean: rawText || `[AI Vision Note: ${noteTitle}]`,
-        aiSummary: aiNoteContent,
-        ocrConfidence: confidence || 0.98,
-        createdAt: new Date().toISOString(),
-      };
-      setNotes((prev) => [saved, ...prev]);
-      setUploadModalOpen(false);
-      setSuccessToast(isBn ? 'এআই স্টাডি নোট সংরক্ষিত হয়েছে!' : 'AI study note saved!');
-      setTimeout(() => setSuccessToast(''), 4000);
+    } catch (e: any) {
+      // The note was NOT saved. The old code invented a local note, closed the
+      // modal and showed "AI study note saved!" — the user then had a note in the
+      // list that existed nowhere on the server, and lost it on the next reload.
+      setErrorToast(e?.response?.data?.error?.message || 'The note could not be saved.');
     } finally {
       setSavingNote(false);
     }
@@ -312,16 +321,17 @@ export default function KidNotesPage() {
 
   // Delete note
   const handleDeleteNote = async (noteId: string) => {
-    if (!confirm(isBn ? 'এই ক্লাস নোটটি মুছে ফেলতে চাও?' : 'Delete this class note?')) return;
+    if (!confirm(t('childNotes.text_3'))) return;
     try {
       await api.delete(`/notes/${noteId}`);
       setNotes((prev) => prev.filter((n) => n.id !== noteId));
       if (selectedNote?.id === noteId) setDetailModalOpen(false);
-      setSuccessToast(isBn ? 'নোট মুছে ফেলা হয়েছে' : 'Note deleted');
+      setSuccessToast(t('childNotes.text_4'));
       setTimeout(() => setSuccessToast(''), 3000);
-    } catch {
-      setNotes((prev) => prev.filter((n) => n.id !== noteId));
-      if (selectedNote?.id === noteId) setDetailModalOpen(false);
+    } catch (e: any) {
+      // Removing it from the list after a failed delete made a note disappear from
+      // the screen while still existing on the server.
+      setErrorToast(e?.response?.data?.error?.message || 'The note could not be deleted.');
     }
   };
 
@@ -394,19 +404,17 @@ export default function KidNotesPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-bold uppercase tracking-wider text-primary">
-                {isBn ? 'ডিজিটাল খাতা ও স্টাডি নোট' : 'Digital Notebook & Study Archive'}
+                {t('childNotes.text_5')}
               </span>
               <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border border-primary/20 font-bold">
-                {notes.length} {isBn ? 'টি সংরক্ষিত নোট' : 'Saved Notes'}
+                {notes.length} {t('childNotes.text_6')}
               </Badge>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              {isBn ? 'আমার ক্লাস নোটসমূহ' : 'My Class Notes'}
+              {t('childNotes.text_7')}
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-              {isBn
-                ? 'খাতার পৃষ্ঠার ছবি তোলো বা আপলোড করো। Claude Vision AI সরাসরি চিত্র বিশ্লেষণ করে মূল সংজ্ঞা, সূত্র ও সম্পূর্ণ স্টাডি নোট তৈরি করে দেবে।'
-                : 'Upload notebook photos. Claude Vision AI directly analyzes handwritten pages and diagrams to synthesize high-quality study notes.'}
+              {t('childNotes.claude_vision_ai')}
             </p>
           </div>
 
@@ -424,7 +432,7 @@ export default function KidNotesPage() {
               className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-md h-10 px-4 text-xs sm:text-sm gap-1.5"
             >
               <Plus className="w-4 h-4" />
-              <span>{isBn ? 'নতুন নোট ছবি আপলোড ও এআই নোট' : 'Upload Image & Generate Note'}</span>
+              <span>{t('childNotes.text_8')}</span>
             </Button>
           </div>
         </div>
@@ -437,6 +445,21 @@ export default function KidNotesPage() {
           </div>
         )}
 
+        {/* Error Toast — a failed request is never reported as a success. */}
+        {errorToast && (
+          <div className="p-3.5 rounded-2xl bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-2 text-xs font-semibold animate-in fade-in">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorToast}</span>
+            <button
+              type="button"
+              onClick={() => setErrorToast('')}
+              className="ml-auto underline underline-offset-2 shrink-0"
+            >
+              {t('common.close')}
+            </button>
+          </div>
+        )}
+
         {/* Search, Filter & Sorting Bar */}
         <Card className="rounded-3xl border shadow-sm p-4 space-y-3.5 bg-card">
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -445,7 +468,7 @@ export default function KidNotesPage() {
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder={isBn ? 'বিষয়, শিরোনাম বা লেখার কীওয়ার্ড দিয়ে খুঁজুন...' : 'Search by subject, title, or keywords...'}
+                placeholder={t('childNotes.text_9')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 h-10 rounded-2xl bg-muted/20 border-border/80 text-xs sm:text-sm"
@@ -471,9 +494,9 @@ export default function KidNotesPage() {
                   onChange={(e) => setDateFilter(e.target.value)}
                   className="bg-transparent text-xs font-medium pr-2 focus:outline-none cursor-pointer"
                 >
-                  <option value="ALL">{isBn ? 'সব তারিখ' : 'All Dates'}</option>
-                  <option value="7DAYS">{isBn ? 'গত ৭ দিন' : 'Past 7 Days'}</option>
-                  <option value="30DAYS">{isBn ? 'গত ৩০ দিন' : 'Past 30 Days'}</option>
+                  <option value="ALL">{t('childNotes.text_10')}</option>
+                  <option value="7DAYS">{t('childNotes.text_11')}</option>
+                  <option value="30DAYS">{t('childNotes.text_12')}</option>
                 </select>
               </div>
 
@@ -485,10 +508,10 @@ export default function KidNotesPage() {
                   onChange={(e) => setSortBy(e.target.value as any)}
                   className="bg-transparent text-xs font-medium pr-2 focus:outline-none cursor-pointer"
                 >
-                  <option value="date_desc">{isBn ? 'নতুন তারিখ আগে' : 'Newest First'}</option>
-                  <option value="date_asc">{isBn ? 'পুরোনো তারিখ আগে' : 'Oldest First'}</option>
-                  <option value="subject">{isBn ? 'বিষয় অনুসারে (A-Z)' : 'By Subject'}</option>
-                  <option value="confidence">{isBn ? 'নির্ভুল নোট (AI Score)' : 'By AI Confidence'}</option>
+                  <option value="date_desc">{t('childNotes.text_13')}</option>
+                  <option value="date_asc">{t('childNotes.text_14')}</option>
+                  <option value="subject">{t('childNotes.a_z')}</option>
+                  <option value="confidence">{t('childNotes.ai_score')}</option>
                 </select>
               </div>
             </div>
@@ -498,7 +521,7 @@ export default function KidNotesPage() {
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 text-xs">
             <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1 shrink-0 mr-1">
               <Filter className="w-3 h-3" />
-              <span>{isBn ? 'বিষয়:' : 'Subject:'}</span>
+              <span>{t('childNotes.text_15')}</span>
             </span>
 
             <button
@@ -510,7 +533,7 @@ export default function KidNotesPage() {
                   : 'bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground border border-border/40'
               }`}
             >
-              {isBn ? 'সকল বিষয়' : 'All Subjects'} ({notes.length})
+              {t('childNotes.text_16')} ({notes.length})
             </button>
 
             {availableSubjects.map((subj) => {
@@ -543,16 +566,12 @@ export default function KidNotesPage() {
               📝
             </div>
             <h3 className="text-base font-bold text-foreground">
-              {isBn ? 'কোনো ক্লাস নোট পাওয়া যায়নি' : 'No class notes found'}
+              {t('childNotes.text_17')}
             </h3>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">
               {searchQuery || selectedSubject !== 'ALL' || dateFilter !== 'ALL'
-                ? isBn
-                  ? 'তোমার ফিল্টারের সাথে মিলে এমন কোনো নোট নেই। ফিল্টার রিসেট করে আবার চেষ্টা করো।'
-                  : 'No notes match your active filters or search terms. Try clearing your filters.'
-                : isBn
-                ? 'এখনও কোনো নোট তৈরি করা হয়নি। খাতার পাতার ছবি তুলে এআই স্টাডি নোট প্রস্তুত করো!'
-                : 'No notes saved yet. Start by uploading an image of your notebook!'}
+                ? t('childNotes.text_18')
+                : t('childNotes.text_19')}
             </p>
             <Button
               size="sm"
@@ -565,7 +584,7 @@ export default function KidNotesPage() {
               className="rounded-xl text-xs font-bold gap-1 mt-2"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>{isBn ? 'প্রথম নোট ছবি আপলোড করো' : 'Upload First Class Note'}</span>
+              <span>{t('childNotes.text_20')}</span>
             </Button>
           </Card>
         ) : (
@@ -608,11 +627,11 @@ export default function KidNotesPage() {
                     <div className="flex items-center gap-1.5 pt-1">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
                         <Sparkles className="w-2.5 h-2.5" />
-                        <span>Claude Vision AI</span>
+                        <span>{note.status === 'class_log' ? (isBn ? 'ক্লাস নোট' : 'Class notes') : 'Claude Vision AI'}</span>
                       </span>
                       {note.fileUrl && (
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          • <ImageIcon className="w-2.5 h-2.5 text-primary" /> {isBn ? 'ছবি সংযুক্ত' : 'Photo Attached'}
+                          • <ImageIcon className="w-2.5 h-2.5 text-primary" /> {t('childNotes.text_21')}
                         </span>
                       )}
                     </div>
@@ -635,14 +654,14 @@ export default function KidNotesPage() {
                         className="flex-1 h-8 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl gap-1.5 shadow-xs"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        <span>{isBn ? 'সম্পূর্ণ নোটটি পড়ুন' : 'Read Full Note'}</span>
+                        <span>{t('childNotes.text_22')}</span>
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => handleDeleteNote(note.id)}
                         className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive rounded-xl"
-                        title={isBn ? 'নোট মুছুন' : 'Delete note'}
+                        title={t('childNotes.text_23')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -661,7 +680,7 @@ export default function KidNotesPage() {
       <Modal
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
-        title={selectedNote?.title || (isBn ? 'ক্লাস নোটের বিবরণ' : 'Class Note Details')}
+        title={selectedNote?.title || (t('childNotes.text_24'))}
         description={`${selectedNote?.subject || 'General'} • ${formatDate(selectedNote?.date || selectedNote?.createdAt, isBn)}`}
         maxWidth="lg"
       >
@@ -680,7 +699,7 @@ export default function KidNotesPage() {
               </div>
               <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>Claude Vision AI Synthesized</span>
+                <span>{selectedNote.status === 'class_log' ? (isBn ? 'ক্লাস লগ থেকে সংরক্ষিত' : 'Saved from class log') : 'Claude Vision AI Synthesized'}</span>
               </span>
             </div>
 
@@ -689,7 +708,7 @@ export default function KidNotesPage() {
               <div className="rounded-2xl border p-3 bg-muted/10 space-y-2">
                 <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
                   <ImageIcon className="w-3.5 h-3.5 text-primary" />
-                  <span>{isBn ? 'মূল আপলোডকৃত খাতার ছবি' : 'Original Notebook Photo'}</span>
+                  <span>{t('childNotes.text_25')}</span>
                 </span>
                 <div className="max-h-56 overflow-hidden rounded-xl border bg-background">
                   <img
@@ -707,11 +726,11 @@ export default function KidNotesPage() {
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-500" />
                   <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                    {isBn ? 'এআই পরিচ্ছন্ন ও সাজানো স্টাডি নোট (AI Structured Study Note)' : 'AI Structured Study Note'}
+                    {t('childNotes.ai_structured_study_note')}
                   </span>
                 </div>
                 <Badge variant="outline" className="text-[10px] font-semibold text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
-                  {isBn ? 'ফরম্যাটেড নোট' : 'Formatted'}
+                  {t('childNotes.text_26')}
                 </Badge>
               </div>
               <div className="p-1">
@@ -727,17 +746,17 @@ export default function KidNotesPage() {
                 onClick={() => setDetailModalOpen(false)}
                 className="rounded-xl text-xs"
               >
-                {isBn ? 'বন্ধ করুন' : 'Close'}
+                {t('childNotes.text_27')}
               </Button>
 
               <div className="flex items-center gap-2">
-                <Link href={`/child/log?subject=${encodeURIComponent(selectedNote.subject || '')}`}>
+                <Link href={selectedNote.entryId ? '/child/schedule' : `/child/log?subject=${encodeURIComponent(selectedNote.subject || '')}`}>
                   <Button
                     size="sm"
                     className="h-8 rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
-                    <span>{isBn ? 'এই পাঠের লগ দিন' : 'Log This Lesson'}</span>
+                    <span>{selectedNote.entryId ? (isBn ? 'রুটিন খুলুন' : 'Open routine') : t('childNotes.text_28')}</span>
                   </Button>
                 </Link>
                 <Button
@@ -747,7 +766,7 @@ export default function KidNotesPage() {
                   className="h-8 rounded-xl text-xs gap-1"
                 >
                   <Trash2 className="w-3 h-3" />
-                  <span>{isBn ? 'মুছুন' : 'Delete'}</span>
+                  <span>{t('childNotes.text_29')}</span>
                 </Button>
               </div>
             </div>
@@ -761,11 +780,9 @@ export default function KidNotesPage() {
       <Modal
         isOpen={uploadModalOpen}
         onClose={() => setUploadModalOpen(false)}
-        title={isBn ? 'খাতার ছবি থেকে এআই স্টাডি নোট তৈরি' : 'AI Note Generator from Image'}
+        title={t('childNotes.text_30')}
         description={
-          isBn
-            ? 'খাতার পাতার ছবি তোলো বা আপলোড করো। Claude Vision AI সরাসরি চিত্র বিশ্লেষণ করে মূল বিষয়বস্তু, সংজ্ঞা ও সূত্র সাজিয়ে দেবে।'
-            : 'Upload a notebook photo. Claude Vision AI directly synthesizes a complete, structured study note.'
+          t('childNotes.claude_vision_ai_2')
         }
         maxWidth="lg"
       >
@@ -793,7 +810,7 @@ export default function KidNotesPage() {
                 <div className="pt-1.5 flex items-center gap-2 justify-center sm:justify-start">
                   <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-background hover:bg-muted text-foreground cursor-pointer border border-border/70 shadow-xs transition-colors">
                     <Upload className="w-3.5 h-3.5 text-primary" />
-                    <span>{isBn ? 'অন্য ছবি দিন' : 'Change Photo'}</span>
+                    <span>{t('childNotes.text_31')}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -810,7 +827,7 @@ export default function KidNotesPage() {
                     className="h-8 text-xs font-semibold text-amber-600 dark:text-amber-400 gap-1"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${aiLoading ? 'animate-spin' : ''}`} />
-                    <span>{isBn ? 'পুনরায় বিশ্লেষণ করো' : 'Re-run AI'}</span>
+                    <span>{t('childNotes.text_32')}</span>
                   </Button>
                 </div>
               </div>
@@ -829,12 +846,10 @@ export default function KidNotesPage() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-foreground">
-                    {isBn ? 'খাতার পাতার ছবি তোলো বা আপলোড করো' : 'Photograph or Upload Notebook Page'}
+                    {t('childNotes.text_33')}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-1 max-w-sm">
-                    {isBn
-                      ? 'JPG, PNG • Claude Vision AI সরাসরি ছবি বিশ্লেষণ করে নির্ভুল পাঠ্য নোট তৈরি করবে'
-                      : 'JPG, PNG • Claude Vision AI reads equations, handwriting and diagrams directly'}
+                    {t('childNotes.jpg_png_claude_vision_ai')}
                   </p>
                 </div>
               </div>
@@ -849,10 +864,10 @@ export default function KidNotesPage() {
               </div>
               <div>
                 <p className="text-xs font-bold text-foreground">
-                  {isBn ? '🤖 Claude Vision AI খাতার পাতার হস্তলিপি বিশ্লেষণ করছে...' : '🤖 Claude Vision AI is analyzing note image...'}
+                  {t('childNotes.claude_vision_ai_3')}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {isBn ? 'মূল সংজ্ঞা, গাণিতিক সূত্র, সারসংক্ষেপ ও রিভিশন প্রশ্ন প্রস্তুত হচ্ছে।' : 'Synthesizing core concepts, formulas, exam checklist, and self-test practice.'}
+                  {t('childNotes.text_34')}
                 </p>
               </div>
             </div>
@@ -861,7 +876,7 @@ export default function KidNotesPage() {
           {/* Subject & Assigning Date Selectors */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-semibold">{isBn ? 'বিষয় (Subject)' : 'Subject'}</Label>
+              <Label className="text-xs font-semibold">{t('childNotes.subject')}</Label>
               <select
                 value={subject}
                 onChange={(e) => {
@@ -871,20 +886,20 @@ export default function KidNotesPage() {
                 }}
                 className="w-full h-9 border rounded-xl px-3 bg-background text-xs mt-1"
               >
-                <option value="Mathematics">{isBn ? 'গণিত (Mathematics)' : 'Mathematics'}</option>
-                <option value="Physics">{isBn ? 'পদার্থবিজ্ঞান (Physics)' : 'Physics'}</option>
-                <option value="Chemistry">{isBn ? 'রসায়ন (Chemistry)' : 'Chemistry'}</option>
-                <option value="Biology">{isBn ? 'জীববিজ্ঞান (Biology)' : 'Biology'}</option>
-                <option value="Elementary Math">{isBn ? 'প্রাথমিক গণিত (Elementary Math)' : 'Elementary Math'}</option>
-                <option value="Primary Science">{isBn ? 'প্রাথমিক বিজ্ঞান (Primary Science)' : 'Primary Science'}</option>
-                <option value="English">{isBn ? 'ইংরেজি (English)' : 'English'}</option>
-                <option value="Bangla">{isBn ? 'বাংলা (Bangla)' : 'Bangla'}</option>
-                <option value="ICT">{isBn ? 'তথ্য ও যোগাযোগ প্রযুক্তি (ICT)' : 'ICT'}</option>
+                <option value="Mathematics">{t('childNotes.mathematics')}</option>
+                <option value="Physics">{t('childNotes.physics')}</option>
+                <option value="Chemistry">{t('childNotes.chemistry')}</option>
+                <option value="Biology">{t('childNotes.biology')}</option>
+                <option value="Elementary Math">{t('childNotes.elementary_math')}</option>
+                <option value="Primary Science">{t('childNotes.primary_science')}</option>
+                <option value="English">{t('childNotes.english')}</option>
+                <option value="Bangla">{t('childNotes.bangla')}</option>
+                <option value="ICT">{t('childNotes.ict')}</option>
               </select>
             </div>
 
             <div>
-              <Label className="text-xs font-semibold">{isBn ? 'ক্লাস / তারিখ (Assigning Date)' : 'Assigning Date'}</Label>
+              <Label className="text-xs font-semibold">{t('childNotes.assigning_date')}</Label>
               <Input
                 type="date"
                 value={assignDate}
@@ -896,10 +911,10 @@ export default function KidNotesPage() {
           </div>
 
           <div>
-            <Label className="text-xs font-semibold">{isBn ? 'নোটের শিরোনাম (স্বয়ংক্রিয় বা ঐচ্ছিক)' : 'Note Title (Auto or Optional)'}</Label>
+            <Label className="text-xs font-semibold">{t('childNotes.text_35')}</Label>
             <Input
               type="text"
-              placeholder={isBn ? 'যেমন: গতির সমীকরণ ও নিউটনের ২য় সূত্র' : 'e.g. Equations of Motion & Newton\'s Laws'}
+              placeholder={t('childNotes.text_36')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="h-9 mt-1 text-xs font-medium"
@@ -920,7 +935,7 @@ export default function KidNotesPage() {
                   }`}
                 >
                   <Sparkles className="w-3 h-3 text-amber-400" />
-                  <span>{isBn ? 'এআই পরিচ্ছন্ন স্টাডি নোট' : 'AI Structured Note'}</span>
+                  <span>{t('childNotes.text_37')}</span>
                 </button>
                 <button
                   type="button"
@@ -932,7 +947,7 @@ export default function KidNotesPage() {
                   }`}
                 >
                   <FileText className="w-3 h-3" />
-                  <span>{isBn ? 'কাঁচা টেক্সট / এডিট' : 'Raw Text / Edit'}</span>
+                  <span>{t('childNotes.text_38')}</span>
                 </button>
               </div>
 
@@ -945,7 +960,7 @@ export default function KidNotesPage() {
                   className="h-7 text-[11px] font-bold rounded-lg border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 gap-1"
                 >
                   <Sparkles className="w-3 h-3" />
-                  <span>{aiLoading ? (isBn ? 'তৈরি হচ্ছে...' : 'Generating...') : (isBn ? 'পুনরায় এআই রান করো' : 'Regenerate')}</span>
+                  <span>{aiLoading ? (t('childNotes.text_39')) : (t('childNotes.text_40'))}</span>
                 </Button>
               )}
             </div>
@@ -956,14 +971,14 @@ export default function KidNotesPage() {
                 {aiLoading ? (
                   <div className="h-56 border rounded-2xl flex flex-col items-center justify-center gap-2 p-4 text-xs text-primary animate-pulse bg-muted/10">
                     <Sparkles className="w-6 h-6 text-amber-500 animate-spin" />
-                    <span className="font-bold">{isBn ? 'এআই ছবি বিশ্লেষণ করে সম্পূর্ণ স্টাডি নোট প্রস্তুত করছে...' : 'Claude Vision AI is synthesizing your study note...'}</span>
+                    <span className="font-bold">{t('childNotes.text_41')}</span>
                   </div>
                 ) : (
                   <>
                     {aiNoteContent && (
                       <div className="flex items-center justify-between pb-1 text-xs">
                         <span className="text-[11px] font-semibold text-muted-foreground">
-                          {aiPreviewMode === 'formatted' ? (isBn ? 'ফরম্যাটেড ভিউ' : 'Formatted View') : (isBn ? 'এডিট মোড' : 'Edit Mode')}
+                          {aiPreviewMode === 'formatted' ? (t('childNotes.text_42')) : (t('childNotes.text_43'))}
                         </span>
                         <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border text-[11px]">
                           <button
@@ -973,7 +988,7 @@ export default function KidNotesPage() {
                               aiPreviewMode === 'formatted' ? 'bg-primary text-primary-foreground shadow-2xs' : 'text-muted-foreground'
                             }`}
                           >
-                            {isBn ? 'সাজানো নোট' : 'Formatted'}
+                            {t('childNotes.text_44')}
                           </button>
                           <button
                             type="button"
@@ -982,7 +997,7 @@ export default function KidNotesPage() {
                               aiPreviewMode === 'edit' ? 'bg-primary text-primary-foreground shadow-2xs' : 'text-muted-foreground'
                             }`}
                           >
-                            {isBn ? 'এডিট' : 'Edit'}
+                            {t('childNotes.text_45')}
                           </button>
                         </div>
                       </div>
@@ -997,9 +1012,7 @@ export default function KidNotesPage() {
                         value={aiNoteContent}
                         onChange={(e) => setAiNoteContent(e.target.value)}
                         placeholder={
-                          isBn
-                            ? 'খাতার ছবি আপলোড করলে Claude Vision AI স্বয়ংক্রিয়ভাবে মূল সংজ্ঞা, সূত্র, সারসংক্ষেপ ও রিভিশন প্রশ্ন সাজিয়ে দেবে...'
-                            : 'AI structured notes with core definitions, formulas, and revision bullet points will appear here...'
+                          t('childNotes.claude_vision_ai_4')
                         }
                         className="w-full h-56 border rounded-2xl p-3 text-xs bg-background leading-relaxed focus:ring-1 focus:ring-primary focus:outline-none"
                       />
@@ -1016,9 +1029,7 @@ export default function KidNotesPage() {
                   value={rawText}
                   onChange={(e) => setRawText(e.target.value)}
                   placeholder={
-                    isBn
-                      ? 'কোনো অতিরিক্ত নির্দেশনা বা টেক্সট থাকলে এখানে লিখতে পারো...'
-                      : 'Additional context or raw text can be edited here...'
+                    t('childNotes.text_46')
                   }
                   className="w-full h-48 border rounded-2xl p-3 text-xs font-mono bg-background leading-relaxed focus:ring-1 focus:ring-primary focus:outline-none"
                 />
@@ -1042,7 +1053,7 @@ export default function KidNotesPage() {
               onClick={() => setUploadModalOpen(false)}
               className="rounded-xl text-xs"
             >
-              {isBn ? 'বাতিল' : 'Cancel'}
+              {t('childNotes.text_47')}
             </Button>
             <Button
               type="button"
@@ -1051,7 +1062,7 @@ export default function KidNotesPage() {
               className="rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-md"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{savingNote ? (isBn ? 'সংরক্ষণ হচ্ছে...' : 'Saving...') : (isBn ? 'ক্লাস নোট সংরক্ষণ করুন' : 'Save Class Note')}</span>
+              <span>{savingNote ? (t('childNotes.text_48')) : (t('childNotes.text_49'))}</span>
             </Button>
           </div>
         </div>
@@ -1061,10 +1072,17 @@ export default function KidNotesPage() {
 }
 
 // Fallback seed notes for Rahim (Class 8)
+//
+// These are demo fixtures. The `childId` on each row is the demo tenant's real child
+// id — the demo children were migrated to deterministic UUIDs, so the old
+// `'demo-child-1'` string pointed at nothing. These rows are only ever rendered for
+// the demo child (see `isDemoChild` in `loadNotes`).
+const DEMO_RAHIM_ID = '00000000-0000-4000-8000-000000000101';
+const DEMO_TASNIM_ID = '00000000-0000-4000-8000-000000000102';
 const fallbackRahimNotes = [
   {
     id: 'note-rahim-1',
-    childId: 'demo-child-1',
+    childId: DEMO_RAHIM_ID,
     subject: 'Physics',
     title: 'গতির সমীকরণ ও নিউটনের ২য় সূত্র (Equations of Motion & Force)',
     date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
@@ -1087,7 +1105,7 @@ const fallbackRahimNotes = [
   },
   {
     id: 'note-rahim-2',
-    childId: 'demo-child-1',
+    childId: DEMO_RAHIM_ID,
     subject: 'Mathematics',
     title: 'বীজগণিতীয় সূত্রাবলী ও উৎপাদকে বিশ্লেষণ (Algebraic Formulae)',
     date: new Date(Date.now() - 4 * 86400000).toISOString().slice(0, 10),
@@ -1106,7 +1124,7 @@ const fallbackRahimNotes = [
   },
   {
     id: 'note-rahim-3',
-    childId: 'demo-child-1',
+    childId: DEMO_RAHIM_ID,
     subject: 'Chemistry',
     title: 'পর্যায় সারণি ও মৌলের ইলেকট্রন বিন্যাস (Periodic Table Trends)',
     date: new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10),
@@ -1127,7 +1145,7 @@ const fallbackRahimNotes = [
 const fallbackTasnimNotes = [
   {
     id: 'note-tasnim-1',
-    childId: 'demo-child-2',
+    childId: DEMO_TASNIM_ID,
     subject: 'Elementary Math',
     title: 'গুণনীয়ক, গুণিতক এবং লসাগু ও গসাগু (Factors & Multiples)',
     date: new Date(Date.now() - 1 * 86400000).toISOString().slice(0, 10),
@@ -1144,7 +1162,7 @@ const fallbackTasnimNotes = [
   },
   {
     id: 'note-tasnim-2',
-    childId: 'demo-child-2',
+    childId: DEMO_TASNIM_ID,
     subject: 'Primary Science',
     title: 'নিরাপদ পানি ও বিশুদ্ধকরণ পদ্ধতি (Safe Water & Purification)',
     date: new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10),
@@ -1159,7 +1177,7 @@ const fallbackTasnimNotes = [
   },
   {
     id: 'note-tasnim-3',
-    childId: 'demo-child-2',
+    childId: DEMO_TASNIM_ID,
     subject: 'English',
     title: 'Unit 6: Eat Healthy – Food Pyramid & Balanced Diet',
     date: new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10),

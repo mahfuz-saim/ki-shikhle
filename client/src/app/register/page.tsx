@@ -16,7 +16,7 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 export default function RegisterPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   const [form, setForm] = useState({
     name: '',
@@ -39,21 +39,21 @@ export default function RegisterPage() {
       }
       router.push('/dashboard');
     } catch (err: any) {
+      // Show the real error. The old fallback created a **fake session** whenever the
+      // request failed — so a duplicate email, a weak password, or an unreachable API
+      // all landed the visitor in the app as "parent-<timestamp>" with a demo token.
+      // The account was never created, so every later request failed while the UI
+      // looked like it had worked.
       const serverMsg = err.response?.data?.error?.message;
       if (serverMsg) {
         setError(serverMsg);
-        setLoading(false);
-        return;
+      } else if (err.request) {
+        setError(
+          t('register.text')
+        );
+      } else {
+        setError(t('register.text_2'));
       }
-      // Local fallback in dev mode if backend unreachable
-      login('demo-parent-token', {
-        id: 'parent-' + Date.now(),
-        name: form.name || 'New Parent',
-        email: form.email,
-        role: 'parent',
-        trialEndsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
-      });
-      router.push('/dashboard');
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md space-y-4">
         <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-2">
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>{isBn ? 'হোমপেজে ফিরুন' : 'Back to Home'}</span>
+          <span>{t('register.text_3')}</span>
         </Link>
 
         <Card className="rounded-3xl border shadow-xl bg-card">
@@ -88,18 +88,21 @@ export default function RegisterPage() {
               />
             </div>
             <CardTitle className="text-2xl font-black text-foreground">
-              {isBn ? 'বিনামূল্যে একাউন্ট তৈরি করুন' : 'Create Free Account'}
+              {t('register.text_4')}
             </CardTitle>
             <CardDescription className="text-xs">
-              {isBn ? 'চিরকাল ফ্রি প্ল্যান • কোনো ক্রেডিট কার্ড ছাড়াই' : 'Always Free plan • No credit card required'}
+              {t('register.text_5')}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4 pt-2">
             <form onSubmit={onSubmit} className="space-y-3.5">
               <div>
-                <Label className="text-xs font-semibold">Parent&apos;s Full Name</Label>
+                <Label htmlFor="register-name" className="text-xs font-semibold">
+                  Parent&apos;s Full Name
+                </Label>
                 <Input
+                  id="register-name"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="e.g. Nasrin Sultana"
@@ -109,8 +112,11 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <Label className="text-xs font-semibold">Email Address</Label>
+                <Label htmlFor="register-email" className="text-xs font-semibold">
+                  Email Address
+                </Label>
                 <Input
+                  id="register-email"
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -121,8 +127,11 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <Label className="text-xs font-semibold">Password (min 8 characters)</Label>
+                <Label htmlFor="register-password" className="text-xs font-semibold">
+                  Password (min 8 characters)
+                </Label>
                 <Input
+                  id="register-password"
                   type="password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -150,7 +159,7 @@ export default function RegisterPage() {
                 className="w-full h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 mt-2"
                 disabled={loading}
               >
-                {loading ? 'Creating Account...' : isBn ? 'ফ্রি অ্যাকাউন্ট তৈরি করুন' : 'Create Free Account'}
+                {loading ? 'Creating Account...' : t('register.text_6')}
               </Button>
             </form>
 

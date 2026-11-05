@@ -1,7 +1,7 @@
 import { Router } from '../../platform/express-compat';
 import { auth } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
-import { createRoutineSchema, exceptionSchema } from './routines.schema';
+import { createRoutineSchema, exceptionSchema, completionSchema } from './routines.schema';
 import * as ctrl from './routines.controller';
 const router = Router();
 router.use(auth());
@@ -12,4 +12,6 @@ router.delete('/routines/:id', ctrl.remove);
 router.post('/routines/:id/exceptions', validate(exceptionSchema), ctrl.addException);
 router.delete('/exceptions/:id', ctrl.deleteException);
 router.get('/children/:id/schedule', ctrl.schedule);
+router.get('/children/:id/routines/completions', ctrl.listCompletions);
+router.post('/children/:id/routines/completions', validate(completionSchema), ctrl.setCompletion);
 export default router;

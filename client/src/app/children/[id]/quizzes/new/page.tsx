@@ -11,8 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth, Child } from '@/components/auth/auth-context';
-import { useI18n } from '@/lib/i18n-context';
+import { useI18n, type Translator } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
+import { quizLanguageMode } from '@/lib/quiz-language';
 import {
   Brain,
   Sparkles,
@@ -24,64 +25,52 @@ import {
   BookOpen,
   CheckCircle2,
   FileCheck,
+  AlertCircle,
 } from 'lucide-react';
 
-const DEFAULT_DEMO_CHILDREN: Child[] = [
-  {
-    id: 'demo-child-1',
-    name: 'Rahim Ahmed',
-    nickname: 'Rahim',
-    grade: 'Class 8',
-    curriculum: 'NCTB',
-    medium: 'Bangla',
-  },
-  {
-    id: 'demo-child-2',
-    name: 'Tasnim Islam',
-    nickname: 'Tasnim',
-    grade: 'Class 5',
-    curriculum: 'NCTB',
-    medium: 'Bangla',
-  },
-  {
-    id: 'demo-child-3',
-    name: 'Fahim Islam',
-    nickname: 'Fahim',
-    grade: 'Class 11',
-    curriculum: 'NCTB',
-    medium: 'Bangla',
-  },
-];
+/**
+ * No demo fixture list.
+ *
+ * The old `DEFAULT_DEMO_CHILDREN` was used whenever the account had no children, so
+ * the quiz builder fetched and generated for `demo-child-1` — a child belonging to the
+ * demo tenant. The ids were also stale (the demo children are deterministic UUIDs now).
+ */
 
-function getSubjectsForGrade(gradeStr?: string, isBn?: boolean) {
+/**
+ * The subjects a child of this grade can be quizzed on.
+ *
+ * `t` is passed in rather than read from `useI18n()`: this is a module-level
+ * function, and a hook cannot be called outside a component.
+ */
+function getSubjectsForGrade(gradeStr: string | undefined, isBn: boolean | undefined, t: Translator) {
   const g = (gradeStr || '').toLowerCase();
   if (g.includes('5') || g.includes('primary') || g.includes('প্রাথমিক') || g.includes('class 4') || g.includes('class 3')) {
     return [
-      { id: 'math', name: isBn ? 'প্রাথমিক গণিত (Elementary Math)' : 'Elementary Math' },
-      { id: 'science', name: isBn ? 'প্রাথমিক বিজ্ঞান (Primary Science)' : 'Primary Science' },
-      { id: 'eng', name: isBn ? 'ইংরেজি (English for Today)' : 'English for Today' },
-      { id: 'bn', name: isBn ? 'বাংলা (Bangla)' : 'Bangla' },
-      { id: 'bgs', name: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয় (BGS)' : 'Bangladesh & Global Studies' },
+      { id: 'math', name: t('quizNew.elementary_math') },
+      { id: 'science', name: t('quizNew.primary_science') },
+      { id: 'eng', name: t('quizNew.english_for_today') },
+      { id: 'bn', name: t('quizNew.bangla') },
+      { id: 'bgs', name: t('quizNew.bgs') },
     ];
   }
   if (g.includes('11') || g.includes('12') || g.includes('hsc') || g.includes('college') || g.includes('একাদশ') || g.includes('দ্বাদশ')) {
     return [
-      { id: 'hmath', name: isBn ? 'উচ্চতর গণিত (Higher Math)' : 'Higher Mathematics' },
-      { id: 'phys', name: isBn ? 'পদার্থবিজ্ঞান (Physics)' : 'Physics' },
-      { id: 'chem', name: isBn ? 'রসায়ন (Chemistry)' : 'Chemistry' },
-      { id: 'bio', name: isBn ? 'জীববিজ্ঞান (Biology)' : 'Biology' },
-      { id: 'ict', name: isBn ? 'তথ্য ও যোগাযোগ প্রযুক্তি (ICT)' : 'ICT' },
-      { id: 'eng', name: isBn ? 'ইংরেজি (English)' : 'English' },
-      { id: 'bn', name: isBn ? 'বাংলা (Bangla)' : 'Bangla' },
+      { id: 'hmath', name: t('quizNew.higher_math') },
+      { id: 'phys', name: t('quizNew.physics') },
+      { id: 'chem', name: t('quizNew.chemistry') },
+      { id: 'bio', name: t('quizNew.biology') },
+      { id: 'ict', name: t('quizNew.ict') },
+      { id: 'eng', name: t('quizNew.english') },
+      { id: 'bn', name: t('quizNew.bangla') },
     ];
   }
   return [
-    { id: 'math', name: isBn ? 'গণিত (Mathematics)' : 'Mathematics' },
-    { id: 'phys', name: isBn ? 'বিজ্ঞান / পদার্থবিজ্ঞান (Science)' : 'General Science' },
-    { id: 'chem', name: isBn ? 'রসায়ন (Chemistry)' : 'Chemistry' },
-    { id: 'eng', name: isBn ? 'ইংরেজি (English)' : 'English' },
-    { id: 'bn', name: isBn ? 'বাংলা (Bangla)' : 'Bangla' },
-    { id: 'ict', name: isBn ? 'তথ্য ও যোগাযোগ প্রযুক্তি (ICT)' : 'ICT' },
+    { id: 'math', name: t('quizNew.mathematics') },
+    { id: 'phys', name: t('quizNew.science') },
+    { id: 'chem', name: t('quizNew.chemistry') },
+    { id: 'eng', name: t('quizNew.english') },
+    { id: 'bn', name: t('quizNew.bangla') },
+    { id: 'ict', name: t('quizNew.ict') },
   ];
 }
 
@@ -91,9 +80,20 @@ function QuizBuilderContent() {
   const { activeChild, childrenList } = useAuth();
   const { t, isBn } = useI18n();
 
-  const availableChildren = childrenList && childrenList.length > 0 ? childrenList : DEFAULT_DEMO_CHILDREN;
-  const currentChild = activeChild || availableChildren.find((c) => c.id === (params as any)?.id) || availableChildren[0];
-  const childId = currentChild?.id || (params as any)?.id || 'demo-child-1';
+  // The URL is the source of truth for which child this page is about.
+  //
+  // The old code checked `activeChild` FIRST, so `/children/<id>/quizzes/new` was
+  // inert whenever an active child was set — the quiz was generated for the wrong
+  // child. Now the route segment wins, and the active child is the fallback for a
+  // route without one.
+  const routeChildId = (params as any)?.id as string | undefined;
+  const availableChildren = childrenList || [];
+  const currentChild =
+    (routeChildId ? availableChildren.find((c) => c.id === routeChildId) : null) ||
+    activeChild ||
+    availableChildren[0] ||
+    null;
+  const childId = currentChild?.id || routeChildId || null;
 
   const searchParams = useSearchParams();
   const queryTopic = searchParams.get('topic') || '';
@@ -120,9 +120,9 @@ function QuizBuilderContent() {
   const initialTitle = queryTitle
     ? queryTitle
     : queryTopic
-    ? `${queryTopic} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`
+    ? `${queryTopic} — ${t('quizNew.text')}`
     : querySubject
-    ? `${querySubject} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`
+    ? `${querySubject} — ${t('quizNew.text')}`
     : '';
 
   const [form, setForm] = useState({
@@ -132,7 +132,6 @@ function QuizBuilderContent() {
     numQuestions: 10,
     difficulty: 'mixed',
     types: ['mcq', 'true_false', 'fill_blank'],
-    language: 'en',
     title: initialTitle,
     timeLimitMin: 15,
   });
@@ -142,19 +141,25 @@ function QuizBuilderContent() {
   const [assigning, setAssigning] = useState(false);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [error, setError] = useState('');
 
-  const subjects = getSubjectsForGrade(currentChild?.grade, isBn);
+  const subjects = getSubjectsForGrade(currentChild?.grade, isBn, t);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(initialSelectedSubjects);
+  const outputLanguage = quizLanguageMode(currentChild?.medium, selectedSubjects);
 
-  // Sync subjects when active child changes from navbar
+  // Sync subjects when the child changes.
+  //
+  // The old dependency list was `[currentChild?.id, isBn]` while the body read
+  // `querySubject` / `queryTopic` — so a subject pre-selected from the Notes page
+  // (which arrives as a query parameter) was overwritten by the grade default.
   useEffect(() => {
     if (currentChild?.grade && !querySubject && !queryTopic) {
-      const gradeSubs = getSubjectsForGrade(currentChild.grade, isBn);
+      const gradeSubs = getSubjectsForGrade(currentChild.grade, isBn, t);
       setSelectedSubjects(gradeSubs.slice(0, 2).map((s) => s.id));
       setPreview(null);
     }
-  }, [currentChild?.id, isBn]);
+  }, [currentChild?.id, currentChild?.grade, querySubject, queryTopic]);
 
   // Sync if query parameters change
   useEffect(() => {
@@ -162,9 +167,9 @@ function QuizBuilderContent() {
       const computedTitle = queryTitle
         ? queryTitle
         : queryTopic
-        ? `${queryTopic} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`
+        ? `${queryTopic} — ${t('quizNew.text')}`
         : querySubject
-        ? `${querySubject} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`
+        ? `${querySubject} — ${t('quizNew.text')}`
         : '';
       if (computedTitle) {
         setForm((prev) => ({ ...prev, title: computedTitle, scope: queryTopic ? 'today' : prev.scope }));
@@ -187,182 +192,24 @@ function QuizBuilderContent() {
   };
 
   const handleGenerate = async () => {
+    if (!childId || generating) return;
     setError('');
+    setMsg('');
+    setPreview(null);
     setGenerating(true);
     try {
       const res = await api.post(`/children/${childId}/quizzes/generate`, {
         ...form,
         numQuestions: form.numQuestions,
         subjectIds: selectedSubjects,
+        language: outputLanguage === 'mixed' ? 'bn' : outputLanguage,
         timeLimitMin: form.timeLimitMin,
       });
       setPreview(res.data.data);
-      setMsg(isBn ? 'কুইজের প্রশ্ন সফলভাবে তৈরি হয়েছে!' : 'AI Quiz generated from lesson digests!');
-    } catch {
-      // High-quality mock preview tailored to selected child's curriculum
-      const isClass5 = childId === 'demo-child-2' || (currentChild?.grade && currentChild.grade.includes('5'));
-      const isClass11 = childId === 'demo-child-3' || (currentChild?.grade && (currentChild.grade.includes('11') || currentChild.grade.includes('12')));
-
-      setPreview({
-        id: 'quiz-' + Date.now(),
-        title: form.title || (isBn ? `${currentChild?.name || 'শিক্ষার্থী'}-এর রিভিশন কুইজ` : `${currentChild?.name || 'Student'}'s Revision Quiz`),
-        timeLimitMin: form.timeLimitMin,
-        questions: isClass5
-          ? [
-              {
-                id: 'q1',
-                type: 'mcq',
-                topic: isBn ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু' : 'Elementary Math: Factors & LCM-HCF',
-                prompt: isBn
-                  ? '১২ এবং ১৮ এর গরিষ্ঠ সাধারণ গুণনীয়ক (গ.সা.গু) কত?'
-                  : 'What is the Greatest Common Divisor (GCD/HCF) of 12 and 18?',
-                optionsJson: ['২', '৩', '৬', '৩৬'],
-                correctAnswer: '৬',
-                explanation: isBn
-                  ? '১২ = ২ × ২ × ৩ এবং ১৮ = ২ × ৩ × ৩, সুতরাং সাধারণ গুণনীয়ক ২ × ৩ = ৬।'
-                  : 'The common prime factors are 2 and 3, so GCD = 2 × 3 = 6.',
-              },
-              {
-                id: 'q2',
-                type: 'true_false',
-                topic: isBn ? 'প্রাথমিক বিজ্ঞান: নিরাপদ পানি ও বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification',
-                prompt: isBn
-                  ? 'পানি জীবাণুমুক্ত করার জন্য কমপক্ষে ২০ মিনিট ফুটাতে হয়।'
-                  : 'Water must be boiled for at least 20 minutes to kill harmful germs.',
-                optionsJson: ['True', 'False'],
-                correctAnswer: 'True',
-                explanation: isBn
-                  ? 'উচ্চ তাপে ২০ মিনিট ফুটালে পানির প্রায় সব ক্ষতিকর জীবাণু ধ্বংস হয়।'
-                  : 'Boiling water vigorously for 20 minutes kills most bacteria and pathogens.',
-              },
-              {
-                id: 'q3',
-                type: 'mcq',
-                topic: isBn ? 'ইংরেজি: Unit 6 Eat Healthy' : 'English: Unit 6 Eat Healthy',
-                prompt: isBn
-                  ? 'Which of the following foods is healthy and contains vitamins?'
-                  : 'Which of the following foods is healthy and contains vitamins?',
-                optionsJson: ['Fresh Fruits (টাটকা ফলমূল)', 'Chips (চিপস)', 'Candy (ক্যান্ডি)', 'Soda (কোমল পানীয়)'],
-                correctAnswer: 'Fresh Fruits (টাটকা ফলমূল)',
-                explanation: isBn
-                  ? 'ফলমূল ও শাকসবজিতে প্রচুর ভিটামিন ও খনিজ থাকে যা স্বাস্থ্যের জন্য ভালো।'
-                  : 'Fresh fruits and vegetables are rich in vitamins and minerals for a balanced diet.',
-              },
-              {
-                id: 'q4',
-                type: 'fill_blank',
-                topic: isBn ? 'প্রাথমিক বিজ্ঞান: উদ্ভিদের সালোকসংশ্লেষণ' : 'Primary Science: Photosynthesis',
-                prompt: isBn
-                  ? 'উদ্ভিদ খাদ্য তৈরির জন্য সূর্যের আলো এবং বায়ুমণ্ডলের ______ গ্যাস ব্যবহার করে।'
-                  : 'Plants use sunlight and ______ gas from the air to make their own food.',
-                optionsJson: null,
-                correctAnswer: isBn ? 'কার্বন ডাই-অক্সাইড' : 'carbon dioxide',
-                explanation: isBn
-                  ? 'সালোকসংশ্লেষণ প্রক্রিয়ায় উদ্ভিদ কার্বন ডাই-অক্সাইড গ্রহণ করে এবং অক্সিজেন ত্যাগ করে।'
-                  : 'During photosynthesis, plants take in carbon dioxide and release oxygen.',
-              },
-            ]
-          : isClass11
-          ? [
-              {
-                id: 'q1',
-                type: 'mcq',
-                topic: isBn ? 'উচ্চতর গণিত: বহুপদী ও দ্বিঘাত সমীকরণ' : 'Higher Math: Polynomials & Quadratic Equations',
-                prompt: isBn
-                  ? 'ax² + bx + c = 0 সমীকরণের নিশ্চায়ক D = b² - 4ac < 0 হলে মূলগুলো কেমন হবে?'
-                  : 'If the discriminant D = b² - 4ac < 0 for ax² + bx + c = 0, what is the nature of the roots?',
-                optionsJson: [
-                  'বাস্তব ও সমান (Real & equal)',
-                  'বাস্তব ও অসমান (Real & unequal)',
-                  'জটিল ও অনুবন্ধী (Complex & conjugate)',
-                  'মূলদ ও সমান (Rational & equal)',
-                ],
-                correctAnswer: 'জটিল ও অনুবন্ধী (Complex & conjugate)',
-                explanation: isBn
-                  ? 'নিশ্চায়ক ঋণাত্মক হলে বর্গমূলের ভেতরে কাল্পনিক সংখ্যা আসে, ফলে মূলদ্বয় জটিল অনুবন্ধী হয়।'
-                  : 'When the discriminant is negative, the square root yields imaginary components giving complex conjugate roots.',
-              },
-              {
-                id: 'q2',
-                type: 'true_false',
-                topic: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র: ভেক্টর ডট ও ক্রস গুণন' : 'Physics 1st Paper: Vectors',
-                prompt: isBn
-                  ? 'দুটি সমজাতীয় অশূন্য ভেক্টরের স্কেলার বা ডট গুণফল শূন্য হলে তারা পরস্পর লম্ব।'
-                  : 'If the scalar (dot) product of two non-zero vectors is zero, they are perpendicular.',
-                optionsJson: ['True', 'False'],
-                correctAnswer: 'True',
-                explanation: isBn
-                  ? 'A · B = |A||B| cos θ = 0 হলে θ = 90°, অর্থাৎ ভেক্টরদ্বয় পরস্পর লম্ব।'
-                  : 'Since A · B = |A||B| cos θ, cos 90° = 0 confirms perpendicularity.',
-              },
-              {
-                id: 'q3',
-                type: 'mcq',
-                topic: isBn ? 'রসায়ন ১ম পত্র: পর্যায় সারণি ও মৌলের পর্যায়বৃত্ত ধর্ম' : 'Chemistry 1st Paper: Periodic Properties',
-                prompt: isBn
-                  ? 'পর্যায় সারণির একই পর্যায়ে বাম থেকে ডানে গেলে পরমাণুর ব্যাসার্ধের কী পরিবর্তন হয়?'
-                  : 'Moving from left to right across a period in the periodic table, what happens to atomic radius?',
-                optionsJson: ['বৃদ্ধি পায় (Increases)', 'হ্রাস পায় (Decreases)', 'অপরিবর্তিত থাকে (Remains unchanged)', 'প্রথমে হ্রাস পরে বৃদ্ধি পায়'],
-                correctAnswer: 'হ্রাস পায় (Decreases)',
-                explanation: isBn
-                  ? 'নিউক্লিয়াসের কার্যকর ধনাত্মক চার্জ বৃদ্ধির কারণে ইলেকট্রন মেঘ বেশি আকৃষ্ট হয়, ফলে পারমাণবিক ব্যাসার্ধ হ্রাস পায়।'
-                  : 'Higher effective nuclear charge attracts the outer shell electrons closer, reducing atomic radius.',
-              },
-            ]
-          : [
-              {
-                id: 'q1',
-                type: 'mcq',
-                topic: isBn ? 'পদার্থবিজ্ঞান: নিউটনের ২য় সূত্র' : 'Physics: Newton\'s 2nd Law',
-                prompt: isBn
-                  ? 'বল (F), ভর (m) এবং ত্বরণ (a) এর মধ্যে সঠিক সম্পর্ক কোনটি?'
-                  : 'What is the correct mathematical relationship between Force (F), mass (m), and acceleration (a)?',
-                optionsJson: ['F = m / a', 'F = m × a', 'F = m + a', 'F = a / m'],
-                correctAnswer: 'F = m × a',
-                explanation: isBn
-                  ? 'নিউটনের দ্বিতীয় সূত্রানুসারে বল হলো ভর ও ত্বরণের গুণফল (F=ma)।'
-                  : 'By Newton\'s Second Law of Motion, Force equals mass multiplied by acceleration.',
-              },
-              {
-                id: 'q2',
-                type: 'true_false',
-                topic: isBn ? 'গণিত: দ্বিঘাত সমীকরণ' : 'Mathematics: Quadratic Equations',
-                prompt: isBn
-                  ? 'একটি দ্বিঘাত সমীকরণের সর্বোচ্চ ঘাত ২ এবং এর সর্বাধিক ২টি মূল থাকে।'
-                  : 'A quadratic equation has degree 2 and at most two real or complex roots.',
-                optionsJson: ['True', 'False'],
-                correctAnswer: 'True',
-                explanation: isBn
-                  ? 'যেকোনো দ্বিঘাত সমীকরণের ঘাত ২ এবং এর দুটি সমাধান থাকে।'
-                  : 'Quadratic equations of form ax²+bx+c=0 have degree 2 with two solutions.',
-              },
-              {
-                id: 'q3',
-                type: 'mcq',
-                topic: isBn ? 'পদার্থবিজ্ঞান: বলের একক' : 'Physics: SI Units',
-                prompt: isBn ? 'বলের এসআই (SI) একক কোনটি?' : 'What is the SI unit of Force?',
-                optionsJson: ['Joule (জুল)', 'Newton (নিউটন)', 'Pascal (প্যাসকেল)', 'Watt (ওয়াট)'],
-                correctAnswer: 'Newton (নিউটন)',
-                explanation: isBn
-                  ? 'বলের আন্তর্জাতিক একক নিউটন (N)।'
-                  : 'The SI unit of force is the Newton (N), equal to 1 kg·m/s².',
-              },
-              {
-                id: 'q4',
-                type: 'fill_blank',
-                topic: isBn ? 'গণিত: মূল সূত্র' : 'Mathematics: Quadratic Formula',
-                prompt: isBn
-                  ? 'ax² + bx + c = 0 সমীকরণের নিশ্চায়ক (Discriminant) হলো D = ______।'
-                  : 'For the quadratic equation ax² + bx + c = 0, the discriminant D = ______.',
-                optionsJson: null,
-                correctAnswer: 'b² - 4ac',
-                explanation: isBn
-                  ? 'দ্বিঘাত সমীকরণের মূলের প্রকৃতি নির্ধারণ করে নিশ্চায়ক b² - 4ac।'
-                  : 'The discriminant determining the nature of roots is b² - 4ac.',
-              },
-            ],
-      });
-      setMsg(isBn ? 'কুইজের খসড়া প্রস্তুত হয়েছে!' : 'AI Quiz preview generated successfully!');
+      setMsg(t('quizNew.text_2'));
+    } catch (error: any) {
+      setPreview(null);
+      setError(error?.response?.data?.error?.message || error.message || t('quizNew.generationFailed'));
     } finally {
       setGenerating(false);
     }
@@ -377,19 +224,11 @@ function QuizBuilderContent() {
         ...preview,
         questions: preview.questions.map((q: any) => (q.id === qid ? newQ : q)),
       });
-    } catch {
-      // Mock regenerate
-      setPreview({
-        ...preview,
-        questions: preview.questions.map((q: any) =>
-          q.id === qid
-            ? {
-                ...q,
-                prompt: q.prompt + ' (Regenerated alternative with fresh parameters)',
-              }
-            : q
-        ),
-      });
+    } catch (e: any) {
+      // The question was NOT regenerated. Appending "Regenerated alternative with
+      // fresh parameters" to the prompt pretended it was, and the parent would
+      // assign a quiz containing a nonsense question.
+      setErrorMsg(e?.response?.data?.error?.message || 'The question could not be regenerated.');
     } finally {
       setRegeneratingId(null);
     }
@@ -408,22 +247,16 @@ function QuizBuilderContent() {
     try {
       await api.post(`/quizzes/${preview.id}/assign`);
       setMsg(
-        isBn
-          ? `কুইজটি ${currentChild?.name || 'শিক্ষার্থী'}-এর জন্য সফলভাবে অ্যাসাইন করা হয়েছে!`
-          : `Quiz successfully assigned to ${currentChild?.name || 'child'}!`
+        t('quizNew.quiz_successfully_assigned_to', { p0: isBn ? currentChild?.name || 'শিক্ষার্থী' : currentChild?.name || 'child' }, `Quiz successfully assigned to ${currentChild?.name || 'child'}!`)
       );
       setTimeout(() => {
         router.push('/quizzes');
       }, 1000);
-    } catch {
-      setMsg(
-        isBn
-          ? `কুইজটি ${currentChild?.name || 'শিক্ষার্থী'}-এর জন্য অ্যাসাইন করা হয়েছে!`
-          : `Quiz assigned to ${currentChild?.name || 'child'}!`
-      );
-      setTimeout(() => {
-        router.push('/quizzes');
-      }, 1000);
+    } catch (e: any) {
+      // The quiz was NOT assigned. Reporting success and navigating away hid the
+      // failure completely — the parent went to the quiz list and found nothing
+      // there, with no explanation.
+      setErrorMsg(e?.response?.data?.error?.message || 'The quiz could not be assigned.');
     } finally {
       setAssigning(false);
     }
@@ -438,9 +271,7 @@ function QuizBuilderContent() {
             {t('quiz.builderTitle', 'AI Quiz Builder')}
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {isBn
-              ? 'সন্তানের সাম্প্রতিক পড়ার নোট ও ডাইজেস্ট থেকে কাস্টম কুইজ তৈরি করুন'
-              : 'Generate an AI-powered quiz tailored specifically to what your child learned in recent sessions.'}
+            {t('quizNew.text_28')}
           </p>
         </div>
 
@@ -448,7 +279,17 @@ function QuizBuilderContent() {
           <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between">
             <span>{msg}</span>
             <button onClick={() => setMsg('')} className="underline text-[11px]">
-              Dismiss
+              {t('common.dismiss')}
+            </button>
+          </div>
+        )}
+
+        {/* Error Alert — a failed request is never shown in the success banner. */}
+        {errorMsg && (
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center justify-between">
+            <span>{errorMsg}</span>
+            <button onClick={() => setErrorMsg('')} className="underline text-[11px]">
+              {t('common.dismiss')}
             </button>
           </div>
         )}
@@ -458,12 +299,10 @@ function QuizBuilderContent() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>{isBn ? 'কুইজ কনফিগারেশন' : 'Quiz Settings'}</span>
+              <span>{t('quizNew.text_29')}</span>
             </CardTitle>
             <CardDescription className="text-xs">
-              {isBn
-                ? 'পড়ার পরিধি, প্রশ্নের সংখ্যা এবং কঠিনতার স্তর নির্বাচন করুন'
-                : 'Select lessons scope, subjects, question types, and time limit.'}
+              {t('quizNew.text_30')}
             </CardDescription>
           </CardHeader>
 
@@ -474,7 +313,7 @@ function QuizBuilderContent() {
               <Input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder={isBn ? 'যেমন: পদার্থবিজ্ঞান ১ম অধ্যায় কুইজ' : 'e.g. Weekly Math & Physics Revision'}
+                placeholder={t('quizNew.text_31')}
                 className="mt-1"
               />
             </div>
@@ -488,11 +327,11 @@ function QuizBuilderContent() {
                   onChange={(e) => setForm({ ...form, scope: e.target.value })}
                   className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
                 >
-                  <option value="today">{isBn ? 'আজকের পাঠ' : 'Today\'s lessons'}</option>
-                  <option value="yesterday">{isBn ? 'গতকালের পাঠ' : 'Yesterday\'s lessons'}</option>
-                  <option value="last7">{isBn ? 'গত ৭ দিনের পাঠ' : 'Last 7 days'}</option>
-                  <option value="last30">{isBn ? 'গত ৩০ দিনের পাঠ' : 'Last 30 days'}</option>
-                  <option value="all">{isBn ? 'সব সংরক্ষিত নোট' : 'All saved notes'}</option>
+                  <option value="today">{t('quizNew.text_32')}</option>
+                  <option value="yesterday">{t('quizNew.text_33')}</option>
+                  <option value="last7">{t('quizNew.text_34')}</option>
+                  <option value="last30">{t('quizNew.text_35')}</option>
+                  <option value="all">{t('quizNew.text_36')}</option>
                 </select>
               </div>
 
@@ -553,13 +392,15 @@ function QuizBuilderContent() {
               <div>
                 <Label className="text-xs font-semibold">{t('quiz.language', 'Language')}</Label>
                 <select
-                  value={form.language}
-                  onChange={(e) => setForm({ ...form, language: e.target.value })}
+                  value={outputLanguage}
+                  disabled
                   className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
                 >
                   <option value="en">English</option>
                   <option value="bn">বাংলা (Bangla)</option>
+                  <option value="mixed">{t('quizNew.subjectBasedLanguage')}</option>
                 </select>
+                <p className="text-[11px] text-muted-foreground mt-1">{t('quizNew.languagePolicy')}</p>
               </div>
 
               <div>
@@ -587,12 +428,8 @@ function QuizBuilderContent() {
               <Sparkles className="w-4 h-4 text-amber-300" />
               <span>
                 {generating
-                  ? isBn
-                    ? 'নোট বিশ্লেষণ ও কুইজ তৈরি হচ্ছে...'
-                    : 'Analyzing Notes & Generating Quiz...'
-                  : isBn
-                  ? `${currentChild?.name}-এর জন্য AI কুইজ তৈরি করুন`
-                  : `Generate AI Quiz for ${currentChild?.name || 'Child'}`}
+                  ? t('quizNew.text_37')
+                  : t('quizNew.generate_ai_quiz_for', { p0: isBn ? currentChild?.name : currentChild?.name || 'Child' }, `Generate AI Quiz for ${currentChild?.name || 'Child'}`)}
               </span>
             </Button>
           </CardContent>
@@ -611,9 +448,7 @@ function QuizBuilderContent() {
                     </Badge>
                   </div>
                   <CardDescription className="text-xs mt-0.5">
-                    {isBn
-                      ? 'অ্যাসাইন করার আগে প্রশ্নসমূহ পরীক্ষা ও প্রয়োজনে পরিবর্তন করুন'
-                      : 'Review each question. You can regenerate individual questions or remove any.'}
+                    {t('quizNew.text_38')}
                   </CardDescription>
                 </div>
 
@@ -625,12 +460,8 @@ function QuizBuilderContent() {
                   <CheckCircle2 className="w-4 h-4" />
                   <span>
                     {assigning
-                      ? isBn
-                        ? 'অ্যাসাইন হচ্ছে...'
-                        : 'Assigning...'
-                      : isBn
-                      ? `${currentChild?.name}-কে অ্যাসাইন করুন`
-                      : `Assign to ${currentChild?.name || 'Child'}`}
+                      ? t('quizNew.text_39')
+                      : t('quizNew.assign_to', { p0: isBn ? currentChild?.name : currentChild?.name || 'Child' }, `Assign to ${currentChild?.name || 'Child'}`)}
                   </span>
                 </Button>
               </div>

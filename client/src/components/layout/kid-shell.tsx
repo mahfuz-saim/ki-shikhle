@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/components/auth/auth-context';
-import { useI18n } from '@/lib/i18n-context';
+import { useRouteGuard } from '@/components/auth/route-guard';
+import { useI18n, type Translator } from '@/lib/i18n-context';
+import { demoProfileOf } from '@/lib/child-scope';
+import { api } from '@/lib/api';
 import {
   LayoutDashboard,
   BookOpen,
@@ -29,10 +32,65 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageShellSkeleton } from '@/components/ui/skeleton';
 
+/**
+ * The demo tenant's kid-shell notification cards. Shown only when the server
+ * returned nothing AND the signed-in child belongs to the demo tenant.
+ */
+/**
+ * The demo tenant's kid-shell notification cards. Shown only when the server
+ * returned nothing AND the signed-in child belongs to the demo tenant.
+ *
+ * `t` is passed in rather than read from `useI18n()`: this is a module-level
+ * function, and a hook cannot be called outside a component.
+ */
+function buildDemoKidNotifications(isTasnim: boolean, isBn: boolean, t: Translator) {
+  return [
+    {
+      id: 'kn-1',
+      type: 'new_quiz',
+      title: t('kidShell.text'),
+      message: isBn
+        ? (isTasnim ? 'অভিভাবক কর্তৃক নতুন কুইজ: "প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি"' : 'অভিভাবক কর্তৃক নতুন কুইজ: "পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ"')
+        : (isTasnim ? 'Parent assigned a new quiz: "Primary Science: Safe Water"' : 'Parent assigned a new quiz: "Physics: Equations of Motion"'),
+      link: '/child/quiz',
+      actionText: t('kidShell.text_2'),
+      icon: 'quiz',
+      read: false,
+      time: t('kidShell.text_3'),
+    },
+    {
+      id: 'kn-2',
+      type: 'routine_log',
+      title: t('kidShell.text_4'),
+      message: isBn
+        ? (isTasnim ? 'বিকাল ৪:০০ টায় প্রাথমিক গণিত প্রাইভেট শেষ হয়েছে। কী কী শিখেছ তা ১ মিনিটে লিখে ফেলো!' : 'বিকাল ৪:০০ টায় গণিত প্রাইভেট (রহিম স্যার) শেষ হয়েছে। পড়ার লগ দিয়ে স্ট্রিক রক্ষা করো!')
+        : (isTasnim ? 'Elementary Math Tuition finished at 4:00 PM. Log your topics to keep your streak!' : 'Math Tuition finished at 4:00 PM. Add your study log to protect your streak!'),
+      link: '/child/schedule',
+      actionText: t('kidShell.text_5'),
+      icon: 'log',
+      read: false,
+      time: t('kidShell.text_6'),
+    },
+    {
+      id: 'kn-3',
+      type: 'streak',
+      title: t('kidShell.text_7'),
+      message: isBn
+        ? (isTasnim ? 'টানা ৬ দিন পড়ার লগ সম্পন্ন হয়েছে! দারুণ হচ্ছে!' : 'টানা ৫ দিন পড়ার লগ সম্পন্ন হয়েছে! চালিয়ে যাও!')
+        : (isTasnim ? '6 days study streak achieved! Amazing dedication!' : '5 days study streak achieved! Keep going!'),
+      link: '/child',
+      actionText: t('kidShell.text_8'),
+      icon: 'streak',
+      read: true,
+      time: t('kidShell.text_9'),
+    },
+  ];
+}
+
 export function KidShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, token, loading, activeChild, setActiveChild, childrenList, logout } = useAuth();
+  const { user, token, loading, activeChild, logout } = useAuth();
   const { locale, toggleLocale, isBn, t } = useI18n();
   const { theme, setTheme } = useTheme();
 
@@ -43,58 +101,95 @@ export function KidShell({ children }: { children: React.ReactNode }) {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isParent = user?.role === 'parent';
-  const childId = activeChild?.id || (user as any)?.childId || user?.id || 'demo-child-1';
-  const isTasnim = childId === 'demo-child-2' || user?.email?.includes('tasnim') || activeChild?.name?.includes('Tasnim');
+  // A parent's own `user.id` is NOT a child id, and the demo ids moved to
+  // UUIDs — so neither fallback may be used here.
+  const childId = activeChild?.id || (user as any)?.childId || null;
+  const demoProfile = demoProfileOf(activeChild) || demoProfileOf({ demoProfile: (user as any)?.demoProfile });
+  const isTasnim = demoProfile === 'tasnim';
+  const isDemoChild = demoProfile !== null;
 
-  const [notifications, setNotifications] = useState([
-    {
-      id: 'kn-1',
-      type: 'new_quiz',
-      title: isBn ? 'নতুন এআই কুইজ প্রস্তুত!' : 'New AI Quiz Assigned!',
-      message: isBn
-        ? (isTasnim ? 'অভিভাবক কর্তৃক নতুন কুইজ: "প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি"' : 'অভিভাবক কর্তৃক নতুন কুইজ: "পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ"')
-        : (isTasnim ? 'Parent assigned a new quiz: "Primary Science: Safe Water"' : 'Parent assigned a new quiz: "Physics: Equations of Motion"'),
-      link: '/child/quiz',
-      actionText: isBn ? 'কুইজ দাও' : 'Take Quiz',
-      icon: 'quiz',
-      read: false,
-      time: isBn ? '১০ মিনিট আগে' : '10m ago',
-    },
-    {
-      id: 'kn-2',
-      type: 'routine_log',
-      title: isBn ? 'আজকের পড়ার লগ দিন' : 'Routine Study Log Reminder',
-      message: isBn
-        ? (isTasnim ? 'বিকাল ৪:০০ টায় প্রাথমিক গণিত প্রাইভেট শেষ হয়েছে। কী কী শিখেছ তা ১ মিনিটে লিখে ফেলো!' : 'বিকাল ৪:০০ টায় গণিত প্রাইভেট (রহিম স্যার) শেষ হয়েছে। পড়ার লগ দিয়ে স্ট্রিক রক্ষা করো!')
-        : (isTasnim ? 'Elementary Math Tuition finished at 4:00 PM. Log your topics to keep your streak!' : 'Math Tuition finished at 4:00 PM. Add your study log to protect your streak!'),
-      link: '/child/log',
-      actionText: isBn ? 'লগ লিখুন' : 'Log Now',
-      icon: 'log',
-      read: false,
-      time: isBn ? '১ ঘণ্টা আগে' : '1h ago',
-    },
-    {
-      id: 'kn-3',
-      type: 'streak',
-      title: isBn ? 'স্ট্রিক রেকর্ড!' : 'Streak Record!',
-      message: isBn
-        ? (isTasnim ? 'টানা ৬ দিন পড়ার লগ সম্পন্ন হয়েছে! দারুণ হচ্ছে!' : 'টানা ৫ দিন পড়ার লগ সম্পন্ন হয়েছে! চালিয়ে যাও!')
-        : (isTasnim ? '6 days study streak achieved! Amazing dedication!' : '5 days study streak achieved! Keep going!'),
-      link: '/child',
-      actionText: isBn ? 'দেখা হয়েছে' : 'Got it',
-      icon: 'streak',
-      read: true,
-      time: isBn ? 'গতকাল' : 'Yesterday',
-    },
-  ]);
+  /**
+   * Notifications come from the server. The old code rendered three hardcoded
+   * demo cards for *every* child, so a brand-new student saw "Rahim's 5-day
+   * streak" before they had logged anything. The fixture is now shown only to
+   * the demo tenant, and only when the server has nothing to say.
+   */
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
 
+  /**
+   * The locale is read through a ref rather than as a dependency.
+   *
+   * `isBn` was in the `useCallback` dependency list, which made the callback a
+   * new identity on every locale toggle — and because the effect depends on the
+   * callback, that re-fetched `/notifications` each time the user switched
+   * language. The locale only affects the *copy* of a notification, so it is
+   * read at call time.
+   */
+  const isBnRef = useRef(isBn);
+  const tRef = useRef(t);
+  useEffect(() => {
+    isBnRef.current = isBn;
+    tRef.current = t;
+  }, [isBn, t]);
+
+  const loadNotifications = useCallback(async () => {
+    setNotificationsLoading(true);
+    const bn = isBnRef.current;
+    try {
+      const res = await api.get('/notifications');
+      const data = res.data?.data;
+      if (Array.isArray(data) && data.length > 0) {
+        setNotifications(
+          data.map((n: any) => ({
+            id: n.id,
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            link: n.link || '/child',
+            actionText: bn ? 'দেখুন' : 'View',
+            icon: n.type === 'quiz_completed' || n.type === 'results_ready' ? 'quiz' : 'log',
+            read: !!n.readAt,
+            time: n.createdAt
+              ? new Date(n.createdAt).toLocaleString(bn ? 'bn-BD' : 'en-US')
+              : '',
+          }))
+        );
+        setNotificationsLoading(false);
+        return;
+      }
+    } catch {
+      // fall through to the fixture / empty state
+    }
+    setNotifications(isDemoChild ? buildDemoKidNotifications(isTasnim, bn, tRef.current) : []);
+    setNotificationsLoading(false);
+  }, [isDemoChild, isTasnim]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
+    // Persist first, then update the UI. The old code only flipped a local
+    // flag, so the unread badge came back on the next page load.
+    try {
+      await api.post('/notifications/read-all');
+    } catch {
+      // ignore — the UI still reflects the local state
+    }
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const markOneRead = (id: string) => {
+  const markOneRead = async (id: string) => {
+    // The demo fixture ids do not exist on the server.
+    if (!id.startsWith('kn-')) {
+      try {
+        await api.post(`/notifications/${id}/read`);
+      } catch {
+        // ignore — the UI still reflects the local state
+      }
+    }
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
@@ -137,6 +232,16 @@ export function KidShell({ children }: { children: React.ReactNode }) {
     }
   }, [loading, token, user, router]);
 
+  /**
+   * The child portal serves the child **and** a parent previewing that child.
+   *
+   * A parent may legitimately open `/child` to look at what their child sees, so
+   * `parent` is allowed here. A signed-out visitor is sent to sign in.
+   */
+  const { allowed: guardAllowed, resolving: guardResolving } = useRouteGuard({
+    allow: ['child', 'parent'],
+  });
+
   const handleLogoutOrExit = () => {
     if (isParent) {
       router.push('/dashboard');
@@ -147,38 +252,34 @@ export function KidShell({ children }: { children: React.ReactNode }) {
 
   // Loading state rendered inline via PageShellSkeleton inside main, avoiding full-screen layout unmount
 
-  const studentName = activeChild?.name || user?.name || (isBn ? 'শিক্ষার্থী' : 'Student');
-  const gradeLabel = activeChild?.grade || (user as any)?.grade || (isTasnim ? 'Class 5' : 'Class 8');
+  const studentName = activeChild?.name || user?.name || (t('kidShell.text_10'));
+  // No hardcoded grade either — a student with no grade record shows a dash
+  // instead of somebody else's class.
+  const gradeLabel = activeChild?.grade || (user as any)?.grade || '—';
 
   const kidNavItems = [
     {
       href: '/child',
-      label: isBn ? 'ড্যাশবোর্ড' : 'Dashboard',
-      mobileLabel: t('bottomNav.dashboard', isBn ? 'ড্যাশবোর্ড' : 'Dashboard'),
+      label: t('kidShell.text_11'),
+      mobileLabel: t('bottomNav.dashboard', t('kidShell.text_11')),
       icon: LayoutDashboard,
     },
     {
       href: '/child/schedule',
-      label: isBn ? 'ক্লাস রুটিন' : 'Class Routines',
-      mobileLabel: t('bottomNav.routine', isBn ? 'রুটিন' : 'Routine'),
+      label: t('kidShell.text_12'),
+      mobileLabel: t('bottomNav.routine', t('kidShell.text_13')),
       icon: Calendar,
     },
     {
-      href: '/child/log',
-      label: isBn ? 'পড়ার বিবরণ দিন' : 'Quick Study Log',
-      mobileLabel: t('bottomNav.log', isBn ? 'লগ' : 'Log'),
-      icon: BookOpen,
-    },
-    {
       href: '/child/notes',
-      label: isBn ? 'ক্লাস নোটসমূহ' : 'Class Notes',
-      mobileLabel: t('bottomNav.notes', isBn ? 'নোট' : 'Notes'),
+      label: t('kidShell.text_16'),
+      mobileLabel: t('bottomNav.notes', t('kidShell.text_17')),
       icon: FileText,
     },
     {
       href: '/child/quiz',
-      label: isBn ? 'কুইজ অনুশীলন' : 'Take Quizzes',
-      mobileLabel: t('bottomNav.quiz', isBn ? 'কুইজ' : 'Quiz'),
+      label: t('kidShell.text_18'),
+      mobileLabel: t('bottomNav.quiz', t('kidShell.text_19')),
       icon: Brain,
     },
   ];
@@ -247,7 +348,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                 className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4 shrink-0" />
-                <span className="truncate">{isBn ? 'অভিভাবক ড্যাশবোর্ড' : 'Parent Dashboard'}</span>
+                <span className="truncate">{t('kidShell.text_20')}</span>
               </Link>
             </div>
           )}
@@ -283,7 +384,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                 size="icon"
                 onClick={handleLogoutOrExit}
                 className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10 shrink-0"
-                title={isBn ? 'অভিভাবক ড্যাশবোর্ডে ফিরুন' : 'Return to Parent Dashboard'}
+                title={t('kidShell.text_21')}
               >
                 <ArrowLeft className="w-4 h-4" />
               </Button>
@@ -293,7 +394,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                 size="icon"
                 onClick={handleLogoutOrExit}
                 className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                title={isBn ? 'লগআউট' : 'Logout'}
+                title={t('kidShell.text_22')}
               >
                 <LogOut className="w-4 h-4" />
               </Button>
@@ -328,15 +429,17 @@ export function KidShell({ children }: { children: React.ReactNode }) {
               />
             </Link>
 
-            {/* Student Streak Badge */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-              <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-              <span>
-                {isBn
-                  ? (isTasnim ? '৬ দিনের স্ট্রিক!' : '৫ দিনের স্ট্রিক!')
-                  : (isTasnim ? '6-Day Streak!' : '5-Day Streak!')}
-              </span>
-            </div>
+            {/* Student Streak Badge — only the demo tenant has a curated streak */}
+            {isDemoChild && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <span>
+                  {isBn
+                    ? (isTasnim ? '৬ দিনের স্ট্রিক!' : '৫ দিনের স্ট্রিক!')
+                    : (isTasnim ? '6-Day Streak!' : '5-Day Streak!')}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Right Section: Actions & Controls */}
@@ -346,7 +449,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
               <Link href="/dashboard" className="hidden lg:flex items-center">
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors">
                   <ArrowLeft className="w-3 h-3" />
-                  <span>{isBn ? 'অভিভাবক ড্যাশবোর্ড' : 'Parent Dashboard'}</span>
+                  <span>{t('kidShell.text_20')}</span>
                 </div>
               </Link>
             )}
@@ -359,7 +462,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                 onClick={() => setNotifOpen((prev) => !prev)}
                 className="h-8 w-8 rounded-lg relative text-muted-foreground hover:text-foreground"
                 aria-label="Student Notifications"
-                title={isBn ? 'বিজ্ঞপ্তি' : 'Notifications'}
+                title={t('kidShell.text_23')}
               >
                 <Bell className="h-4 w-4" />
                 {unreadCount > 0 && (
@@ -373,7 +476,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                   <div className="flex items-center justify-between pb-2 mb-2 border-b">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-xs sm:text-sm text-foreground">
-                        {isBn ? 'বিজ্ঞপ্তি ও কাজের তাগিদ' : 'Notifications & Tasks'}
+                        {t('kidShell.text_24')}
                       </span>
                       {unreadCount > 0 && (
                         <Badge className="text-[10px] bg-primary text-primary-foreground font-bold px-1.5 py-0">
@@ -388,13 +491,22 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                         className="text-[11px] text-primary hover:underline font-medium flex items-center gap-1"
                       >
                         <CheckCheck className="w-3 h-3" />
-                        <span>{isBn ? 'সব পঠিত' : 'Mark all read'}</span>
+                        <span>{t('kidShell.text_25')}</span>
                       </button>
                     )}
                   </div>
 
                   <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-0.5">
-                    {notifications.map((n) => (
+                    {notificationsLoading ? (
+                      <div className="p-4 text-center text-xs text-muted-foreground">
+                        {t('kidShell.text_26')}
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-muted-foreground">
+                        {t('kidShell.text_27')}
+                      </div>
+                    ) : null}
+                    {!notificationsLoading && notifications.map((n) => (
                       <div
                         key={n.id}
                         className={`p-2.5 rounded-xl border text-xs transition-all ${
@@ -448,7 +560,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                                   onClick={() => markOneRead(n.id)}
                                   className="text-[10px] text-muted-foreground hover:text-foreground"
                                 >
-                                  {isBn ? 'পঠিত' : 'Dismiss'}
+                                  {t('kidShell.text_28')}
                                 </button>
                               )}
                             </div>
@@ -466,7 +578,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
               variant="ghost"
               size="sm"
               onClick={toggleLocale}
-              className="hidden sm:flex h-8 px-2.5 rounded-lg text-xs font-semibold items-center gap-1 text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+              className="hidden md:flex h-8 px-2.5 rounded-lg text-xs font-semibold items-center gap-1 text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
               title="Toggle Language"
             >
               <Globe className="h-3.5 w-3.5 text-muted-foreground" />
@@ -478,7 +590,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="hidden sm:flex h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className="hidden md:flex h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               aria-label="Toggle theme"
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
@@ -505,102 +617,20 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                     <p className="text-[11px] text-muted-foreground truncate">{gradeLabel}</p>
                   </div>
 
-                  {isParent && childrenList.length > 1 && (
-                    <div className="py-1 border-b mb-1 space-y-0.5">
-                      <p className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        {isBn ? 'শিক্ষার্থী পরিবর্তন করুন' : 'Switch Student'}
-                      </p>
-                      {childrenList.map((c) => (
-                        <button
-                          type="button"
-                          key={c.id}
-                          onClick={() => {
-                            setActiveChild(c);
-                            setUserMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${
-                            activeChild?.id === c.id
-                              ? 'bg-primary text-primary-foreground font-semibold'
-                              : 'hover:bg-muted text-foreground'
-                          }`}
-                        >
-                          <span className="truncate">{c.name}</span>
-                          <span className="text-[10px] opacity-75 shrink-0 ml-1.5">{c.grade}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  <Link
-                    href="/child"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-destructive hover:bg-destructive/10 transition-colors"
                   >
-                    <LayoutDashboard className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>{isBn ? 'ড্যাশবোর্ড' : 'Dashboard'}</span>
-                  </Link>
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>{t('kidShell.text_22')}</span>
+                  </button>
 
-                  <Link
-                    href="/child/schedule"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>{isBn ? 'ক্লাস রুটিন' : 'Class Routines'}</span>
-                  </Link>
-
-                  <Link
-                    href="/child/log"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
-                  >
-                    <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>{isBn ? 'পড়ার বিবরণ দিন' : 'Quick Study Log'}</span>
-                  </Link>
-
-                  <Link
-                    href="/child/notes"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>{isBn ? 'ক্লাস নোটসমূহ' : 'Class Notes'}</span>
-                  </Link>
-
-                  <Link
-                    href="/child/quiz"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-muted text-foreground transition-colors"
-                  >
-                    <Brain className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span>{isBn ? 'কুইজ দিন' : 'Take Quizzes'}</span>
-                  </Link>
-
-                  {isParent ? (
-                    <Link
-                      href="/dashboard"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-primary hover:bg-primary/10 transition-colors mt-1 border-t pt-1.5 font-medium"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>{isBn ? 'অভিভাবক ড্যাশবোর্ড' : 'Parent Dashboard'}</span>
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        logout();
-                      }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-destructive hover:bg-destructive/10 transition-colors mt-1 border-t pt-1.5"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>{isBn ? 'লগআউট' : 'Logout'}</span>
-                    </button>
-                  )}
-
-                  {/* Last two options: Language and Theme */}
-                  <div className="border-t my-1 pt-1 space-y-0.5">
+                  {/* Mobile controls live in the profile menu, not the navbar. */}
+                  <div className="md:hidden border-t my-1 pt-1 space-y-0.5">
                     <button
                       type="button"
                       onClick={() => {
@@ -611,7 +641,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                     >
                       <span className="flex items-center gap-2">
                         <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span>{isBn ? 'ভাষা (Language)' : 'Language (ভাষা)'}</span>
+                        <span>{t('kidShell.language')}</span>
                       </span>
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
                         {locale === 'en' ? 'বাংলা' : 'EN'}
@@ -632,10 +662,10 @@ export function KidShell({ children }: { children: React.ReactNode }) {
                         ) : (
                           <Moon className="w-3.5 h-3.5 text-indigo-500" />
                         )}
-                        <span>{isBn ? 'থিম (Theme)' : 'Theme'}</span>
+                        <span>{t('kidShell.theme')}</span>
                       </span>
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize">
-                        {theme === 'dark' ? (isBn ? 'ডার্ক' : 'Dark') : (isBn ? 'লাইট' : 'Light')}
+                        {theme === 'dark' ? (t('kidShell.text_31')) : (t('kidShell.text_32'))}
                       </span>
                     </button>
                   </div>
@@ -647,7 +677,7 @@ export function KidShell({ children }: { children: React.ReactNode }) {
 
         {/* Page Content Container (matching AppShell main container layout) */}
         <main className="flex-1 pb-20 md:pb-8 pt-4 px-4 sm:px-6 md:px-8 max-w-7xl w-full mx-auto page-fade">
-          {loading ? <PageShellSkeleton /> : children}
+          {loading || guardResolving || !guardAllowed ? <PageShellSkeleton /> : children}
         </main>
 
         {/* Mobile Bottom Navigation (Visible on mobile screens < md, matching parent bottom nav) */}

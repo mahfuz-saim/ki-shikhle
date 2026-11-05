@@ -14,9 +14,9 @@ export default defineConfig({
     {
       command: 'npm run dev',
       cwd: '..',
-      url: 'http://localhost:3000',
+      url: 'http://localhost:3001',
       reuseExistingServer: true,
     },
   ],
-  use: { baseURL: 'http://localhost:3000' },
+  use: { baseURL: 'http://localhost:3001' },
 });

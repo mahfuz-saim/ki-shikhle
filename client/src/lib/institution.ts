@@ -1,3 +1,5 @@
+import { type Translator } from './i18n-context';
+
 export type InstitutionType = 'school' | 'college' | 'admission';
 
 /**
@@ -18,7 +20,8 @@ export function getInstitutionType(grade?: string | null): InstitutionType {
     g.includes('medical') ||
     g.includes('buet') ||
     g.includes('এডমিশন') ||
-    g.includes('ভর্তি')
+    g.includes('মেডিকেল') ||
+    g.includes('বুয়েট')
   ) {
     return 'admission';
   }
@@ -45,57 +48,58 @@ export function getInstitutionType(grade?: string | null): InstitutionType {
   return 'school';
 }
 
-export function getInstitutionInfo(type: InstitutionType, isBn = false) {
+/**
+ * The labels for an institution type.
+ *
+ * This is a plain module, not a component, so it cannot call `useI18n()` — the
+ * translator is passed in. Every string comes from the message dictionaries, so a
+ * new language needs no change here.
+ */
+export function getInstitutionInfo(type: InstitutionType, t: Translator) {
   if (type === 'college') {
     return {
       type,
-      name: isBn ? 'কলেজ' : 'College',
-      shortName: isBn ? 'কলেজ' : 'College',
+      name: t('institution.college'),
+      shortName: t('institution.college'),
       sourceKey: 'college' as const,
       hasSchool: false,
       hasCollege: true,
-      categoryFilterPill: isBn ? '🏛️ কলেজ ক্লাস' : '🏛️ College Classes',
-      classesHeading: isBn ? 'আজকের কলেজের ক্লাস ও রুটিন' : "Today's College Classes & Schedule",
-      routineTitle: isBn ? 'কলেজ ক্লাস রুটিন' : 'College Routine',
+      categoryFilterPill: t('institution.college_classes'),
+      classesHeading: t('institution.college_classes_heading'),
+      routineTitle: t('institution.college_routine'),
       icon: '🏛️',
-      description: isBn
-        ? 'কলেজের নির্ধারিত ক্লাস, ল্যাব ও প্রাইভেট টিউশনের রুটিন পরিচালনা করুন।'
-        : 'Manage college lectures, lab sessions, and private tuition routines.',
+      description: t('institution.manage_college_lectures_lab_sessions_and_private'),
     };
   }
 
   if (type === 'admission') {
     return {
       type,
-      name: isBn ? 'এডমিশন টেস্ট / কোচিং' : 'Admission Prep',
-      shortName: isBn ? 'এডমিশন' : 'Admission',
+      name: t('institution.admission_prep'),
+      shortName: t('institution.admission'),
       sourceKey: null,
       hasSchool: false,
       hasCollege: false,
-      categoryFilterPill: isBn ? '🎓 কোচিং ও মডেল টেস্ট' : '🎓 Coaching & Tests',
-      classesHeading: isBn ? 'আজকের এডমিশন রুটিন ও মডেল টেস্ট' : "Today's Admission Routine & Tests",
-      routineTitle: isBn ? 'এডমিশন রুটিন ও সময়সূচী' : 'Admission Prep Routine',
+      categoryFilterPill: t('institution.coaching_tests'),
+      classesHeading: t('institution.admission_classes_heading'),
+      routineTitle: t('institution.admission_prep_routine'),
       icon: '🎓',
-      description: isBn
-        ? 'বিশ্ববিদ্যালয় ও মেডিকেল ভর্তি পরীক্ষার কোচিং, মডেল টেস্ট ও সেলফ-স্টাডি রুটিন।'
-        : 'Manage university and medical admission coaching, mock tests, and intensive self-study schedules.',
+      description: t('institution.manage_university_and_medical_admission_coaching'),
     };
   }
 
   // Default: School (Class 1 to 10)
   return {
     type,
-    name: isBn ? 'স্কুল' : 'School',
-    shortName: isBn ? 'স্কুল' : 'School',
+    name: t('institution.school'),
+    shortName: t('institution.school'),
     sourceKey: 'school' as const,
     hasSchool: true,
     hasCollege: false,
-    categoryFilterPill: isBn ? '🏫 স্কুল ক্লাস' : '🏫 School Classes',
-    classesHeading: isBn ? 'আজকের স্কুলের ক্লাস ও রুটিন' : "Today's School Classes & Schedule",
-    routineTitle: isBn ? 'স্কুল ক্লাস রুটিন' : 'School Routine',
+    categoryFilterPill: t('institution.school_classes'),
+    classesHeading: t('institution.school_classes_heading'),
+    routineTitle: t('institution.school_routine'),
     icon: '🏫',
-    description: isBn
-      ? 'স্কুলের নির্ধারিত ক্লাস ও প্রাইভেট টিউশনের সময়সূচি পরিচালনা করুন।'
-      : 'Manage school periods, homework sessions, and private tuition routines.',
+    description: t('institution.manage_school_periods_homework_sessions_and_priv'),
   };
 }

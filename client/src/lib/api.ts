@@ -4,16 +4,35 @@ const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/a
 
 export const api = axios.create({ baseURL, withCredentials: true });
 
+/**
+ * Does this path belong to the child experience?
+ *
+ * The old check was `path.startsWith('/kid')`, which also matched `/kids` and `/kidnap`
+ * — and, worse, it never matched `/child` at all, so every child route was sent the
+ * **parent's** token.
+ */
+function isChildPath(path: string): boolean {
+  return path === '/child' || path.startsWith('/child/');
+}
+
 // Attach Authorization and Refresh tokens to outgoing requests
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const path = window.location.pathname;
-    const isChildRoute = path === '/child' || path.startsWith('/child/') || path.startsWith('/kid');
     const childToken = localStorage.getItem('childToken');
     const accessToken = localStorage.getItem('accessToken');
     const refreshToken = localStorage.getItem('refreshToken');
 
-    const token = isChildRoute && childToken ? childToken : accessToken || childToken;
+    // A child route MUST use the child token. Falling back to the parent's token there
+    // is how a child ended up able to read every sibling's data — the server saw the
+    // request as the parent, and the parent's token is allowed to read all children.
+    let token: string | null = null;
+    if (isChildPath(path)) {
+      token = childToken;
+    } else {
+      token = accessToken || childToken;
+    }
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -43,6 +62,31 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+/**
+ * Pages that must never trigger a session teardown on a 401.
+ *
+ * The list used to omit `/verify-email`, `/forgot-password` and `/reset-password`, so a
+ * 401 on those pages wiped the session and bounced the visitor to `/login` — swallowing
+ * the actual error message. A signed-out visitor has no session to lose, so none of
+ * these should tear anything down.
+ */
+const PUBLIC_PATHS = [
+  '/login',
+  '/register',
+  '/privacy',
+  '/terms',
+  '/pricing',
+  '/verify-email',
+  '/forgot-password',
+  '/reset-password',
+  '/resend-verification',
+];
+
+function isPublicPath(path: string): boolean {
+  if (path === '/') return true;
+  return PUBLIC_PATHS.some((p) => path === p || path.startsWith(`${p}/`));
+}
+
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -54,7 +98,21 @@ api.interceptors.response.use(
       originalRequest?.url?.includes('/auth/refresh') ||
       originalRequest?.url?.includes('/auth/logout');
 
-    if (error.response?.status === 401 && !originalRequest?._retry && !isAuthRoute) {
+    // A child session must never be refreshed with the parent's credentials.
+    //
+    // The refresh endpoint issues a token for whichever account the refresh token
+    // belongs to, and `refreshToken` in localStorage is the **parent's**. So a 401 on
+    // a `/child/*` route used to refresh with the parent's token and replay the request
+    // with the parent's access token — escalating a child session to parent scope, which
+    // can read every sibling's data. A child route simply fails instead.
+    const onChildPath = typeof window !== 'undefined' && isChildPath(window.location.pathname);
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest?._retry &&
+      !isAuthRoute &&
+      !onChildPath
+    ) {
       // If already in the middle of a token refresh, queue this request
       if (isRefreshing) {
         return new Promise<any>((resolve, reject) => {
@@ -91,6 +149,10 @@ api.interceptors.response.use(
 
         if (newAccessToken) {
           if (typeof window !== 'undefined') {
+            // Direct child logins use the same token in both slots. Rotate both.
+            if (localStorage.getItem('childToken') === localStorage.getItem('accessToken')) {
+              localStorage.setItem('childToken', newAccessToken);
+            }
             localStorage.setItem('accessToken', newAccessToken);
             if (newRefreshToken) {
               localStorage.setItem('refreshToken', newRefreshToken);
@@ -108,31 +170,15 @@ api.interceptors.response.use(
 
         if (typeof window !== 'undefined') {
           const path = window.location.pathname;
-          const currentToken = localStorage.getItem('accessToken');
-          const isDemoSession =
-            currentToken?.startsWith('demo-') ||
-            currentToken?.includes('mock') ||
-            currentToken?.includes('demo');
 
-          // If this is a demo session, don't wipe it out on network or 401 blips
-          if (!isDemoSession) {
-            const isPublicPage =
-              path === '/' ||
-              path.startsWith('/login') ||
-              path.startsWith('/register') ||
-              path.startsWith('/privacy') ||
-              path.startsWith('/terms') ||
-              path.startsWith('/pricing');
-
-            if (!isPublicPage) {
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('refreshToken');
-              localStorage.removeItem('childToken');
-              localStorage.removeItem('userRole');
-              localStorage.removeItem('active_child_id');
-              localStorage.removeItem('activeChild');
-              window.location.href = '/login';
-            }
+          if (!isPublicPath(path)) {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('childToken');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('active_child_id');
+            localStorage.removeItem('activeChild');
+            window.location.href = '/login';
           }
         }
       } finally {

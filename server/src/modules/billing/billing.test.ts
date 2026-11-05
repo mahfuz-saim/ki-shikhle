@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PLANS } from '../../services/entitlements';
+import { parent } from '../../test-utils/actors';
 
 describe('Billing', () => {
   it('freemium plans have correct prices and limits', () => {
@@ -72,7 +73,7 @@ describe('Billing', () => {
       });
       expect(parsed.body.planCode).toBe(planCode);
 
-      const res = await demoCheckout('test-user-' + planCode, parsed.body);
+      const res = await demoCheckout(parent('test-user-' + planCode), parsed.body);
       expect(res.subscription.status).toBe('active');
       expect(res.payment.status).toBe('succeeded');
     }

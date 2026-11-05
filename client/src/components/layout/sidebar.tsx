@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Users,
   Calendar,
-  BookOpen,
   FileText,
   Brain,
   CreditCard,
@@ -22,16 +21,13 @@ import { Button } from '@/components/ui/button';
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, activeChild, childrenList, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { t, isBn } = useI18n();
-
-  const activeChildId = activeChild?.id || childrenList[0]?.id || 'demo-child';
 
   const navItems = [
     { href: '/dashboard', label: t('nav.dashboard', 'Dashboard'), icon: LayoutDashboard },
     { href: '/children', label: t('nav.children', 'Children'), icon: Users },
     { href: '/schedule', label: t('nav.schedule', 'Routine & Schedule'), icon: Calendar },
-    { href: `/children/${activeChildId}/log`, label: t('nav.logs', 'Learning Logs'), icon: BookOpen },
     { href: '/notes', label: t('nav.notes', 'Student Notes'), icon: FileText },
     { href: '/quizzes', label: t('nav.quizzes', 'AI Quizzes'), icon: Brain },
     { href: '/billing', label: t('nav.billing', 'Billing & Plans'), icon: CreditCard },
@@ -68,16 +64,15 @@ export function Sidebar() {
       {/* Navigation items */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
         {navItems.map((item) => {
-          const isLearningLog = pathname.includes('/log');
           const isQuizPath = pathname.includes('/quizzes') || pathname.includes('/quiz') || pathname.includes('/attempts');
 
           let isActive = false;
-          if (isLearningLog) {
-            isActive = item.href.includes('/log');
-          } else if (isQuizPath) {
+          if (isQuizPath) {
             isActive = item.href === '/quizzes';
           } else if (item.href === '/children') {
-            isActive = pathname === '/children' || pathname.startsWith('/children?');
+            // `usePathname()` never includes the query string, so the old
+            // `startsWith('/children?')` never matched.
+            isActive = pathname === '/children' || pathname.startsWith('/children/');
           } else if (item.href === '/dashboard') {
             isActive = pathname === '/dashboard';
           } else {

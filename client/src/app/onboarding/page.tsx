@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/components/auth/auth-context';
+import { useRouteGuard } from '@/components/auth/route-guard';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import {
@@ -22,43 +23,81 @@ import {
 export default function Onboarding() {
   const router = useRouter();
   const { refreshChildren } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
+
+  // This wizard creates children, which is a parent-only action. Without the guard a
+  // signed-out visitor could walk the whole flow and get a 401 on the first step,
+  // and a child could try it too.
+  const { allowed: guardAllowed, resolving: guardResolving } = useRouteGuard({
+    allow: ['parent', 'admin'],
+  });
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [createdChildId, setCreatedChildId] = useState('');
+  const [error, setError] = useState('');
 
+  // The form starts EMPTY. It used to be prefilled with the demo student's details
+  // (`Rahim Ahmed` / `student@demo.com` / `Password123!`), so a brand-new parent who
+  // clicked straight through created — or appeared to create — a *demo* student.
   const [child, setChild] = useState({
-    name: 'Rahim Ahmed',
-    nickname: 'Rahim',
+    name: '',
+    nickname: '',
     grade: 'Class 8',
     curriculum: 'NCTB',
     medium: 'Bangla',
-    email: 'student@demo.com',
-    password: 'Password123!',
+    email: '',
+    password: '',
   });
 
   const [routine, setRoutine] = useState({
-    name: 'Math Tuition – Rahim Sir',
+    name: '',
     source: 'tuition',
     weekdays: [0, 2, 4],
     startTime: '16:00',
     durationMin: 90,
   });
 
-  const [logTopic, setLogTopic] = useState('Algebra: Quadratic Equations Formula');
+  const [logTopic, setLogTopic] = useState('');
+
+  /**
+   * Turn a failed request into a message the parent can act on.
+   *
+   * The old code swallowed the error and advanced the wizard anyway — so a duplicate
+   * email, a weak password or an unreachable API all ended on the "You're All Set!"
+   * screen with nothing actually created.
+   */
+  function errorMessage(err: any, fallback: string): string {
+    const serverMsg = err?.response?.data?.error?.message;
+    if (serverMsg) return serverMsg;
+    if (err?.request) {
+      return t('onboarding.text');
+    }
+    return fallback;
+  }
 
   async function handleAddChild() {
     setLoading(true);
+    setError('');
     try {
       const res = await api.post('/children', child);
-      const cId = res.data?.data?.id || 'child-' + Date.now();
+      const cId = res.data?.data?.id;
+      if (!cId) {
+        setError(
+          t('onboarding.text_2')
+        );
+        return;
+      }
       setCreatedChildId(cId);
       await refreshChildren();
       setStep(2);
-    } catch {
-      setCreatedChildId('demo-child');
-      setStep(2);
+    } catch (err: any) {
+      setError(
+        errorMessage(
+          err,
+          t('onboarding.text_3')
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -66,15 +105,20 @@ export default function Onboarding() {
 
   async function handleAddRoutine() {
     setLoading(true);
-    const cId = createdChildId || 'demo-child';
+    setError('');
     try {
-      await api.post(`/children/${cId}/routines`, {
+      await api.post(`/children/${createdChildId}/routines`, {
         ...routine,
         startsOn: new Date().toISOString().slice(0, 10),
       });
       setStep(3);
-    } catch {
-      setStep(3);
+    } catch (err: any) {
+      setError(
+        errorMessage(
+          err,
+          t('onboarding.text_4')
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -82,19 +126,34 @@ export default function Onboarding() {
 
   async function handleFirstLog() {
     setLoading(true);
-    const cId = createdChildId || 'demo-child';
+    setError('');
     try {
-      await api.post(`/children/${cId}/entries`, {
+      await api.post(`/children/${createdChildId}/entries`, {
         source: 'tuition',
         topicsText: logTopic,
         date: new Date().toISOString().slice(0, 10),
       });
       setStep(4);
-    } catch {
-      setStep(4);
+    } catch (err: any) {
+      setError(
+        errorMessage(
+          err,
+          t('onboarding.text_5')
+        )
+      );
     } finally {
       setLoading(false);
     }
+  }
+
+  if (guardResolving || !guardAllowed) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-sm text-muted-foreground font-medium">
+          {t('common.loading', 'Loading...')}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -151,7 +210,7 @@ export default function Onboarding() {
                 <Input
                   value={child.name}
                   onChange={(e) => setChild({ ...child, name: e.target.value })}
-                  placeholder="e.g. Rahim Ahmed"
+                  placeholder={t('onboarding.text_6')}
                   className="mt-1"
                 />
               </div>
@@ -195,7 +254,7 @@ export default function Onboarding() {
                     type="email"
                     value={child.email}
                     onChange={(e) => setChild({ ...child, email: e.target.value })}
-                    placeholder="student@demo.com"
+                    placeholder="student@example.com"
                     className="mt-1"
                   />
                 </div>
@@ -205,15 +264,17 @@ export default function Onboarding() {
                     type="password"
                     value={child.password}
                     onChange={(e) => setChild({ ...child, password: e.target.value })}
-                    placeholder="Password123!"
+                    placeholder="At least 8 characters"
                     className="mt-1"
                   />
                 </div>
               </div>
 
+              {error && <p className="text-xs text-destructive font-medium">{error}</p>}
+
               <Button
                 onClick={handleAddChild}
-                disabled={loading || !child.name}
+                disabled={loading || !child.name || !child.email || !child.password}
                 className="w-full h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
               >
                 {loading ? 'Creating Profile...' : 'Next: Setup Routine →'}
@@ -262,6 +323,8 @@ export default function Onboarding() {
                 </div>
               </div>
 
+              {error && <p className="text-xs text-destructive font-medium">{error}</p>}
+
               <Button
                 onClick={handleAddRoutine}
                 disabled={loading || !routine.name}
@@ -292,12 +355,14 @@ export default function Onboarding() {
                 />
               </div>
 
+              {error && <p className="text-xs text-destructive font-medium">{error}</p>}
+
               <Button
                 onClick={handleFirstLog}
                 disabled={loading || !logTopic}
                 className="w-full h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
               >
-                {loading ? 'Recording...' : 'Finish Setup 🎉'}
+                {loading ? 'Recording...' : 'Finish Setup'}
               </Button>
             </CardContent>
           </Card>

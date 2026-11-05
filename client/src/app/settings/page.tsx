@@ -35,6 +35,7 @@ export default function SettingsPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +47,7 @@ export default function SettingsPage() {
         currentPassword: curr,
         newPassword: nw,
       });
-      setMsg(isBn ? 'পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে!' : 'Password updated successfully!');
+      setMsg(t('settings.text'));
       setCurr('');
       setNw('');
     } catch (e: any) {
@@ -73,17 +74,21 @@ export default function SettingsPage() {
 
   const handleDeleteAccount = async () => {
     setDeleteLoading(true);
+    setDeleteError('');
     try {
       await api.delete('/auth/account');
       setDeleteSuccess(true);
       setTimeout(() => {
         logout();
       }, 2500);
-    } catch {
-      setDeleteSuccess(true);
-      setTimeout(() => {
-        logout();
-      }, 2500);
+    } catch (err: any) {
+      // The old code set the *success* flag in the catch branch too, so the modal
+      // said "Account scheduled for deletion" even when the server rejected the
+      // request — and then logged the parent out of a still-live account.
+      const serverMsg = err?.response?.data?.error?.message;
+      setDeleteError(
+        serverMsg || 'Could not schedule the account for deletion. Please try again.'
+      );
     } finally {
       setDeleteLoading(false);
     }
@@ -257,6 +262,10 @@ export default function SettingsPage() {
             <p className="text-xs font-bold text-emerald-600">
               Account scheduled for deletion. Logging out...
             </p>
+          )}
+
+          {deleteError && (
+            <p className="text-xs font-bold text-destructive">{deleteError}</p>
           )}
 
           <div className="flex justify-end gap-2 pt-3 border-t">

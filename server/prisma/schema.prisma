@@ -130,14 +130,19 @@ model Child {
   pinHash    String?   @map("pin_hash")
   email      String?   @unique
   passwordHash String? @map("password_hash")
+  /// Stable human key, unique per parent. Not a security signal.
+  slug       String?   @map("slug")
+  /// Selects the seeded demo dataset for this child. Content marker only.
+  demoProfile String?  @map("demo_profile")
   deletedAt  DateTime? @map("deleted_at")
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
   parent User @relation(fields: [parentId], references: [id], onDelete: Cascade)
-  subjects Subject[] // subjects this child studies (seeded by grade + custom)
+  subjectAssignments ChildSubject[] // subjects this child studies
   learningEntries LearningEntry[]
   routines Routine[]
+  routineCompletions RoutineCompletion[]
   notes Note[]
   quizzes Quiz[]
   quizAttempts QuizAttempt[]
@@ -145,6 +150,7 @@ model Child {
   aiUsageLogs AiUsageLog[]
 
   @@index([parentId])
+  @@unique([parentId, slug])
   @@map("children")
 }
 
@@ -159,11 +165,38 @@ model Subject {
   createdAt  DateTime @default(now()) @map("created_at")
 
   customOwner User? @relation("CustomSubjects", fields: [parentId], references: [id])
-  // implicit many-to-many: which children study this subject
-  children Child[]
+  assignments ChildSubject[]
 
   @@index([curriculum, grade])
   @@map("subjects")
+}
+
+/// Which child studies which subject.
+///
+/// This replaces the implicit `Child`↔`Subject` many-to-many. The implicit table
+/// (`_ChildToSubject`) has **no tenancy boundary of its own** — it stores a child id and
+/// a subject id, and nothing ties them to the same account. A row could therefore link a
+/// child of one tenant to a custom subject belonging to another, and any query that
+/// followed the relation would cross the account boundary.
+///
+/// The explicit table keeps the same shape but adds the owning parent, so the join can
+/// be constrained by `parentId` in one query. A subject a child studies is either a
+/// seeded (shared) subject or a custom subject belonging to the child's own account.
+model ChildSubject {
+  id        String   @id @default(uuid())
+  childId   String   @map("child_id")
+  subjectId String   @map("subject_id")
+  /// The account that owns both the child and the subject.
+  parentId  String   @map("parent_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  child   Child   @relation(fields: [childId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, subjectId])
+  @@index([parentId])
+  @@index([subjectId])
+  @@map("child_subjects")
 }
 
 model LearningEntry {
@@ -173,6 +206,12 @@ model LearningEntry {
   source           Source
   providerName     String?  @map("provider_name")
   date             DateTime @db.Date
+  subject          String?
+  subjectName      String?  @map("subject_name")
+  periodName       String?  @map("period_name")
+  homeworkAssigned String?  @map("homework_assigned")
+  keyConcepts      String[] @default([]) @map("key_concepts")
+  notes            String?
   topicsText       String   @map("topics_text")
   durationMin      Int?     @map("duration_min")
   confidence       Int?
@@ -183,7 +222,7 @@ model LearningEntry {
 
   child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
   revisions EntryRevision[]
-  notes Note[]
+  linkedNotes Note[]
 
   @@index([childId, date])
   @@map("learning_entries")
@@ -206,6 +245,14 @@ model Routine {
   childId     String   @map("child_id")
   subjectId   String?  @map("subject_id")
   name        String
+  /// Display label for the period, e.g. "১ম পিরিয়ড".
+  periodName  String?  @map("period_name")
+  /// Subject taught in this slot, e.g. "Bangla 1st Paper".
+  subject     String?
+  /// Who teaches it.
+  teacher     String?
+  /// Where it happens.
+  room        String?
   source      Source
   weekdays    Int[]    // 0=Sun ... 6=Sat
   startTime   String   @map("start_time") // HH:mm
@@ -221,6 +268,29 @@ model Routine {
 
   @@index([childId])
   @@map("routines")
+}
+
+/// A parent/child marking one scheduled routine session as done.
+///
+/// The schedule page used to store completion in `localStorage`, so the server
+/// never learned about it and the dashboard could not reflect it. This model
+/// is the server-side record.
+model RoutineCompletion {
+  id        String   @id @default(uuid())
+  childId   String   @map("child_id")
+  routineId String?  @map("routine_id")
+  /// The scheduled date (YYYY-MM-DD).
+  date      DateTime @db.Date
+  /// The scheduled start time (HH:mm) — part of the occurrence key.
+  startTime String   @map("start_time")
+  completed Boolean  @default(true)
+  completedAt DateTime @default(now()) @map("completed_at")
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, date, startTime])
+  @@index([childId, date])
+  @@map("routine_completions")
 }
 
 model RoutineException {
@@ -243,10 +313,16 @@ model Note {
   id            String   @id @default(uuid())
   childId       String   @map("child_id")
   subjectId     String?  @map("subject_id")
+  /// Free-text subject label, e.g. "Physics".
+  subject       String?
+  /// Short display title.
+  title         String?
   entryId       String?  @map("entry_id")
   date          DateTime @db.Date
   fileUrl       String?  @map("file_url")
   textClean     String?  @map("text_clean")
+  /// AI-generated structured summary (markdown).
+  aiSummary     String?  @map("ai_summary")
   textHash      String?  @map("text_hash")
   ocrConfidence Float?   @map("ocr_confidence")
   status        String   @default("active")

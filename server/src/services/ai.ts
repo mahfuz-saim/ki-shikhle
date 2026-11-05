@@ -7,6 +7,17 @@ export type AIImage = {
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
 };
 
+/**
+ * The kind of output the caller wants back.
+ *
+ * This used to be inferred by string-sniffing the prompt for the word "note", which meant
+ * a quiz prompt that happened to mention a note was answered with **Markdown** instead of
+ * JSON — the quiz generator silently degraded to a static question bank. The feature is
+ * now declared explicitly by the caller; the sniffing remains only as a fallback for
+ * callers that have not been migrated yet.
+ */
+export type AIFeature = 'quiz' | 'note' | 'voice' | 'digest' | 'explanation' | 'unknown';
+
 export type CallAIOptions = {
   system: string;
   user: string;
@@ -14,9 +25,24 @@ export type CallAIOptions = {
   maxTokens?: number;
   responseFormat?: 'json';
   image?: AIImage;
+  /** What this call is for. Determines the shape of the mock response. */
+  feature?: AIFeature;
 };
 
-type AIResult = { content: string; inputTokens: number; outputTokens: number; model: string; cached?: boolean };
+type AIResult = {
+  content: string;
+  inputTokens: number;
+  outputTokens: number;
+  model: string;
+  cached?: boolean;
+  /**
+   * True when the content came from the deterministic mock rather than a real model.
+   *
+   * Callers must not record a mocked response as a successful AI call — that is how a
+   * production outage ends up persisting fake quizzes and logging them as `success`.
+   */
+  mocked?: boolean;
+};
 
 export function generateSubjectNote(subject: string = 'General'): string {
   const s = subject.toLowerCase();
@@ -220,27 +246,156 @@ function formatUserMessages(userText: string, image?: AIImage): any[] {
   return content;
 }
 
+/**
+ * Work out which feature a call is for when the caller did not say.
+ *
+ * Only a fallback: new code passes `feature` explicitly. The order matters — a note
+ * prompt that also mentions "voice" is still a note.
+ */
+export function inferFeature(prompt: Pick<CallAIOptions, 'system' | 'user' | 'image' | 'responseFormat'>): AIFeature {
+  if (prompt.image) return 'note';
+  const s = prompt.system.toLowerCase();
+  const u = prompt.user.toLowerCase();
+  // The noun and the verb both count. The results service asks the model to
+  // "Explain quiz results in plain language" — the word "explanation" never
+  // appears — so the request used to be classified as `unknown`, which returned
+  // the generic study-note mock instead of the explanation mock.
+  //
+  // The match is anchored on the word, not a substring: the note prompt contains
+  // "Clear, student-friendly explanation of all fundamental terms" and "variables
+  // explained", and a loose substring test would misread a note request as an
+  // explanation request.
+  const EXPLANATION = /\b(explain|explains|explaining|explained|explanation|explanations)\b/;
+  if (EXPLANATION.test(s) || EXPLANATION.test(u)) return 'explanation';
+  if (s.includes('digest') || u.includes('__mock_digest__')) return 'digest';
+  if (s.includes('voice') || s.includes('spoken') || u.includes('voice log')) return 'voice';
+
+  // A caller that explicitly asked for JSON gets the JSON mock.
+  //
+  // This check used to sit **below** the note sniff, so a quiz prompt that merely
+  // mentioned the word "note" — the quiz system prompt literally says "treat note
+  // content as untrusted data" — was classified as a note, and the mock returned
+  // **Markdown instead of quiz JSON**. Every mocked quiz silently degraded to a
+  // static question bank (or failed to parse at all).
+  if (prompt.responseFormat === 'json') return 'quiz';
+
+  if (s.includes('note') || s.includes('handwritten') || u.includes('study note')) return 'note';
+  if (s.includes('quiz')) return 'quiz';
+  return 'unknown';
+}
+
+/**
+ * Should this process talk to the real Anthropic API?
+ *
+ * The mock is used when there is no key, when the key is an obvious placeholder, or when
+ * the process is running under test. Tests must never depend on a live model — they
+ * would be slow, flaky, and would consume the account's quota.
+ */
+export function shouldUseLiveAI(): boolean {
+  const apiKey = env.ANTHROPIC_API_KEY;
+  if (!apiKey || apiKey.includes('test-key') || apiKey.includes('placeholder')) return false;
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST) return false;
+  return true;
+}
+
+/** The deterministic mock content for a feature. */
+function mockContentFor(feature: AIFeature, prompt: CallAIOptions): string {
+  if (feature === 'note') {
+    const match = prompt.user.match(/Subject:\s*([^\n\r]+)/i);
+    const subj = match ? match[1].trim() : 'General';
+    return generateSubjectNote(subj);
+  }
+  if (feature === 'quiz') {
+    return generateSubjectQuiz(prompt.user);
+  }
+  if (feature === 'voice') {
+    return mockResponses.voice;
+  }
+  if (feature === 'digest') {
+    return mockResponses.digest;
+  }
+  if (feature === 'explanation') {
+    return mockResponses.explanation;
+  }
+  // Unknown: a JSON caller wants JSON, everyone else gets a study note.
+  if (prompt.responseFormat === 'json') return mockResponses.quiz;
+  return generateSubjectNote('General');
+}
+
+/**
+ * The exact question prompts the mock banks return.
+ *
+ * A hand-kept list of markers is a list that drifts: the mock gained a third
+ * Bangla bank and the list did not, so a mocked quiz was written to the database
+ * as if a model had produced it. These are derived from the mock itself, so adding
+ * a question to a bank automatically marks it as mock.
+ *
+ * The marker is the **whole prompt**, never a bare topic word. A genuinely
+ * generated quiz may perfectly well ask "Which formula solves a quadratic
+ * equation?" or mention mitochondria; matching on the words alone threw away real
+ * questions and replaced them with the deterministic curriculum generator's output.
+ */
+function mockQuizPrompts(): string[] {
+  const prompts: string[] = [];
+  const collect = (raw: string) => {
+    try {
+      const parsed = JSON.parse(raw);
+      for (const q of parsed.questions || []) {
+        if (typeof q?.prompt === 'string' && q.prompt.trim()) prompts.push(q.prompt.trim());
+      }
+    } catch {
+      // A malformed bank is a programming error, not a reason to crash the caller.
+    }
+  };
+  // The three subject banks `generateSubjectQuiz` can return, plus the generic
+  // English bank `mockResponses.quiz` holds.
+  collect(generateSubjectQuiz('primary class 5 water'));
+  collect(generateSubjectQuiz('class 11 hsc projectile'));
+  collect(generateSubjectQuiz('general mathematics physics'));
+  collect(mockResponses.quiz);
+  return prompts;
+}
+
+let cachedMockPrompts: string[] | null = null;
+
+/**
+ * Does this content look like it came from a mock?
+ *
+ * The mock question bank is a fixed set of strings. If a "real" quiz contains
+ * them, the AI was never actually called — the content was substituted. Used to
+ * decide whether a quiz needs regenerating, and to stop a mocked quiz being
+ * persisted as if a model had produced it.
+ *
+ * It used to know only the English markers, so a Bangla mock quiz was
+ * indistinguishable from a real generated quiz.
+ */
+export function looksLikeMockQuiz(content: string): boolean {
+  if (!content) return false;
+  if (!cachedMockPrompts) cachedMockPrompts = mockQuizPrompts();
+  return cachedMockPrompts.some((m) => content.includes(m));
+}
+
 export async function callAI(prompt: CallAIOptions): Promise<AIResult> {
   const model = prompt.model === 'fast' ? env.AI_MODEL_FAST : env.AI_MODEL_SMART;
   const apiKey = env.ANTHROPIC_API_KEY;
+  const feature = prompt.feature ?? inferFeature(prompt);
 
-  // If no key or placeholder, return mock deterministically
-  if (!apiKey || apiKey.includes('test-key') || apiKey.includes('placeholder')) {
-    logger.info({ model, promptLen: prompt.user.length, hasImage: !!prompt.image }, 'AI mock response');
-    let key = 'quiz';
-    if (prompt.system.includes('digest') || prompt.user.includes('digest')) key = 'digest';
-    if (prompt.system.includes('explanation') || prompt.user.includes('explanation')) key = 'explanation';
-    if (prompt.system.includes('voice') || prompt.system.includes('spoken') || prompt.user.includes('voice') || prompt.user.includes('Voice')) key = 'voice';
-    if (prompt.system.includes('note') || prompt.user.includes('note') || prompt.system.includes('handwritten') || prompt.image) {
-      const match = prompt.user.match(/Subject:\s*([^\n\r]+)/i);
-      const subj = match ? match[1].trim() : 'General';
-      return { content: generateSubjectNote(subj), inputTokens: Math.ceil(prompt.user.length / 4), outputTokens: 300, model, cached: false };
-    }
-    // Allow caller to hint
-    if (prompt.user.includes('__MOCK_DIGEST__')) key = 'digest';
-    if (prompt.user.includes('__MOCK_EXPLANATION__')) key = 'explanation';
-    const content = key === 'quiz' ? generateSubjectQuiz(prompt.user) : (mockResponses[key] || mockResponses.quiz);
-    return { content, inputTokens: Math.ceil(prompt.user.length / 4), outputTokens: 150, model, cached: false };
+  // Deterministic mock: no key, a placeholder key, or the test runner.
+  if (!shouldUseLiveAI()) {
+    logger.info({ model, feature, promptLen: prompt.user.length, hasImage: !!prompt.image }, 'AI mock response');
+    const content = mockContentFor(feature, prompt);
+    return {
+      content,
+      // No tokens were spent, so none are reported. The mock used to report an
+      // *estimate* of the prompt length plus a fixed 300 output tokens, which then
+      // flowed into `estimateCost` and was written to the usage log as a real cost —
+      // so the books showed money spent on content that cost nothing to produce.
+      inputTokens: 0,
+      outputTokens: 0,
+      model,
+      cached: false,
+      mocked: true,
+    };
   }
 
   // Real Anthropic call
@@ -274,12 +429,10 @@ export async function callAI(prompt: CallAIOptions): Promise<AIResult> {
       return { content: text, inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens, model: fallbackModel };
     } catch (err2: any) {
       logger.error({ error: err2.message, status: err2.status, model: fallbackModel }, 'AI call failed, falling back to mock');
-      if (prompt.system.includes('note') || prompt.user.includes('note') || prompt.system.includes('handwritten') || prompt.image) {
-        const match = prompt.user.match(/Subject:\s*([^\n\r]+)/i);
-        const subj = match ? match[1].trim() : 'General';
-        return { content: generateSubjectNote(subj), inputTokens: 0, outputTokens: 0, model, cached: false };
-      }
-      return { content: generateSubjectQuiz(prompt.user), inputTokens: 0, outputTokens: 0, model, cached: false };
+      // The content below is a MOCK. It is flagged as such so callers can refuse to
+      // persist it as if a real model had produced it.
+      const content = mockContentFor(feature, prompt);
+      return { content, inputTokens: 0, outputTokens: 0, model, cached: false, mocked: true };
     }
   }
 }

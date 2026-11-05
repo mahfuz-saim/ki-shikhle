@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import crypto from 'crypto';
 import { makeAINote, createNote, generateStructuredFallback } from './notes.service';
+import { demoParent, demoChildIds } from '../../test-utils/actors';
 
 function hashText(t: string) {
   return crypto.createHash('sha256').update(t.trim()).digest('hex');
@@ -21,7 +22,7 @@ describe('Notes hashing & deduplication', () => {
 describe('AI Note Generation from Vision / Image & Text', () => {
   it('generates structured note from image buffer', async () => {
     const fakeBuffer = Buffer.from('fake-image-bytes-of-physics-note');
-    const res = await makeAINote('demo-child-1', 'demo-parent', {
+    const res = await makeAINote(demoParent(), demoChildIds.rahim, {
       subject: 'Physics',
       file: {
         buffer: fakeBuffer,
@@ -37,7 +38,7 @@ describe('AI Note Generation from Vision / Image & Text', () => {
 
   it('generates structured note from base64 image', async () => {
     const fakeBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-    const res = await makeAINote('demo-child-1', 'demo-parent', {
+    const res = await makeAINote(demoParent(), demoChildIds.rahim, {
       subject: 'Mathematics',
       imageBase64: fakeBase64,
       imageMimeType: 'image/png',
@@ -57,8 +58,8 @@ describe('AI Note Generation from Vision / Image & Text', () => {
   it('createNote automatically triggers vision AI note generation when image is attached', async () => {
     const fakeBuffer = Buffer.from('handwritten-notes-image');
     const note = await createNote(
-      'demo-child-1',
-      'demo-parent',
+      demoParent(),
+      demoChildIds.rahim,
       {
         buffer: fakeBuffer,
         originalname: 'chem_ch4.png',
