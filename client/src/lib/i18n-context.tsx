@@ -1,9 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import enMessages from '@/messages/en.json';
 import bnMessages from '@/messages/bn.json';
-import { type Locale, LOCALE_STORAGE_KEY, isLocale } from './i18n';
+import { type Locale, LOCALE_COOKIE, LOCALE_STORAGE_KEY, isLocale } from './i18n';
 
 interface I18nContextType {
   locale: Locale;
@@ -67,11 +67,35 @@ function readStoredLocale(): Locale {
   } catch {
     // localStorage can throw in private mode / sandboxed iframes.
   }
+  // Fall back to the cookie. `localStorage` can be cleared independently of the
+  // cookie (private browsing, a site-data wipe), and the two must not disagree
+  // about the language the page is in.
+  try {
+    const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${LOCALE_COOKIE}=([^;]*)`));
+    const fromCookie = match ? decodeURIComponent(match[1]) : null;
+    if (isLocale(fromCookie)) return fromCookie;
+  } catch {
+    // document.cookie can throw in sandboxed iframes.
+  }
   return 'en';
 }
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(readStoredLocale);
+
+  // Keep the cookie in step with the locale on every load.
+  //
+  // `localStorage` and the cookie can disagree: a user who chose Bangla before
+  // this existed has a `localStorage` entry and no cookie, so the server would
+  // still serve them an English document. Writing the cookie on mount closes
+  // that gap — the *next* request already carries the right language.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${LOCALE_COOKIE}=([^;]*)`));
+    const current = match ? decodeURIComponent(match[1]) : null;
+    if (current === locale) return;
+    document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=31536000; SameSite=Lax`;
+  }, [locale]);
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);
@@ -81,6 +105,13 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       } catch {
         // localStorage can throw in private mode / sandboxed iframes.
       }
+      // Mirror the locale into a cookie so the **server** can render `<html lang>`
+      // correctly on the first paint. Without it the document was always served
+      // as English and only corrected after hydration.
+      //
+      // One year, `path=/`, `SameSite=Lax`: the cookie carries no identity and
+      // no secret, it is only read to pick a language.
+      document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=31536000; SameSite=Lax`;
     }
   }, []);
 

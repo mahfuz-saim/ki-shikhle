@@ -323,35 +323,56 @@ function mockContentFor(feature: AIFeature, prompt: CallAIOptions): string {
 }
 
 /**
+ * The exact question prompts the mock banks return.
+ *
+ * A hand-kept list of markers is a list that drifts: the mock gained a third
+ * Bangla bank and the list did not, so a mocked quiz was written to the database
+ * as if a model had produced it. These are derived from the mock itself, so adding
+ * a question to a bank automatically marks it as mock.
+ *
+ * The marker is the **whole prompt**, never a bare topic word. A genuinely
+ * generated quiz may perfectly well ask "Which formula solves a quadratic
+ * equation?" or mention mitochondria; matching on the words alone threw away real
+ * questions and replaced them with the deterministic curriculum generator's output.
+ */
+function mockQuizPrompts(): string[] {
+  const prompts: string[] = [];
+  const collect = (raw: string) => {
+    try {
+      const parsed = JSON.parse(raw);
+      for (const q of parsed.questions || []) {
+        if (typeof q?.prompt === 'string' && q.prompt.trim()) prompts.push(q.prompt.trim());
+      }
+    } catch {
+      // A malformed bank is a programming error, not a reason to crash the caller.
+    }
+  };
+  // The three subject banks `generateSubjectQuiz` can return, plus the generic
+  // English bank `mockResponses.quiz` holds.
+  collect(generateSubjectQuiz('primary class 5 water'));
+  collect(generateSubjectQuiz('class 11 hsc projectile'));
+  collect(generateSubjectQuiz('general mathematics physics'));
+  collect(mockResponses.quiz);
+  return prompts;
+}
+
+let cachedMockPrompts: string[] | null = null;
+
+/**
  * Does this content look like it came from a mock?
  *
  * The mock question bank is a fixed set of strings. If a "real" quiz contains
  * them, the AI was never actually called — the content was substituted. Used to
- * decide whether a quiz needs regenerating.
+ * decide whether a quiz needs regenerating, and to stop a mocked quiz being
+ * persisted as if a model had produced it.
  *
- * The markers cover both banks the mock can return: the original English one and
- * the Bangla subject banks added later. It used to know only the English markers, so
- * a Bangla mock quiz was indistinguishable from a real generated quiz.
+ * It used to know only the English markers, so a Bangla mock quiz was
+ * indistinguishable from a real generated quiz.
  */
 export function looksLikeMockQuiz(content: string): boolean {
   if (!content) return false;
-  const markers = [
-    // The original English bank.
-    'quadratic formula',
-    'mitochondria',
-    'What is the quadratic formula?',
-    'Photosynthesis occurs in mitochondria',
-    // The Bangla subject banks (primary, science, physics, higher maths).
-    'গসাগু (HCF)',
-    'লসাগু (LCM)',
-    'প্রক্ষেপকের গতিপথ',
-    'সর্বোচ্চ বিন্দুতে',
-    'একটি বস্তুর ত্বরণ',
-    'ভোঁতা ধারণার সূত্র',
-    'পানিকে সম্পূর্ণ জীবাণুমুক্ত',
-    'মৌলিক সংখ্যা',
-  ];
-  return markers.some((m) => content.includes(m));
+  if (!cachedMockPrompts) cachedMockPrompts = mockQuizPrompts();
+  return cachedMockPrompts.some((m) => content.includes(m));
 }
 
 export async function callAI(prompt: CallAIOptions): Promise<AIResult> {

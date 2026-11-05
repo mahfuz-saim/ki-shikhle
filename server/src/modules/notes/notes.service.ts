@@ -23,7 +23,7 @@ const demoNoteFixtures: any[] = [
     subject: 'Physics',
     title: 'গতির সমীকরণ ও নিউটনের ২য় সূত্র (Equations of Motion & Force)',
     date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
-    fileUrl: '/notes/physics-ch3-sample.png',
+    fileUrl: '/notes/physics-sample.png',
     textClean: 'Physics Ch 3: Newton 2nd Law F = ma. Equations of motion: v = u + at, s = ut + 1/2 at^2, v^2 = u^2 + 2as. Force causes acceleration. SI unit of force is Newton (N). 1 N = 1 kg*m/s^2.',
     aiSummary: `### 📌 মূল বিষয়বস্তু ও সংজ্ঞা (Core Concepts)
 - **বল (Force)**: যা কোনো স্থির বস্তুর ওপর ক্রিয়া করে তাকে গতিশীল করে বা করতে চায়, অথবা গতিশীল বস্তুর গতির পরিবর্তন করে।
@@ -55,7 +55,7 @@ const demoNoteFixtures: any[] = [
     subject: 'Mathematics',
     title: 'বীজগণিতীয় সূত্রাবলী ও উৎপাদকে বিশ্লেষণ (Algebraic Formulae)',
     date: new Date(Date.now() - 4 * 86400000).toISOString().slice(0, 10),
-    fileUrl: '/notes/math-algebra-sample.png',
+    fileUrl: '/notes/math-sample.png',
     textClean: 'Algebra Formulae: (a+b)^2 = a^2 + 2ab + b^2, (a-b)^2 = a^2 - 2ab + b^2, a^2 - b^2 = (a+b)(a-b). Middle term factor breakdown rules.',
     aiSummary: `### 📌 বর্গের মৌলিক সূত্রাবলী (Square Formulas)
 - \\((a + b)^2 = a^2 + 2ab + b^2\\)
@@ -82,7 +82,7 @@ const demoNoteFixtures: any[] = [
     subject: 'Chemistry',
     title: 'পর্যায় সারণি ও মৌলের ইলেকট্রন বিন্যাস (Periodic Table Trends)',
     date: new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10),
-    fileUrl: '/notes/chem-periodic-sample.png',
+    fileUrl: '/notes/chem-sample.png',
     textClean: 'Periodic Table: Group 1 Alkali metals (Li, Na, K), Group 17 Halogens (F, Cl, Br, I), Group 18 Noble gases. Electron capacity formula: 2n^2.',
     aiSummary: `### 📌 পর্যায় সারণির গুরুত্বপূর্ণ গ্রুপসমূহ
 - **গ্রুপ ১ (ক্ষার ধাতু)**: Li, Na, K, Rb, Cs, Fr — এরা তীব্র তড়িৎ-ধনাত্মক ও পানির সাথে বিক্রিয়ায় ক্ষার উৎপন্ন করে।
@@ -111,7 +111,7 @@ const demoNoteFixtures: any[] = [
     subject: 'Elementary Math',
     title: 'গুণনীয়ক ও গুণিতক (Factors & Multiples)',
     date: new Date(Date.now() - 1 * 86400000).toISOString().slice(0, 10),
-    fileUrl: '/notes/tasnim-math-sample.png',
+    fileUrl: '/notes/math-tasnim.png',
     textClean: 'Class 5 Math: Factors and Multiples. Prime factors of 24 = 2 x 2 x 2 x 3. LCM of 12 and 18 is 36. HCF of 12 and 18 is 6. LCM x HCF = Product of numbers.',
     aiSummary: `### 📌 মৌলিক সংজ্ঞা ও নিয়মাবলী
 - **গুণনীয়ক (Factor)**: কোনো সংখ্যা যেসব সংখ্যা দ্বারা নিঃশেষে বিভাজ্য হয়, সেগুলোই ঐ সংখ্যার গুণনীয়ক। যেমন: ১২ এর গুণনীয়ক হলো ১, ২, ৩, ৪, ৬, ১২।
@@ -137,7 +137,7 @@ const demoNoteFixtures: any[] = [
     subject: 'Primary Science',
     title: 'জীবনের জন্য পানি ও বিশুদ্ধকরণ (Water for Life)',
     date: new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10),
-    fileUrl: '/notes/tasnim-science-sample.png',
+    fileUrl: '/notes/science-tasnim.png',
     textClean: 'Primary Science Ch 3: Water cycle and water purification. Evaporation, Condensation, Precipitation. Boiling water for 20 minutes kills germs.',
     aiSummary: `### 📌 পানি চক্রের ৪টি প্রধান ধাপ
 1. **বাষ্পীভবন (Evaporation)**: সূর্যের তাপে নদী, নালা ও সমুদ্রের পানি বাষ্পে পরিণত হয়ে উপরে ওঠে।
@@ -165,7 +165,7 @@ const demoNoteFixtures: any[] = [
     subject: 'English',
     title: 'Eat Healthy - The Food Pyramid (Unit 6)',
     date: new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10),
-    fileUrl: '/notes/tasnim-english-sample.png',
+    fileUrl: '/notes/english-tasnim.png',
     textClean: 'English Unit 6: Food Pyramid. Grains, Fruits & Veggies, Dairy & Protein, Fat & Oil at top. Healthy eating habits.',
     aiSummary: `### 📌 The 4 Levels of the Food Pyramid
 1. **Bottom Level (Eat Most)**: Grains, bread, rice, potatoes — provide carbohydrates and energy for studying and playing.

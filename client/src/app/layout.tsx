@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/components/auth/auth-context';
 import { I18nProvider } from '@/lib/i18n-context';
 import { LocaleLang } from '@/components/layout/locale-lang';
+import { readLocaleFromCookie } from '@/lib/locale-server';
 
 export const metadata: Metadata = {
   title: 'Ki Shikhle? - Parent Learning Tracker (কি শিখলে?)',
@@ -14,10 +15,14 @@ export const metadata: Metadata = {
 export const runtime = 'edge';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // The locale is read from the cookie the client mirrors it into. The document
+  // used to be served as `lang="en"` and only corrected after hydration, so a
+  // Bangla user's first paint was an English document — wrong hyphenation,
+  // wrong screen-reader pronunciation, wrong font selection.
+  const locale = readLocaleFromCookie();
+
   return (
-    // `lang` is corrected on the client by `LocaleLang` — the locale lives in
-    // `localStorage`, which the server cannot read.
-    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
+    <html lang={locale} className="scroll-smooth" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -29,7 +34,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <I18nProvider>
             {/* `LocaleLang` reads the locale from `useI18n()`, so it must be
-                rendered *inside* the provider. */}
+                rendered *inside* the provider. It still corrects the attribute
+                when the user switches language without a reload. */}
             <LocaleLang />
             <AuthProvider>{children}</AuthProvider>
           </I18nProvider>

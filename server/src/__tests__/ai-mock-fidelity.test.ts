@@ -21,7 +21,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { callAI, inferFeature, shouldUseLiveAI, looksLikeMockQuiz } from '../services/ai';
+import { callAI, inferFeature, shouldUseLiveAI, looksLikeMockQuiz, generateSubjectQuiz } from '../services/ai';
 import { extractStructuredVoiceFallback } from '../modules/entries/entries.service';
 
 describe('the AI mock is deterministic and self-identifying', () => {
@@ -97,6 +97,40 @@ describe('the mock question bank is recognisable', () => {
       feature: 'quiz',
     });
     expect(looksLikeMockQuiz(result.content)).toBe(true);
+  });
+
+  it('flags every bank the mock can return, not just the English one', () => {
+    // The mock has three subject banks plus the generic English one. The quiz
+    // service's own check used to know only the English markers, so a mocked
+    // *Bangla* quiz was written to the database as if a model had produced it —
+    // a production AI outage silently filled the quizzes table with fake
+    // questions.
+    const banks = [
+      generateSubjectQuiz('primary class 5 water'),
+      generateSubjectQuiz('class 11 hsc projectile'),
+      generateSubjectQuiz('general mathematics and physics'),
+    ];
+    for (const bank of banks) {
+      expect(looksLikeMockQuiz(bank)).toBe(true);
+    }
+  });
+
+  it('does not flag a real question that merely mentions a mock topic', () => {
+    // The old marker list matched bare topic words ("mitochondria",
+    // "quadratic formula"), so a genuinely generated question about either was
+    // thrown away and replaced by the deterministic curriculum generator.
+    const real = JSON.stringify({
+      questions: [
+        { type: 'mcq', prompt: 'Which formula solves a quadratic equation?', options: ['A', 'B'], correct_answer: 'A', explanation: 'The quadratic formula.', topic: 'Quadratic Equations' },
+        { type: 'mcq', prompt: 'Which organelle does photosynthesis occur in?', options: ['Mitochondria', 'Chloroplast'], correct_answer: 'Chloroplast', explanation: 'Chloroplasts.', topic: 'Biology' },
+      ],
+    });
+    expect(looksLikeMockQuiz(real)).toBe(false);
+  });
+
+  it('does not flag an empty or unrelated payload', () => {
+    expect(looksLikeMockQuiz('')).toBe(false);
+    expect(looksLikeMockQuiz('{"questions":[]}')).toBe(false);
   });
 });
 

@@ -1,5 +1,5 @@
 import { prisma } from '../../db/client';
-import { callAI, estimateCost } from '../../services/ai';
+import { callAI, estimateCost, looksLikeMockQuiz } from '../../services/ai';
 import { getPlanLimits, canGenerateQuiz, resolvePlanCode } from '../../services/entitlements';
 import { z } from 'zod';
 import { sha256Hex } from '../../utils/crypto';
@@ -526,7 +526,14 @@ export async function generateQuiz(actor: Actor, childId: string, input: any, cr
 
   // If the AI mock's static bank came back instead of real generated questions,
   // replace it with curriculum-grounded questions built from the child's own notes.
-  if (parsed.questions.some((q: any) => q.prompt?.includes('quadratic formula') || q.prompt?.includes('mitochondria'))) {
+  //
+  // The detection used to be a pair of inline English substring checks
+  // ("quadratic formula", "mitochondria"), so the *Bangla* mock banks - which is what
+  // `generateSubjectQuiz` returns for a Bangla prompt - sailed straight through and were
+  // written to the database as if a model had produced them. The shared helper knows
+  // every bank, and matches on whole prompts rather than bare topic words, so a
+  // genuinely generated question that merely mentions quadratics is not thrown away.
+  if (looksLikeMockQuiz(result.content)) {
     const studyContext = await collectChildStudyContext(actor, childId, 'all_subjects', input.subjectIds);
     const properQuestions = generateProperCurriculumQuestions(studyContext, {
       questionCount: settings.numQuestions,
@@ -1858,7 +1865,10 @@ Output strictly valid JSON with questions array.`;
     const jsonMatch = aiRes.content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
-      if (Array.isArray(parsed.questions) && parsed.questions.length >= questionCount && !aiRes.content.includes('What is the quadratic formula?')) {
+      // The same mock check the manual generator uses: a Bangla mock bank is
+      // just as fake as the English one, and used to be written straight to the
+      // database by the auto-scheduler.
+      if (Array.isArray(parsed.questions) && parsed.questions.length >= questionCount && !looksLikeMockQuiz(aiRes.content)) {
         questions = parsed.questions.slice(0, questionCount).map((q: any, idx: number) => ({
           id: `q-auto-ai-${Date.now()}-${idx + 1}`,
           quizId: '',
