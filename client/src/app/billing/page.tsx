@@ -48,7 +48,7 @@ export default function BillingPage() {
   const defaultPlans = [
     {
       code: 'free',
-      name: isBn ? 'ফ্রি (Free)' : 'Free',
+      name: t('billing.free'),
       priceBdt: 0,
       limitsJson: {
         maxChildren: 1,
@@ -72,7 +72,7 @@ export default function BillingPage() {
     },
     {
       code: 'basic',
-      name: isBn ? 'বেসিক (Basic)' : 'Basic',
+      name: t('billing.basic'),
       priceBdt: 249,
       limitsJson: {
         maxChildren: 1,
@@ -100,7 +100,7 @@ export default function BillingPage() {
     },
     {
       code: 'premium',
-      name: isBn ? 'প্রিমিয়াম (Premium)' : 'Premium',
+      name: t('billing.premium'),
       priceBdt: 599,
       recommended: true,
       limitsJson: {
@@ -131,7 +131,7 @@ export default function BillingPage() {
     },
     {
       code: 'pro',
-      name: isBn ? 'প্রো ফ্যামিলি (Pro)' : 'Pro Family',
+      name: t('billing.pro'),
       priceBdt: 999,
       limitsJson: {
         maxChildren: 5,
@@ -235,7 +235,7 @@ export default function BillingPage() {
           childSlots: 5,
           plan: {
             code: 'pro',
-            name: isBn ? 'প্রো ফ্যামিলি (Pro)' : 'Pro Family',
+            name: t('billing.pro'),
             priceBdt: 999,
           },
           currentPeriodEnd: new Date(Date.now() + 30 * 86400000).toISOString(),
@@ -288,9 +288,7 @@ export default function BillingPage() {
 
       const inv = res.data?.data;
       setMsg(
-        isBn
-          ? `পেমেন্ট সফল হয়েছে! প্ল্যান আপডেট সম্পন্ন। ইনভয়েস নং: ${inv?.invoiceNo || 'INV-DEMO'}`
-          : `Payment successful! Plan updated. Invoice: ${inv?.invoiceNo || 'INV-DEMO'}`
+        t('billing.payment_successful_plan_updated_invoice', { p0: inv?.invoiceNo || 'INV-DEMO' }, `Payment successful! Plan updated. Invoice: ${inv?.invoiceNo || 'INV-DEMO'}`)
       );
       setCheckoutModalOpen(false);
 
@@ -339,9 +337,7 @@ export default function BillingPage() {
             {t('billing.title', 'Subscription & Billing')}
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {isBn
-              ? 'ফ্রিমিয়াম মডেল: চিরকাল ফ্রি প্ল্যান সহ ৩য় প্যাকেজে স্বয়ংক্রিয় এআই কুইজ শিডিউলিং'
-              : 'Freemium model: Always Free tier with Automatic Quiz Setup System available in Premium'}
+            {t('billing.text')}
           </p>
         </div>
 
@@ -379,35 +375,31 @@ export default function BillingPage() {
                   }`}
                 >
                   {currentPlanCode === 'pro'
-                    ? (isBn ? 'প্রো ফ্যামিলি প্ল্যান' : 'Pro Family Plan')
+                    ? (t('billing.text_2'))
                     : currentPlanCode === 'premium'
-                    ? (isBn ? 'প্রিমিয়াম প্ল্যান' : 'Premium Plan')
+                    ? (t('billing.text_3'))
                     : currentPlanCode === 'basic'
-                    ? (isBn ? 'বেসিক প্ল্যান' : 'Basic Plan')
-                    : (isBn ? 'চিরকাল ফ্রি প্ল্যান' : 'Always Free Plan')}
+                    ? (t('billing.text_4'))
+                    : (t('billing.text_5'))}
                 </Badge>
                 <span className="text-xs text-muted-foreground font-medium">
                   {currentPlanCode === 'premium' || currentPlanCode === 'pro'
-                    ? (isBn ? '⭐ স্বয়ংক্রিয় কুইজ সেটআপ সক্রিয়' : '⭐ Automatic Quiz Setup Active')
-                    : (isBn ? 'সীমাহীন মেয়াদ • প্রতি মাসে ২টি কুইজ' : 'Lifetime Free • 2 AI Quizzes/mo')}
+                    ? (t('billing.text_6'))
+                    : (t('billing.text_7'))}
                 </span>
               </div>
               <h3 className="text-lg font-bold text-foreground">
                 {currentPlanCode === 'free'
-                  ? (isBn ? 'বিনামূল্যে ব্যবহার করছেন (Free Tier)' : 'Free Tier Active (Forever Free)')
-                  : `${sub?.plan?.name || subscription?.plan?.name || currentPlanCode.toUpperCase()} (${isBn ? 'সক্রিয়' : 'Active'})`}
+                  ? (t('billing.free_tier'))
+                  : `${sub?.plan?.name || subscription?.plan?.name || currentPlanCode.toUpperCase()} (${t('billing.text_8')})`}
               </h3>
               {isLegacyPlan && (
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {isBn
-                    ? `আপনার পুরোনো ${sub?.plan?.name || rawPlanCode} প্ল্যান সক্রিয় আছে — এটি এখন ${currentPlanCode} ফিচারসহ কাজ করে।`
-                    : `Your legacy ${sub?.plan?.name || rawPlanCode} plan is active — it now includes everything in ${currentPlanCode}.`}
+                  {t('billing.your_legacy_plan_is_active_it_now_includes_every', { p0: sub?.plan?.name || rawPlanCode, p1: currentPlanCode }, `Your legacy ${sub?.plan?.name || rawPlanCode} plan is active — it now includes everything in ${currentPlanCode}.`)}
                 </p>
               )}
               <p className="text-xs text-muted-foreground max-w-xl">
-                {isBn
-                  ? 'আপনার কোনো স্টাডি লগ বা খাতার নোট কখনো মুছে যাবে না। ৩য় প্যাকেজ (প্রিমিয়াম)-এ রয়েছে স্বয়ংক্রিয় কুইজ সেটআপ ও স্পেসড রিপিটেশন।'
-                  : 'Your learning logs and notes are never deleted. Package 3 (Premium) unlocks the Automatic Quiz Setup System and 50 AI quizzes per month.'}
+                {t('billing.text_9')}
               </p>
             </div>
 
@@ -418,7 +410,7 @@ export default function BillingPage() {
                   className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl h-10 px-5 shadow-md shadow-indigo-600/20 gap-1.5"
                 >
                   <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>{isBn ? 'প্রিমিয়ামে আপগ্রেড (অটো কুইজ)' : 'Upgrade to Premium (Auto Quiz)'}</span>
+                  <span>{t('billing.text_10')}</span>
                 </Button>
               ) : (
                 <Button
@@ -426,7 +418,7 @@ export default function BillingPage() {
                   variant="outline"
                   className="text-xs font-bold rounded-xl h-10 px-4"
                 >
-                  <span>{isBn ? 'প্ল্যান পরিবর্তন করুন' : 'Change Plan'}</span>
+                  <span>{t('billing.text_11')}</span>
                 </Button>
               )}
             </div>
@@ -440,9 +432,7 @@ export default function BillingPage() {
               {t('billing.plans', 'Subscription Plans')}
             </h2>
             <p className="text-xs text-muted-foreground">
-              {isBn
-                ? '১টি ফ্রি ও ৩টি পেইড প্যাকেজ। প্রতিটি প্যাকেজে নির্ধারিত শিক্ষার্থী অন্তর্ভুক্ত। ৩য় প্যাকেজে রয়েছে সম্পূর্ণ স্বয়ংক্রিয় কুইজ সেটআপ!'
-                : '1 Free & 3 Paid Packages. Base seats included per pack. Package 3 includes Automatic Quiz Setup System!'}
+              {t('billing.text_12')}
             </p>
           </div>
 
@@ -465,12 +455,12 @@ export default function BillingPage() {
                   <CardHeader className="p-5 pb-3">
                     {isRecommended && (
                       <Badge className="w-fit mb-2 bg-indigo-600 text-white text-[10px] font-bold">
-                        {isBn ? 'সবচেয়ে জনপ্রিয়' : 'Most Popular'}
+                        {t('billing.text_13')}
                       </Badge>
                     )}
                     {isCurrent && (
                       <Badge className="w-fit mb-2 bg-emerald-600 text-white text-[10px] font-bold">
-                        {isBn ? 'বর্তমান প্ল্যান' : 'Current Plan'}
+                        {t('billing.text_14')}
                       </Badge>
                     )}
                     <CardTitle className="text-lg font-black text-foreground">{p.name}</CardTitle>
@@ -478,8 +468,8 @@ export default function BillingPage() {
                       <span className="text-3xl font-black text-foreground">৳{p.priceBdt}</span>
                       <span className="text-xs text-muted-foreground">
                         {p.priceBdt === 0
-                          ? (isBn ? '/ চিরকাল' : '/ forever')
-                          : (isBn ? '/ মাস' : '/ month')}
+                          ? (t('billing.text_15'))
+                          : (t('billing.text_16'))}
                       </span>
                     </div>
                   </CardHeader>
@@ -524,10 +514,10 @@ export default function BillingPage() {
                       }`}
                     >
                       {isCurrent
-                        ? (isBn ? 'বর্তমান প্ল্যান' : 'Active Plan')
+                        ? (t('billing.text_14'))
                         : p.code === 'free'
-                        ? (isBn ? 'ফ্রি প্ল্যানে থাকুন' : 'Stay on Free')
-                        : `${p.name} ${isBn ? 'বেছে নিন' : 'Select'}`}
+                        ? (t('billing.text_17'))
+                        : `${p.name} ${t('billing.text_18')}`}
                     </Button>
                   </CardContent>
                 </Card>
@@ -544,7 +534,7 @@ export default function BillingPage() {
               <span>{t('billing.invoices', 'Invoices & Receipts')}</span>
             </CardTitle>
             <CardDescription className="text-xs">
-              {isBn ? 'পেমেন্ট ট্রানজ্যাকশন হিস্ট্রি ও রিসিপ্ট' : 'All demo and live payment transactions'}
+              {t('billing.text_19')}
             </CardDescription>
           </CardHeader>
 
@@ -579,7 +569,7 @@ export default function BillingPage() {
               </div>
             ) : (
               <p className="text-xs text-muted-foreground py-4 text-center">
-                {isBn ? 'কোনো পূর্ববর্তী ইনভয়েস নেই।' : 'No invoices yet.'}
+                {t('billing.text_20')}
               </p>
             )}
           </CardContent>
@@ -592,16 +582,14 @@ export default function BillingPage() {
         onClose={() => setCheckoutModalOpen(false)}
         title={t('billing.demoCheckout', 'Complete Subscription (Demo)')}
         description={
-          isBn
-            ? 'বিকাশ, নগদ বা কার্ড দিয়ে ডেমো পেমেন্ট টেস্ট করুন। কোনো আসল টাকা কাটা হবে না।'
-            : 'Simulated checkout with bKash, Nagad or Card. No real money will be charged.'
+          t('billing.text_21')
         }
       >
         <form onSubmit={handleCheckout} className="space-y-4 pt-1">
           {/* Plan & Child count */}
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-semibold">{isBn ? 'নির্বাচিত প্ল্যান' : 'Selected Plan'}</Label>
+              <Label className="text-xs font-semibold">{t('billing.text_22')}</Label>
               <select
                 value={checkoutForm.planCode}
                 onChange={(e) => {
@@ -622,7 +610,7 @@ export default function BillingPage() {
             </div>
 
             <div>
-              <Label className="text-xs font-semibold">{isBn ? 'সন্তানের সংখ্যা' : 'Number of Children'}</Label>
+              <Label className="text-xs font-semibold">{t('billing.text_23')}</Label>
               <select
                 value={checkoutForm.childCount}
                 onChange={(e) => setCheckoutForm({ ...checkoutForm, childCount: parseInt(e.target.value) || 1 })}
@@ -632,34 +620,34 @@ export default function BillingPage() {
                   let label = '';
                   if (checkoutForm.planCode === 'pro') {
                     if (num === 5) {
-                      label = isBn ? '৫ জন শিক্ষার্থী (প্যাকেজে অন্তর্ভুক্ত - ডিফল্ট)' : '5 Children (5 Included - Default)';
+                      label = t('billing.text_24');
                     } else if (num < 5) {
-                      label = isBn ? `${toBn(num)} জন শিক্ষার্থী (প্যাকেজের অন্তর্ভুক্ত - কমিয়েছেন)` : `${num} Child${num > 1 ? 'ren' : ''} (Covered in 5-child plan)`;
+                      label = t('billing.child_covered_in_5_child_plan', { p0: isBn ? toBn(num) : num, p1: num > 1 ? 'ren' : '' }, `${num} Child${num > 1 ? 'ren' : ''} (Covered in 5-child plan)`);
                     } else {
                       const extra = num - 5;
                       const extraCost = extra * 150;
-                      label = isBn ? `${toBn(num)} জন শিক্ষার্থী (+${toBn(extra)} অতিরিক্ত: +৳${extraCost}/মাস)` : `${num} Children (+${extra} extra: +৳${extraCost}/mo)`;
+                      label = t('billing.children_extra_mo', { p0: isBn ? toBn(num) : num, p1: isBn ? toBn(extra) : extra, p2: extraCost }, `${num} Children (+${extra} extra: +৳${extraCost}/mo)`);
                     }
                   } else if (checkoutForm.planCode === 'premium') {
                     if (num === 2) {
-                      label = isBn ? '২ জন শিক্ষার্থী (প্যাকেজে অন্তর্ভুক্ত - ডিফল্ট)' : '2 Children (2 Included - Default)';
+                      label = t('billing.text_25');
                     } else if (num === 1) {
-                      label = isBn ? '১ জন শিক্ষার্থী (প্যাকেজের অন্তর্ভুক্ত - কমিয়েছেন)' : '1 Child (Covered in 2-child plan)';
+                      label = t('billing.text_26');
                     } else {
                       const extra = num - 2;
                       const extraCost = extra * 199;
-                      label = isBn ? `${toBn(num)} জন শিক্ষার্থী (+${toBn(extra)} অতিরিক্ত: +৳${extraCost}/মাস)` : `${num} Children (+${extra} extra: +৳${extraCost}/mo)`;
+                      label = t('billing.children_extra_mo', { p0: isBn ? toBn(num) : num, p1: isBn ? toBn(extra) : extra, p2: extraCost }, `${num} Children (+${extra} extra: +৳${extraCost}/mo)`);
                     }
                   } else if (checkoutForm.planCode === 'basic') {
                     if (num === 1) {
-                      label = isBn ? '১ জন শিক্ষার্থী (প্যাকেজে অন্তর্ভুক্ত - ডিফল্ট)' : '1 Child (1 Included - Default)';
+                      label = t('billing.text_27');
                     } else {
                       const extra = num - 1;
                       const extraCost = extra * 180;
-                      label = isBn ? `${toBn(num)} জন শিক্ষার্থী (+${toBn(extra)} অতিরিক্ত: +৳${extraCost}/মাস)` : `${num} Children (+${extra} extra: +৳${extraCost}/mo)`;
+                      label = t('billing.children_extra_mo', { p0: isBn ? toBn(num) : num, p1: isBn ? toBn(extra) : extra, p2: extraCost }, `${num} Children (+${extra} extra: +৳${extraCost}/mo)`);
                     }
                   } else {
-                    label = isBn ? `${toBn(num)} জন শিক্ষার্থী (ফ্রি স্লট: ১ জন)` : `${num} Child${num > 1 ? 'ren' : ''} (Free tier includes 1)`;
+                    label = t('billing.child_free_tier_includes_1', { p0: isBn ? toBn(num) : num, p1: num > 1 ? 'ren' : '' }, `${num} Child${num > 1 ? 'ren' : ''} (Free tier includes 1)`);
                   }
 
                   return (
@@ -675,7 +663,7 @@ export default function BillingPage() {
           {/* Billing Cycle */}
           <div>
             <Label className="text-xs font-semibold block mb-1">
-              {isBn ? 'বিলিং সাইকেল' : 'Billing Period'}
+              {t('billing.text_28')}
             </Label>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -687,7 +675,7 @@ export default function BillingPage() {
                     : 'bg-muted/20 text-muted-foreground'
                 }`}
               >
-                {isBn ? 'মাসিক' : 'Monthly'}
+                {t('billing.text_29')}
               </button>
               <button
                 type="button"
@@ -698,7 +686,7 @@ export default function BillingPage() {
                     : 'bg-muted/20 text-muted-foreground'
                 }`}
               >
-                {isBn ? 'বাৎসরিক (১০ মাসের খরচে ১২ মাস)' : 'Yearly (Pay 10, Get 12)'}
+                {t('billing.text_30')}
               </button>
             </div>
           </div>
@@ -706,7 +694,7 @@ export default function BillingPage() {
           {/* Payment Method Selector */}
           <div>
             <Label className="text-xs font-semibold block mb-1">
-              {isBn ? 'পেমেন্ট মাধ্যম (ডেমো)' : 'Payment Method (Demo)'}
+              {t('billing.text_31')}
             </Label>
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -734,8 +722,8 @@ export default function BillingPage() {
           <div>
             <Label className="text-xs font-semibold">
               {checkoutForm.method === 'card'
-                ? (isBn ? 'কার্ড নম্বর (ডেমো)' : 'Card Number (Demo)')
-                : (isBn ? 'মোবাইল ওয়ালেট নম্বর (ডেমো)' : 'Wallet Number (Demo)')}
+                ? (t('billing.text_32'))
+                : (t('billing.text_33'))}
             </Label>
             <Input
               value={checkoutForm.walletNumber}
@@ -747,24 +735,20 @@ export default function BillingPage() {
           {/* Total calculation banner & breakdown */}
           <div className="p-3.5 rounded-xl bg-muted/40 border space-y-1.5 text-xs">
             <div className="flex items-center justify-between font-medium text-muted-foreground">
-              <span>{isBn ? 'মূল প্যাকেজ ফি:' : 'Base Package Fee:'}</span>
+              <span>{t('billing.text_34')}</span>
               <span>
                 ৳{currentPricing.basePrice}{' '}
                 {currentPricing.basePrice > 0
-                  ? isBn
-                    ? `(${toBn(currentPricing.included)} জন অন্তর্ভুক্ত)`
-                    : `(${currentPricing.included} children included)`
+                  ? t('billing.children_included', { p0: isBn ? toBn(currentPricing.included) : currentPricing.included }, `(${currentPricing.included} children included)`)
                   : ''}
               </span>
             </div>
 
             {checkoutForm.childCount < currentPricing.included && currentPricing.basePrice > 0 && (
               <div className="flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                <span>{isBn ? 'বাছাইকৃত শিক্ষার্থী:' : 'Selected Children:'}</span>
+                <span>{t('billing.text_35')}</span>
                 <span>
-                  {isBn
-                    ? `${toBn(checkoutForm.childCount)} জন (প্ল্যানের প্যাকেজে সম্পূর্ণ কভার্ড)`
-                    : `${checkoutForm.childCount} children (covered by plan base rate)`}
+                  {t('billing.children_covered_by_plan_base_rate', { p0: isBn ? toBn(checkoutForm.childCount) : checkoutForm.childCount }, `${checkoutForm.childCount} children (covered by plan base rate)`)}
                 </span>
               </div>
             )}
@@ -772,9 +756,7 @@ export default function BillingPage() {
             {currentPricing.extraChildren > 0 && (
               <div className="flex items-center justify-between text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">
                 <span>
-                  {isBn
-                    ? `অতিরিক্ত সন্তান (+${toBn(currentPricing.extraChildren)} জন x ৳${currentPricing.extraChildPrice}):`
-                    : `Extra Children (+${currentPricing.extraChildren} x ৳${currentPricing.extraChildPrice}):`}
+                  {t('billing.extra_children_x', { p0: isBn ? toBn(currentPricing.extraChildren) : currentPricing.extraChildren, p1: currentPricing.extraChildPrice }, `Extra Children (+${currentPricing.extraChildren} x ৳${currentPricing.extraChildPrice}):`)}
                 </span>
                 <span>+৳{currentPricing.extraChildren * currentPricing.extraChildPrice}/mo</span>
               </div>
@@ -782,14 +764,14 @@ export default function BillingPage() {
 
             {currentPricing.isYearly && currentPricing.basePrice > 0 && (
               <div className="flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                <span>{isBn ? 'বাৎসরিক ছাড় (১০ মাসে ১২ মাস):' : 'Annual Discount (Pay 10, Get 12):'}</span>
-                <span>{isBn ? '২ মাস ফ্রি!' : '2 Months Free!'}</span>
+                <span>{t('billing.text_36')}</span>
+                <span>{t('billing.text_37')}</span>
               </div>
             )}
 
             <div className="pt-2 border-t flex items-center justify-between">
               <span className="font-bold text-foreground">
-                {isBn ? 'মোট প্রদেয় বিল:' : 'Total Payable Amount:'}
+                {t('billing.text_38')}
               </span>
               <span className="text-base font-black text-foreground">৳{currentPricing.total}</span>
             </div>
@@ -799,7 +781,7 @@ export default function BillingPage() {
 
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button type="button" variant="outline" size="sm" onClick={() => setCheckoutModalOpen(false)}>
-              {isBn ? 'বাতিল' : 'Cancel'}
+              {t('billing.text_39')}
             </Button>
             <Button
               type="submit"
@@ -808,8 +790,8 @@ export default function BillingPage() {
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
             >
               {loading
-                ? isBn ? 'প্রক্রিয়াধীন...' : 'Processing...'
-                : isBn ? `পেমেন্ট নিশ্চিত করুন (৳${currentPricing.total})` : `Confirm Demo Payment (৳${currentPricing.total})`}
+                ? t('billing.text_40')
+                : t('billing.confirm_demo_payment', { p0: currentPricing.total }, `Confirm Demo Payment (৳${currentPricing.total})`)}
             </Button>
           </div>
         </form>

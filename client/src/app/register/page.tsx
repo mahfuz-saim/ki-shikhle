@@ -16,7 +16,7 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 export default function RegisterPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   const [form, setForm] = useState({
     name: '',
@@ -49,12 +49,10 @@ export default function RegisterPage() {
         setError(serverMsg);
       } else if (err.request) {
         setError(
-          isBn
-            ? 'সার্ভারে পৌঁছানো যায়নি। অনুগ্রহ করে ইন্টারনেট সংযোগ পরীক্ষা করুন।'
-            : 'Could not reach the server. Please check your connection and try again.'
+          t('register.text')
         );
       } else {
-        setError(isBn ? 'অ্যাকাউন্ট তৈরি করা যায়নি। আবার চেষ্টা করুন।' : 'Could not create the account. Please try again.');
+        setError(t('register.text_2'));
       }
     } finally {
       setLoading(false);
@@ -66,7 +64,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md space-y-4">
         <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-2">
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>{isBn ? 'হোমপেজে ফিরুন' : 'Back to Home'}</span>
+          <span>{t('register.text_3')}</span>
         </Link>
 
         <Card className="rounded-3xl border shadow-xl bg-card">
@@ -90,10 +88,10 @@ export default function RegisterPage() {
               />
             </div>
             <CardTitle className="text-2xl font-black text-foreground">
-              {isBn ? 'বিনামূল্যে একাউন্ট তৈরি করুন' : 'Create Free Account'}
+              {t('register.text_4')}
             </CardTitle>
             <CardDescription className="text-xs">
-              {isBn ? 'চিরকাল ফ্রি প্ল্যান • কোনো ক্রেডিট কার্ড ছাড়াই' : 'Always Free plan • No credit card required'}
+              {t('register.text_5')}
             </CardDescription>
           </CardHeader>
 
@@ -161,7 +159,7 @@ export default function RegisterPage() {
                 className="w-full h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 mt-2"
                 disabled={loading}
               >
-                {loading ? 'Creating Account...' : isBn ? 'ফ্রি অ্যাকাউন্ট তৈরি করুন' : 'Create Free Account'}
+                {loading ? 'Creating Account...' : t('register.text_6')}
               </Button>
             </form>
 

@@ -129,3 +129,11 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 export function useI18n() {
   return useContext(I18nContext);
 }
+
+/**
+ * The shape of `t`, for the places that need it outside a React component.
+ *
+ * A module-level helper cannot call `useI18n()` — hooks only work inside a
+ * component — so it takes `t` as a parameter instead.
+ */
+export type Translator = I18nContextType['t'];

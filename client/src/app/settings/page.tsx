@@ -47,7 +47,7 @@ export default function SettingsPage() {
         currentPassword: curr,
         newPassword: nw,
       });
-      setMsg(isBn ? 'পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে!' : 'Password updated successfully!');
+      setMsg(t('settings.text'));
       setCurr('');
       setNw('');
     } catch (e: any) {

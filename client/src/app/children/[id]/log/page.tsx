@@ -13,7 +13,7 @@ import { Modal } from '@/components/ui/modal';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
 import { demoProfileOf, type DemoProfile } from '@/lib/child-scope';
-import { useI18n } from '@/lib/i18n-context';
+import { useI18n, type Translator } from '@/lib/i18n-context';
 import { getInstitutionType } from '@/lib/institution';
 import { api } from '@/lib/api';
 import {
@@ -34,7 +34,13 @@ import {
   UserCheck,
 } from 'lucide-react';
 
-function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
+/**
+ * The demo dataset for a child profile.
+ *
+ * `t` is passed in rather than read from `useI18n()`: this is a module-level
+ * function, and a hook cannot be called outside a component.
+ */
+function getFallbackEntries(profile: DemoProfile | null, isBn: boolean, t: Translator) {
   // The demo dataset is selected by the server-assigned `demoProfile`, not by a
   // hardcoded child id. The ids moved to UUIDs, so `childId === 'demo-child-2'`
   // never matched anything and every viewer saw Rahim's rows.
@@ -48,11 +54,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         id: 'e-f1',
         date: new Date().toISOString().slice(0, 10),
         source: 'college',
-        providerName: isBn ? 'নটর ডেম কলেজ' : 'College',
-        subject: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র' : 'Physics 1st Paper',
-        topicsText: isBn
-          ? 'অধ্যায় ৩: গতিবিদ্যা — প্রক্ষেপক (Projectile Motion), সর্বাধিক উচ্চতা H ও পাল্লা R নির্ণয়ের গাণিতিক সমাধান'
-          : 'Chapter 3: Dynamics – Projectile Motion, Maximum Height & Horizontal Range calculations',
+        providerName: t('childLog.text'),
+        subject: t('childLog.text_2'),
+        topicsText: t('childLog.projectile_motion_h_r'),
         durationMin: 50,
         confidence: 5,
         verifiedByParent: true,
@@ -61,11 +65,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         id: 'e-f2',
         date: new Date().toISOString().slice(0, 10),
         source: 'college',
-        providerName: isBn ? 'নটর ডেম কলেজ' : 'College',
-        subject: isBn ? 'রসায়ন ১ম পত্র' : 'Chemistry 1st Paper',
-        topicsText: isBn
-          ? 'অধ্যায় ২: গুণগত রসায়ন — বোর পরমাণু মডেল, কোয়ান্টাম সংখ্যা (n, l, m, s) এবং পলির বর্জন নীতি'
-          : 'Chapter 2: Qualitative Chemistry – Bohr Model, Quantum Numbers & Pauli Exclusion Principle',
+        providerName: t('childLog.text'),
+        subject: t('childLog.text_3'),
+        topicsText: t('childLog.n_l_m_s'),
         durationMin: 50,
         confidence: 5,
         verifiedByParent: true,
@@ -74,11 +76,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         id: 'e-f3',
         date: new Date().toISOString().slice(0, 10),
         source: 'tuition',
-        providerName: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching',
-        subject: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র' : 'Physics 1st Paper',
-        topicsText: isBn
-          ? 'প্রক্ষেপকের উচ্চতর গাণিতিক সমস্যা ও বিভিন্ন কোণে নিক্ষিপ্ত বস্তুর গতিপথ বিশ্লেষণ'
-          : 'Advanced Mathematical Problems on Projectiles & Trajectory analysis',
+        providerName: t('childLog.text_4'),
+        subject: t('childLog.text_2'),
+        topicsText: t('childLog.text_5'),
         durationMin: 75,
         confidence: 5,
         verifiedByParent: true,
@@ -88,10 +88,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         date: new Date().toISOString().slice(0, 10),
         source: 'self_study',
         providerName: 'Self Study',
-        subject: isBn ? 'উচ্চতর গণিত ১ম পত্র' : 'Higher Math',
-        topicsText: isBn
-          ? 'অধ্যায় ১: ম্যাট্রিক্স ও নির্ণায়ক — ক্র্যামারের নিয়মে তিন চলকের সমীকরণ জোট সমাধান'
-          : 'Chapter 1: Matrices & Determinants – Cramers Rule for 3-variable equations',
+        subject: t('childLog.text_6'),
+        topicsText: t('childLog.text_7'),
         durationMin: 60,
         confidence: 5,
         verifiedByParent: true,
@@ -101,11 +99,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         id: 'e-f5',
         date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
         source: 'college',
-        providerName: isBn ? 'নটর ডেম কলেজ' : 'College',
-        subject: isBn ? 'উচ্চতর গণিত ১ম পত্র' : 'Higher Math',
-        topicsText: isBn
-          ? 'ম্যাট্রিক্সের গুণন বিধি ও বিপরীত ম্যাট্রিক্স (Inverse Matrix) নির্ণয়'
-          : 'Matrix Multiplication Rules & Inverse Matrix calculations',
+        providerName: t('childLog.text'),
+        subject: t('childLog.text_6'),
+        topicsText: t('childLog.inverse_matrix'),
         durationMin: 50,
         confidence: 4,
         verifiedByParent: true,
@@ -114,11 +110,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         id: 'e-f6',
         date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
         source: 'tuition',
-        providerName: isBn ? 'রসায়ন প্রাইভেট' : 'Chemistry Tuition',
-        subject: isBn ? 'রসায়ন ১ম পত্র' : 'Chemistry 1st Paper',
-        topicsText: isBn
-          ? 'আউফবাউ নীতি, হুন্ডের নীতি প্রয়োগ করে ক্রোমিয়াম ও কপারের ব্যতিক্রমী ইলেকট্রন বিন্যাস'
-          : 'Aufbau Principle & Hunds Rule – Exceptional electronic configuration of Cr & Cu',
+        providerName: t('childLog.text_8'),
+        subject: t('childLog.text_3'),
+        topicsText: t('childLog.text_9'),
         durationMin: 60,
         confidence: 5,
         verifiedByParent: true,
@@ -128,10 +122,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
         source: 'self_study',
         providerName: 'Self Study',
-        subject: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র' : 'Physics 1st Paper',
-        topicsText: isBn
-          ? 'ক্যালকুলাস ও ব্যবকলনের সাহায্যে তাৎক্ষণিক বেগ ও ত্বরণ প্রতিপাদন'
-          : 'Calculus derivations of instantaneous velocity & acceleration',
+        subject: t('childLog.text_2'),
+        topicsText: t('childLog.text_10'),
         durationMin: 60,
         confidence: 4,
         verifiedByParent: true,
@@ -141,11 +133,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         id: 'e-f8',
         date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
         source: 'college',
-        providerName: isBn ? 'নটর ডেম কলেজ' : 'College',
-        subject: isBn ? 'তথ্য ও যোগাযোগ প্রযুক্তি' : 'ICT',
-        topicsText: isBn
-          ? 'অধ্যায় ৩: সংখ্যা পদ্ধতি — বাইনারি, ডেসিমাল, অক্টাল ও হেক্সাডেসিমেল রূপান্তর ও ২ এর পরিপূরক'
-          : 'Chapter 3: Number Systems – Binary, Octal, Hexadecimal conversions & 2s complement',
+        providerName: t('childLog.text'),
+        subject: t('childLog.text_11'),
+        topicsText: t('childLog.text_12'),
         durationMin: 50,
         confidence: 5,
         verifiedByParent: true,
@@ -154,11 +144,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         id: 'e-f9',
         date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
         source: 'tuition',
-        providerName: isBn ? 'গণিত কোচিং' : 'Math Coaching',
-        subject: isBn ? 'উচ্চতর গণিত ১ম পত্র' : 'Higher Math',
-        topicsText: isBn
-          ? 'নির্ণায়কের ধর্মাবলী ও অনুরাশি-সহগুণক প্রয়োগ করে মান নির্ণয়'
-          : 'Determinant properties, Minors & Cofactors evaluation',
+        providerName: t('childLog.text_13'),
+        subject: t('childLog.text_6'),
+        topicsText: t('childLog.text_14'),
         durationMin: 75,
         confidence: 5,
         verifiedByParent: true,
@@ -168,10 +156,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
         source: 'self_study',
         providerName: 'Self Study',
-        subject: isBn ? 'ইংরেজি ১ম পত্র' : 'English 1st Paper',
-        topicsText: isBn
-          ? 'Poem Analysis: "The Traffic Policeman" — Theme writing and critical explanation'
-          : 'Poem Analysis: "The Traffic Policeman" — Theme writing and critical explanation',
+        subject: t('childLog.text_15'),
+        topicsText: t('childLog.poem_analysis_the_traffic_policeman_theme_writin'),
         durationMin: 45,
         confidence: 5,
         verifiedByParent: true,
@@ -187,10 +173,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         date: new Date().toISOString().slice(0, 10),
         source: 'school',
         providerName: 'School',
-        subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math',
-        topicsText: isBn
-          ? 'অধ্যায় ৫: গুণনীয়ক ও গুণিতক — মৌলিক উৎপাদকে বিশ্লেষণ করে লসাগু ও গসাগু নির্ণয়'
-          : 'Chapter 5: Factors & Multiples – LCM & HCF problem solving using prime factors',
+        subject: t('childLog.text_16'),
+        topicsText: t('childLog.text_17'),
         durationMin: 45,
         confidence: 5,
         verifiedByParent: true,
@@ -200,10 +184,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         date: new Date().toISOString().slice(0, 10),
         source: 'school',
         providerName: 'School',
-        subject: isBn ? 'প্রাথমিক বিজ্ঞান' : 'Primary Science',
-        topicsText: isBn
-          ? 'অধ্যায় ৩: জীবনের জন্য পানি — নিরাপদ পানির গুরুত্ব ও পানি দূষণের ক্ষতিকর প্রভাব'
-          : 'Chapter 3: Water for Life – Importance of safe water and impacts of pollution',
+        subject: t('childLog.text_18'),
+        topicsText: t('childLog.text_19'),
         durationMin: 40,
         confidence: 5,
         verifiedByParent: true,
@@ -212,11 +194,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         id: 'e-t3',
         date: new Date().toISOString().slice(0, 10),
         source: 'tuition',
-        providerName: isBn ? 'ম্যাথ টিউটর' : 'Math Tutor',
-        subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math',
-        topicsText: isBn
-          ? 'ডাকের কথার অঙ্ক সমাধান, লসাগুর সাহায্যে ঘণ্টা বাজার সময় নির্ণয় সংক্রান্ত সমস্যা'
-          : 'Word problem solving, LCM based bell ringing interval questions',
+        providerName: t('childLog.text_20'),
+        subject: t('childLog.text_16'),
+        topicsText: t('childLog.text_21'),
         durationMin: 60,
         confidence: 5,
         verifiedByParent: true,
@@ -227,10 +207,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
         source: 'school',
         providerName: 'School',
-        subject: isBn ? 'ইংরেজি' : 'English',
-        topicsText: isBn
-          ? 'Unit 6: Eat Healthy — Food pyramid, healthy fruits and vegetables vocabulary'
-          : 'Unit 6: Eat Healthy – Food pyramid, healthy fruits and vegetables vocabulary',
+        subject: t('childLog.text_22'),
+        topicsText: t('childLog.unit_6_eat_healthy_food_pyramid_healthy_fruits_a'),
         durationMin: 45,
         confidence: 5,
         verifiedByParent: true,
@@ -239,11 +217,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         id: 'e-t5',
         date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
         source: 'tuition',
-        providerName: isBn ? 'ইংরেজি টিউটর' : 'English Tutor',
-        subject: isBn ? 'ইংরেজি' : 'English',
-        topicsText: isBn
-          ? 'Reading aloud, question-answer matching & spelling test with 10 new words'
-          : 'Reading aloud, question-answer matching & spelling test with 10 new words',
+        providerName: t('childLog.text_23'),
+        subject: t('childLog.text_22'),
+        topicsText: t('childLog.reading_aloud_question_answer_matching_spelling_'),
         durationMin: 50,
         confidence: 5,
         verifiedByParent: true,
@@ -253,10 +229,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
         source: 'self_study',
         providerName: 'Self Study',
-        subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math',
-        topicsText: isBn
-          ? 'পৃষ্ঠা ৩১ এর ১ থেকে ৫ নং লসাগু অংক খাতায় অনুশীলন সম্পন্ন'
-          : 'Page 31: Exercises 1-5 LCM practice completed in exercise notebook',
+        subject: t('childLog.text_16'),
+        topicsText: t('childLog.text_24'),
         durationMin: 45,
         confidence: 4,
         verifiedByParent: true,
@@ -267,10 +241,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
         source: 'school',
         providerName: 'School',
-        subject: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS',
-        topicsText: isBn
-          ? 'অধ্যায় ১: আমাদের মুক্তিযুদ্ধ — ১৯৭১ সালের ২৫শে মার্চের কালরাত ও সাধারণ মানুষের অবদান'
-          : 'Chapter 1: Liberation War – 25th March Crackdown & contribution of masses',
+        subject: t('childLog.text_25'),
+        topicsText: t('childLog.text_26'),
         durationMin: 40,
         confidence: 5,
         verifiedByParent: true,
@@ -279,11 +251,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         id: 'e-t8',
         date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
         source: 'tuition',
-        providerName: isBn ? 'ম্যাথ টিউটর' : 'Math Tutor',
-        subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math',
-        topicsText: isBn
-          ? 'গসাগু নির্ণয়ের সহজ নিয়ম ও ৩টি সংখ্যার গসাগু সমাধান'
-          : 'Easy method for HCF and solving 3-number HCF problems',
+        providerName: t('childLog.text_20'),
+        subject: t('childLog.text_16'),
+        topicsText: t('childLog.text_27'),
         durationMin: 60,
         confidence: 5,
         verifiedByParent: true,
@@ -293,10 +263,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
         date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
         source: 'self_study',
         providerName: 'Self Study',
-        subject: isBn ? 'প্রাথমিক বিজ্ঞান' : 'Primary Science',
-        topicsText: isBn
-          ? 'পানি চক্রের ছবি আঁকা এবং পানি বিশুদ্ধকরণের ৪টি ধাপ খাতায় নোট তৈরি'
-          : 'Water cycle diagram drawing & 4 water purification steps note',
+        subject: t('childLog.text_18'),
+        topicsText: t('childLog.text_28'),
         durationMin: 45,
         confidence: 5,
         verifiedByParent: true,
@@ -312,10 +280,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
       date: new Date().toISOString().slice(0, 10),
       source: 'school',
       providerName: 'School',
-      subject: isBn ? 'গণিত' : 'Mathematics',
-      topicsText: isBn
-        ? 'অধ্যায় ৪: বীজগণিতীয় সূত্রাবলী ও প্রয়োগ (অনুশীলনী ৪.১) — বর্গের সূত্র (a+b)^2 ও (a-b)^2 সমাধান'
-        : 'Chapter 4: Algebraic Formulae & Applications – (a+b)^2 and (a-b)^2 solutions',
+      subject: t('childLog.text_29'),
+      topicsText: t('childLog.a_b_2_a_b_2'),
       durationMin: 45,
       confidence: 5,
       verifiedByParent: true,
@@ -325,10 +291,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
       date: new Date().toISOString().slice(0, 10),
       source: 'school',
       providerName: 'School',
-      subject: isBn ? 'সাধারণ বিজ্ঞান' : 'General Science',
-      topicsText: isBn
-        ? 'অধ্যায় ২: গতি ও ত্বরণ — গতির ৩টি মৌলিক সমীকরণ, বেগ-সময় লেখচিত্র ও তাৎক্ষণিক দ্রুতি নির্ণয়'
-        : 'Chapter 2: Motion & Acceleration – 3 Equations of Motion & v-t graphs',
+      subject: t('childLog.text_30'),
+      topicsText: t('childLog.text_31'),
       durationMin: 50,
       confidence: 4,
       verifiedByParent: true,
@@ -337,11 +301,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
       id: 'e-r3',
       date: new Date().toISOString().slice(0, 10),
       source: 'tuition',
-      providerName: isBn ? 'রহিম স্যার' : 'Rahim Sir',
-      subject: isBn ? 'গণিত' : 'Mathematics',
-      topicsText: isBn
-        ? 'বর্গের মান নির্ণয়, (a+b)^2 ও (a-b)^2 এর অনুসিদ্ধান্ত প্রয়োগ এবং ৪টি সৃজনশীল অংক সমাধান'
-        : 'Algebraic value determination, corollaries & 4 creative questions',
+      providerName: t('childLog.text_32'),
+      subject: t('childLog.text_29'),
+      topicsText: t('childLog.a_b_2_a_b_2_2'),
       durationMin: 75,
       confidence: 5,
       verifiedByParent: true,
@@ -351,10 +313,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
       date: new Date().toISOString().slice(0, 10),
       source: 'self_study',
       providerName: 'Self Study',
-      subject: isBn ? 'ইংরেজি ১ম পত্র' : 'English 1st Paper',
-      topicsText: isBn
-        ? 'Unit 3: Health and Hygiene — Passage comprehension, new vocabulary with synonyms & theme'
-        : 'Unit 3: Health and Hygiene – Passage comprehension, new vocabulary with synonyms & theme',
+      subject: t('childLog.text_15'),
+      topicsText: t('childLog.unit_3_health_and_hygiene_passage_comprehension_'),
       durationMin: 45,
       confidence: 4,
       verifiedByParent: true,
@@ -365,10 +325,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
       date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
       source: 'school',
       providerName: 'School',
-      subject: isBn ? 'তথ্য ও যোগাযোগ প্রযুক্তি' : 'ICT',
-      topicsText: isBn
-        ? 'অধ্যায় ৩: স্প্রেডশিট সফটওয়্যারের ব্যবহার — মাইক্রোসফট এক্সেলে যোগ, গড়, গুণ এবং শতকরা সেল ফর্মুলা'
-        : 'Chapter 3: Spreadsheet Software – Microsoft Excel sum, average, percentage formulas',
+      subject: t('childLog.text_11'),
+      topicsText: t('childLog.text_33'),
       durationMin: 45,
       confidence: 5,
       verifiedByParent: true,
@@ -378,10 +336,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
       date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
       source: 'school',
       providerName: 'School',
-      subject: isBn ? 'বাংলা ১ম পত্র' : 'Bangla 1st Paper',
-      topicsText: isBn
-        ? 'কবিতা: "বঙ্গভূমির প্রতি" (মাইকেল মধুসূদন দত্ত) — মূলভাব বিশ্লেষণ ও অনুধাবনমূলক প্রশ্ন অনুশীলন'
-        : 'Poem: "Bongobhumir Proti" – Theme analysis and comprehension practice',
+      subject: t('childLog.text_34'),
+      topicsText: t('childLog.text_35'),
       durationMin: 45,
       confidence: 4,
       verifiedByParent: true,
@@ -390,11 +346,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
       id: 'e-r7',
       date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
       source: 'tuition',
-      providerName: isBn ? 'বিজ্ঞান কোচিং' : 'Science Coaching',
-      subject: isBn ? 'সাধারণ বিজ্ঞান' : 'General Science',
-      topicsText: isBn
-        ? 'অধ্যায় ৩: পরমাণুর গঠন — ইলেকট্রন বিন্যাস, পারমাণবিক সংখ্যা ও ভর সংখ্যা সংক্রান্ত গাণিতিক হিসাব'
-        : 'Chapter 3: Atomic Structure – Electron configuration & mass number calculations',
+      providerName: t('childLog.text_36'),
+      subject: t('childLog.text_30'),
+      topicsText: t('childLog.text_37'),
       durationMin: 60,
       confidence: 5,
       verifiedByParent: true,
@@ -404,10 +358,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
       date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
       source: 'self_study',
       providerName: 'Self Study',
-      subject: isBn ? 'গণিত হোমওয়ার্ক' : 'Math Homework',
-      topicsText: isBn
-        ? 'অনুশীলনী ৪.১ এর ৮ থেকে ১৫ নম্বর সমস্যা সমাধান ও নোটবুকে ফেয়ার সম্পন্ন'
-        : 'Exercise 4.1 questions 8 to 15 solved and fair notes written',
+      subject: t('childLog.text_38'),
+      topicsText: t('childLog.text_39'),
       durationMin: 50,
       confidence: 5,
       verifiedByParent: true,
@@ -418,10 +370,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
       date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
       source: 'school',
       providerName: 'School',
-      subject: isBn ? 'গণিত' : 'Mathematics',
-      topicsText: isBn
-        ? 'অধ্যায় ৮: চতুর্ভুজ — সামান্তরিকের বিপরীত বাহু ও কোণ পরস্পর সমান সংক্রান্ত উপপাদ্য ১ প্রমাণ'
-        : 'Chapter 8: Quadrilateral – Theorem 1 opposite sides & angles equal proof',
+      subject: t('childLog.text_29'),
+      topicsText: t('childLog.text_40'),
       durationMin: 50,
       confidence: 4,
       verifiedByParent: true,
@@ -430,11 +380,9 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
       id: 'e-r10',
       date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
       source: 'tuition',
-      providerName: isBn ? 'রহিম স্যার' : 'Rahim Sir',
-      subject: isBn ? 'গণিত' : 'Mathematics',
-      topicsText: isBn
-        ? 'চতুর্ভুজের উপপাদ্য ১ ও ২ এর অনুশীলনীর সমস্যা ও এক্সট্রা জ্যামিতি প্রমাণ'
-        : 'Quadrilateral theorem 1 & 2 exercise geometry proofs',
+      providerName: t('childLog.text_32'),
+      subject: t('childLog.text_29'),
+      topicsText: t('childLog.text_41'),
       durationMin: 75,
       confidence: 4,
       verifiedByParent: true,
@@ -444,10 +392,8 @@ function getFallbackEntries(profile: DemoProfile | null, isBn: boolean) {
       date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
       source: 'self_study',
       providerName: 'Self Study',
-      subject: isBn ? 'ইংরেজি ২য় পত্র' : 'English 2nd Paper',
-      topicsText: isBn
-        ? 'Right forms of verbs — 10 basic grammar rules and 20 practice fill-in-the-blanks'
-        : 'Right forms of verbs – 10 basic grammar rules and 20 practice fill-in-the-blanks',
+      subject: t('childLog.text_42'),
+      topicsText: t('childLog.right_forms_of_verbs_10_basic_grammar_rules_and_'),
       durationMin: 45,
       confidence: 4,
       verifiedByParent: true,
@@ -459,7 +405,7 @@ export default function LearningLogPage() {
   const params = useParams();
   const router = useRouter();
   const { activeChild, childrenList } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   // The route segment wins over the active child, and an account with no child
   // gets NO child id — the old `'demo-child'` fallback was not a real id, so the
@@ -527,9 +473,7 @@ export default function LearningLogPage() {
     try {
       await api.put(`/children/${childId}/unlogged-alert`, alertConfig);
       setAlertSuccessMsg(
-        isBn
-          ? `${currentChild?.name || 'শিক্ষার্থী'}-এর আনলগড স্টাডি অ্যালার্ট সফলভাবে সংরক্ষিত হয়েছে!`
-          : `Unlogged study alert settings successfully saved for ${currentChild?.name || 'this student'}!`
+        t('childLog.unlogged_study_alert_settings_successfully_saved', { p0: isBn ? currentChild?.name || 'শিক্ষার্থী' : currentChild?.name || 'this student' }, `Unlogged study alert settings successfully saved for ${currentChild?.name || 'this student'}!`)
       );
       setTimeout(() => {
         setAlertModalOpen(false);
@@ -541,9 +485,7 @@ export default function LearningLogPage() {
       const serverMsg = err?.response?.data?.error?.message;
       setAlertErrorMsg(
         serverMsg ||
-          (isBn
-            ? 'অ্যালার্ট সেটিংস সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।'
-            : 'Could not save the alert settings. Please try again.')
+          (t('childLog.text_43'))
       );
     } finally {
       setSavingAlert(false);
@@ -557,18 +499,14 @@ export default function LearningLogPage() {
     try {
       await api.post(`/children/${childId}/unlogged-alert/test`);
       setAlertSuccessMsg(
-        isBn
-          ? 'পরীক্ষামূলক নোটিফিকেশন পাঠানো হয়েছে! উপরের বেল আইকনে দেখুন।'
-          : 'Test notification sent! Check the bell icon above.'
+        t('childLog.text_44')
       );
       setTimeout(() => setAlertSuccessMsg(''), 4000);
     } catch (err: any) {
       const serverMsg = err?.response?.data?.error?.message;
       setAlertErrorMsg(
         serverMsg ||
-          (isBn
-            ? 'পরীক্ষামূলক নোটিফিকেশন পাঠানো যায়নি।'
-            : 'Could not send the test notification.')
+          (t('childLog.text_45'))
       );
     } finally {
       setTestingAlert(false);
@@ -589,10 +527,10 @@ export default function LearningLogPage() {
       } else {
         // Only the demo tenant has a curated fixture. A real account with no
         // entries gets an honest empty list, not someone else's study log.
-        setEntries(isDemoChild ? getFallbackEntries(demoProfile, isBn) : []);
+        setEntries(isDemoChild ? getFallbackEntries(demoProfile, isBn, t) : []);
       }
     } catch {
-      setEntries(isDemoChild ? getFallbackEntries(demoProfile, isBn) : []);
+      setEntries(isDemoChild ? getFallbackEntries(demoProfile, isBn, t) : []);
     } finally {
       setLoading(false);
     }
@@ -608,12 +546,12 @@ export default function LearningLogPage() {
       setEntries((prev) =>
         prev.map((e) => (e.id === id ? { ...e, verifiedByParent: true } : e))
       );
-      setMsg(isBn ? 'পড়ার এন্ট্রি সফলভাবে অভিভাবক কর্তৃক যাচাই করা হয়েছে!' : 'Lesson entry successfully verified by parent!');
+      setMsg(t('childLog.text_46'));
     } catch {
       setEntries((prev) =>
         prev.map((e) => (e.id === id ? { ...e, verifiedByParent: true } : e))
       );
-      setMsg(isBn ? 'পড়ার এন্ট্রি সফলভাবে অভিভাবক কর্তৃক যাচাই করা হয়েছে!' : 'Lesson entry successfully verified by parent!');
+      setMsg(t('childLog.text_46'));
     }
   };
 
@@ -660,25 +598,25 @@ export default function LearningLogPage() {
       case 'tuition':
         return (
           <Badge variant="secondary" className="text-[11px] bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20">
-            {isBn ? 'প্রাইভেট টিউশন' : 'Private Tuition'}
+            {t('childLog.text_47')}
           </Badge>
         );
       case 'college':
         return (
           <Badge variant="secondary" className="text-[11px] bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20">
-            {isBn ? 'কলেজ' : 'College'}
+            {t('childLog.text_48')}
           </Badge>
         );
       case 'school':
         return (
           <Badge variant="secondary" className="text-[11px] bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20">
-            {isBn ? 'বিদ্যালয়' : 'School'}
+            {t('childLog.text_49')}
           </Badge>
         );
       case 'self_study':
         return (
           <Badge variant="secondary" className="text-[11px] bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20">
-            {isBn ? 'সেলফ-স্টাডি' : 'Self-Study'}
+            {t('childLog.text_50')}
           </Badge>
         );
       default:
@@ -697,12 +635,10 @@ export default function LearningLogPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              {isBn ? 'দৈনিক পড়ার বিবরণী' : 'Student Learning Logs'}
+              {t('childLog.text_51')}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {isBn
-                ? 'শিক্ষার্থীর পোর্টাল থেকে যুক্ত করা প্রতিটি পড়ার বিবরণ অভিভাবক হিসেবে এখানে যাচাই ও নিরীক্ষণ করুন'
-                : 'Review, verify, and audit daily lessons recorded by your student from their student portal.'}
+              {t('childLog.text_52')}
             </p>
           </div>
 
@@ -715,7 +651,7 @@ export default function LearningLogPage() {
               className="gap-1.5 text-xs h-9 font-semibold border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-700 dark:text-amber-400"
             >
               <Bell className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              <span>{isBn ? 'আনলগড স্টাডি অ্যালার্ট' : 'Unlogged Study Alert'}</span>
+              <span>{t('childLog.text_53')}</span>
               {alertConfig.enabled && (
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold border-amber-500/30">
                   {alertConfig.time}
@@ -725,13 +661,13 @@ export default function LearningLogPage() {
             <Link
               href={
                 entries.length > 0
-                  ? `/children/${childId ?? ''}/quizzes/new?topic=${encodeURIComponent(entries[0].topicsText || '')}&subject=${encodeURIComponent(entries[0].subject || entries[0].subjectId || '')}&title=${encodeURIComponent(`${entries[0].topicsText || entries[0].subject} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`)}`
+                  ? `/children/${childId ?? ''}/quizzes/new?topic=${encodeURIComponent(entries[0].topicsText || '')}&subject=${encodeURIComponent(entries[0].subject || entries[0].subjectId || '')}&title=${encodeURIComponent(`${entries[0].topicsText || entries[0].subject} — ${t('childLog.text_54')}`)}`
                   : `/children/${childId ?? ''}/quizzes/new`
               }
             >
               <Button size="sm" className="gap-1.5 text-xs h-9 shadow-sm shadow-primary/20 bg-primary">
                 <Brain className="w-3.5 h-3.5" />
-                <span>{isBn ? 'এআই রিভিশন কুইজ তৈরি' : 'Generate Revision Quiz'}</span>
+                <span>{t('childLog.text_55')}</span>
               </Button>
             </Link>
           </div>
@@ -758,15 +694,13 @@ export default function LearningLogPage() {
             </div>
             <div className="space-y-1">
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <span>{isBn ? 'পড়ার বিবরণ সরাসরি শিক্ষার্থীর পোর্টাল থেকে তৈরি হয়' : 'Student-Logged Entries (Parent Inspection Mode)'}</span>
+                <span>{t('childLog.text_56')}</span>
                 <Badge variant="outline" className="text-[10px] font-semibold bg-background/50 border-primary/20 text-primary">
-                  {isBn ? 'অভিভাবক পর্যবেক্ষণ' : 'Read-Only Viewer'}
+                  {t('childLog.text_57')}
                 </Badge>
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-                {isBn
-                  ? 'প্রতিদিনের পড়ার বিবরণ শিক্ষার্থীরা তাদের নির্দিষ্ট স্টুডেন্ট পোর্টাল (/kid/log) থেকে ১ মিনিটে লিপিবদ্ধ করে। অভিভাবক হিসেবে আপনি এখান থেকে প্রতিটি টপিক নির্ভুল কিনা যাচাই করতে পারেন এবং টপিক অনুসারে এআই রিভিশন কুইজ তৈরি করতে পারেন।'
-                  : 'Daily learning logs are recorded exclusively by students via their dedicated portal in under 1 minute. Parents review accuracy, approve lessons, and convert topics into AI revision quizzes.'}
+                {t('childLog.kid_log')}
               </p>
             </div>
           </div>
@@ -774,7 +708,7 @@ export default function LearningLogPage() {
           <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
             <div className="px-3 py-1.5 rounded-xl bg-card border text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>{isBn ? 'অভিভাবক অনুমোদন সচল' : 'Parent Audit Active'}</span>
+              <span>{t('childLog.text_58')}</span>
             </div>
           </div>
         </div>
@@ -784,11 +718,11 @@ export default function LearningLogPage() {
           <Card className="rounded-2xl border shadow-sm">
             <CardContent className="p-4 space-y-1">
               <span className="text-xs font-semibold text-muted-foreground">
-                {isBn ? 'মোট পাঠের এন্ট্রি' : 'Total Lessons'}
+                {t('childLog.text_59')}
               </span>
               <div className="text-2xl font-black text-foreground">{totalEntries}</div>
               <p className="text-[11px] text-muted-foreground">
-                {isBn ? 'শিক্ষার্থী দ্বারা লিপিবদ্ধ' : 'Recorded by student'}
+                {t('childLog.text_60')}
               </p>
             </CardContent>
           </Card>
@@ -796,11 +730,11 @@ export default function LearningLogPage() {
           <Card className="rounded-2xl border shadow-sm">
             <CardContent className="p-4 space-y-1">
               <span className="text-xs font-semibold text-muted-foreground">
-                {isBn ? 'মোট পড়ার সময়' : 'Total Study Time'}
+                {t('childLog.text_61')}
               </span>
               <div className="text-2xl font-black text-foreground">{totalHours} hrs</div>
               <p className="text-[11px] text-muted-foreground">
-                {totalMinutes} {isBn ? 'মিনিট সক্রিয় পড়া' : 'minutes tracked'}
+                {totalMinutes} {t('childLog.text_62')}
               </p>
             </CardContent>
           </Card>
@@ -808,13 +742,13 @@ export default function LearningLogPage() {
           <Card className="rounded-2xl border shadow-sm">
             <CardContent className="p-4 space-y-1">
               <span className="text-xs font-semibold text-muted-foreground">
-                {isBn ? 'অভিভাবক যাচাই' : 'Verified by Parent'}
+                {t('childLog.text_63')}
               </span>
               <div className="text-2xl font-black text-foreground">
                 {verifiedCount} / {totalEntries}
               </div>
               <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                {totalEntries > 0 ? Math.round((verifiedCount / totalEntries) * 100) : 0}% {isBn ? 'অনুমোদিত' : 'approved'}
+                {totalEntries > 0 ? Math.round((verifiedCount / totalEntries) * 100) : 0}% {t('childLog.text_64')}
               </p>
             </CardContent>
           </Card>
@@ -822,14 +756,14 @@ export default function LearningLogPage() {
           <Card className="rounded-2xl border shadow-sm">
             <CardContent className="p-4 space-y-1">
               <span className="text-xs font-semibold text-muted-foreground">
-                {isBn ? 'গড় আত্মবিশ্বাস স্তর' : 'Avg Confidence'}
+                {t('childLog.text_65')}
               </span>
               <div className="text-2xl font-black text-foreground flex items-center gap-1.5">
                 <span>{avgConfidence}</span>
                 <span className="text-amber-500 text-lg">★</span>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                {isBn ? 'সর্বোচ্চ ৫.০ স্কোরের মধ্যে' : 'Out of 5.0 scale'}
+                {t('childLog.text_66')}
               </p>
             </CardContent>
           </Card>
@@ -843,7 +777,7 @@ export default function LearningLogPage() {
               <div className="relative w-full md:w-80">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder={isBn ? 'টপিক বা বিষয় খুঁজুন...' : 'Search topic, subject or tutor...'}
+                  placeholder={t('childLog.text_67')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 h-9 text-xs rounded-xl"
@@ -853,13 +787,13 @@ export default function LearningLogPage() {
               {/* Source Filters */}
               <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
                 <span className="text-xs font-semibold text-muted-foreground mr-1 hidden sm:inline">
-                  {isBn ? 'উৎস:' : 'Source:'}
+                  {t('childLog.text_68')}
                 </span>
                 {[
-                  { id: 'all', label: isBn ? 'সব' : 'All' },
-                  { id: 'tuition', label: isBn ? 'টিউশন' : 'Tuition' },
-                  { id: 'school', label: isBn ? 'স্কুল' : 'School' },
-                  { id: 'self_study', label: isBn ? 'সেলফ-স্টাডি' : 'Self' },
+                  { id: 'all', label: t('childLog.text_69') },
+                  { id: 'tuition', label: t('childLog.text_70') },
+                  { id: 'school', label: t('childLog.text_71') },
+                  { id: 'self_study', label: t('childLog.text_50') },
                 ].map((s) => (
                   <button
                     key={s.id}
@@ -878,12 +812,12 @@ export default function LearningLogPage() {
               {/* Verification Status Filters */}
               <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto">
                 <span className="text-xs font-semibold text-muted-foreground mr-1 hidden sm:inline">
-                  {isBn ? 'অবস্থা:' : 'Status:'}
+                  {t('childLog.text_72')}
                 </span>
                 {[
-                  { id: 'all', label: isBn ? 'সব' : 'All' },
-                  { id: 'verified', label: isBn ? 'যাচাইকৃত' : 'Verified' },
-                  { id: 'pending', label: isBn ? 'যাচাই বাকি' : 'Pending' },
+                  { id: 'all', label: t('childLog.text_69') },
+                  { id: 'verified', label: t('childLog.text_73') },
+                  { id: 'pending', label: t('childLog.text_74') },
                 ].map((st) => (
                   <button
                     key={st.id}
@@ -906,10 +840,10 @@ export default function LearningLogPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-bold text-foreground">
-              {isBn ? 'পড়ার বিবরণীর তালিকা' : 'Recorded Lessons'} ({filteredEntries.length})
+              {t('childLog.text_75')} ({filteredEntries.length})
             </h2>
             <span className="text-xs text-muted-foreground">
-              {isBn ? 'সর্বশেষ এন্ট্রি প্রথমে' : 'Most recent first'}
+              {t('childLog.text_76')}
             </span>
           </div>
 
@@ -919,12 +853,10 @@ export default function LearningLogPage() {
                 <BookOpen className="w-6 h-6" />
               </div>
               <h3 className="font-bold text-foreground text-sm">
-                {isBn ? 'কোনো এন্ট্রি পাওয়া যায়নি' : 'No learning logs found'}
+                {t('childLog.text_77')}
               </h3>
               <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                {isBn
-                  ? 'ফিল্টার পরিবর্তন করে দেখুন অথবা শিক্ষার্থী তার স্টুডেন্ট পোর্টাল থেকে নতুন পাঠ যোগ করলে এখানে প্রদর্শিত হবে।'
-                  : 'Try clearing your search filters, or wait for the student to record their daily lesson from their portal.'}
+                {t('childLog.text_78')}
               </p>
               {(searchQuery || sourceFilter !== 'all' || statusFilter !== 'all') && (
                 <Button
@@ -937,7 +869,7 @@ export default function LearningLogPage() {
                   }}
                   className="text-xs rounded-xl"
                 >
-                  {isBn ? 'ফিল্টার রিসেট করুন' : 'Reset Filters'}
+                  {t('childLog.text_79')}
                 </Button>
               )}
             </Card>
@@ -970,7 +902,7 @@ export default function LearningLogPage() {
                       <span className="text-xs text-muted-foreground">•</span>
                       <span className="text-xs font-semibold text-foreground flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5 text-primary" />
-                        <span>{e.durationMin || 60} {isBn ? 'মিনিট' : 'mins'}</span>
+                        <span>{e.durationMin || 60} {t('childLog.text_80')}</span>
                       </span>
                     </div>
                   </div>
@@ -978,7 +910,7 @@ export default function LearningLogPage() {
                   {/* Main Topic Description */}
                   <div className="p-3.5 rounded-xl bg-muted/20 border border-border/60">
                     <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                      {isBn ? 'আজকে যা পড়ানো হয়েছে' : 'Topic Covered & Notes'}
+                      {t('childLog.text_81')}
                     </div>
                     <p className="font-semibold text-sm sm:text-base text-foreground leading-relaxed">
                       {e.topicsText}
@@ -990,7 +922,7 @@ export default function LearningLogPage() {
                     {/* Confidence Stars */}
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-muted-foreground">
-                        {isBn ? 'শিক্ষার্থীর আত্মবিশ্বাস:' : 'Student Confidence:'}
+                        {t('childLog.text_82')}
                       </span>
                       <div className="flex items-center gap-0.5">
                         {[1, 2, 3, 4, 5].map((lvl) => (
@@ -1017,7 +949,7 @@ export default function LearningLogPage() {
                           className="text-xs bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 font-semibold gap-1 px-2.5 py-1"
                         >
                           <Check className="w-3.5 h-3.5" />
-                          <span>{isBn ? 'অভিভাবক কর্তৃক যাচাইকৃত' : 'Verified by Parent'}</span>
+                          <span>{t('childLog.text_83')}</span>
                         </Badge>
                       ) : (
                         <Button
@@ -1027,12 +959,12 @@ export default function LearningLogPage() {
                           className="text-xs h-8 gap-1.5 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 font-semibold rounded-xl"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                          <span>{isBn ? 'যাচাই অনুমোদন করুন' : 'Verify Entry'}</span>
+                          <span>{t('childLog.text_84')}</span>
                         </Button>
                       )}
 
                       <Link
-                        href={`/children/${childId ?? ''}/quizzes/new?topic=${encodeURIComponent(e.topicsText || '')}&subject=${encodeURIComponent(e.subject || e.subjectId || '')}&title=${encodeURIComponent(`${e.topicsText || e.subject} — ${isBn ? 'রিভিশন কুইজ' : 'Revision Quiz'}`)}`}
+                        href={`/children/${childId ?? ''}/quizzes/new?topic=${encodeURIComponent(e.topicsText || '')}&subject=${encodeURIComponent(e.subject || e.subjectId || '')}&title=${encodeURIComponent(`${e.topicsText || e.subject} — ${t('childLog.text_54')}`)}`}
                       >
                         <Button
                           size="sm"
@@ -1040,7 +972,7 @@ export default function LearningLogPage() {
                           className="text-xs h-8 gap-1 text-primary hover:bg-primary/10 rounded-xl"
                         >
                           <Brain className="w-3.5 h-3.5" />
-                          <span>{isBn ? 'কুইজ তৈরি' : 'Create Quiz'}</span>
+                          <span>{t('childLog.text_85')}</span>
                           <ArrowRight className="w-3 h-3 ml-0.5" />
                         </Button>
                       </Link>
@@ -1057,11 +989,9 @@ export default function LearningLogPage() {
         <Modal
           isOpen={alertModalOpen}
           onClose={() => setAlertModalOpen(false)}
-          title={isBn ? 'দৈনিক আনলগড স্টাডি অ্যালার্ট সেটআপ' : 'Daily Unlogged Study Alert Setup'}
+          title={t('childLog.text_86')}
           description={
-            isBn
-              ? `${currentChild?.name || 'শিক্ষার্থী'}-এর আজকের কোনো পড়ার বিবরণ লিপিবদ্ধ না থাকলে নির্ধারিত সময়ে অভিভাবক হিসেবে অ্যালার্ট পান`
-              : `Receive an automatic notification if ${currentChild?.name || 'your child'} has not logged their daily study sessions.`
+            t('childLog.receive_an_automatic_notification_if_has_not_log', { p0: isBn ? currentChild?.name || 'শিক্ষার্থী' : currentChild?.name || 'your child' }, `Receive an automatic notification if ${currentChild?.name || 'your child'} has not logged their daily study sessions.`)
           }
           maxWidth="lg"
         >
@@ -1078,7 +1008,7 @@ export default function LearningLogPage() {
                 </div>
               </div>
               <Badge variant="outline" className="text-[10px] text-primary border-primary/20 bg-primary/5 font-semibold">
-                {isBn ? 'শিক্ষার্থীভিত্তিক পৃথক সংরক্ষণ' : 'Saved per student'}
+                {t('childLog.text_87')}
               </Badge>
             </div>
 
@@ -1086,12 +1016,10 @@ export default function LearningLogPage() {
             <div className="flex items-center justify-between p-3.5 rounded-xl border bg-card">
               <div className="space-y-0.5">
                 <p className="text-xs font-bold text-foreground">
-                  {isBn ? 'আনলগড স্টাডি নোটিফিকেশন সক্রিয় করুন' : 'Enable Unlogged Study Alerts'}
+                  {t('childLog.text_88')}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  {isBn
-                    ? 'নির্ধারিত সময়ের মধ্যে আজকের কোনো পাঠ যুক্ত না থাকলে অভিভাবককে নোটিফিকেশন পাঠানো হবে'
-                    : 'Get notified if no study session has been logged by the selected cutoff time'}
+                  {t('childLog.text_89')}
                 </p>
               </div>
               <input
@@ -1107,10 +1035,10 @@ export default function LearningLogPage() {
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-primary" />
-                  <span>{isBn ? 'নোটিফিকেশনের নির্ধারিত সময়' : 'Notification Cutoff Time'}</span>
+                  <span>{t('childLog.text_90')}</span>
                 </label>
                 <span className="text-[11px] text-muted-foreground font-medium">
-                  {isBn ? 'প্রতিদিন' : 'Daily'}
+                  {t('childLog.text_91')}
                 </span>
               </div>
               <Input
@@ -1123,7 +1051,7 @@ export default function LearningLogPage() {
               />
               <div className="flex items-center gap-1.5 flex-wrap pt-1">
                 <span className="text-[11px] text-muted-foreground mr-1">
-                  {isBn ? 'দ্রুত নির্বাচন:' : 'Quick Select:'}
+                  {t('childLog.text_92')}
                 </span>
                 {['20:00', '20:30', '21:00', '21:30', '22:00'].map((preset) => (
                   <button
@@ -1137,11 +1065,11 @@ export default function LearningLogPage() {
                         : 'bg-muted/40 hover:bg-muted text-muted-foreground border-border/60'
                     }`}
                   >
-                    {preset === '20:00' ? (isBn ? 'রাত ৮:০০' : '8:00 PM') :
-                     preset === '20:30' ? (isBn ? 'রাত ৮:৩০' : '8:30 PM') :
-                     preset === '21:00' ? (isBn ? 'রাত ৯:০০' : '9:00 PM') :
-                     preset === '21:30' ? (isBn ? 'রাত ৯:৩০' : '9:30 PM') :
-                     (isBn ? 'রাত ১০:০০' : '10:00 PM')}
+                    {preset === '20:00' ? (t('childLog.text_93')) :
+                     preset === '20:30' ? (t('childLog.text_94')) :
+                     preset === '21:00' ? (t('childLog.text_95')) :
+                     preset === '21:30' ? (t('childLog.text_96')) :
+                     (t('childLog.text_97'))}
                   </button>
                 ))}
               </div>
@@ -1151,25 +1079,23 @@ export default function LearningLogPage() {
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-1.5">
               <div className="flex items-center gap-2 text-amber-900 dark:text-amber-300 font-bold text-xs">
                 <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                <span>{isBn ? '💡 গুরুত্বপূর্ণ পরামর্শ (Time Recommendation)' : '💡 Helpful Recommendation'}</span>
+                <span>{t('childLog.time_recommendation')}</span>
               </div>
               <p className="text-xs text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
-                {isBn
-                  ? `অনুগ্রহ করে এমন একটি সময় নির্ধারণ করুন যা ${currentChild?.nickname || currentChild?.name || 'সন্তানের'} সারাদিনের সব শিক্ষা কার্যক্রম (স্কুল/কলেজ, প্রাইভেট টিউশন এবং রাতের সেলফ-স্টাডি) শেষ হওয়ার পরের সময় (যেমন রাত ৯:০০ টা বা ৯:৩০ টা)। এতে শিক্ষার্থী সারাদিন পড়ে বিবরণ যুক্ত করার পর্যাপ্ত সময় পাবে এবং কোনো পড়া বাদ থাকলে নির্ধারিত সময়ে অভিভাবক হিসেবে আপনি তাৎক্ষণিক নোটিফিকেশন পাবেন।`
-                  : `Please select a time that is after all of ${currentChild?.nickname || currentChild?.name || 'your child'}'s daily educational activities (school/college, private tuition, and evening self-study) are finished (e.g. 9:00 PM or 9:30 PM). This ensures your child has enough time to log their study, and you will only be alerted if lessons remain unlogged.`}
+                {t('childLog.please_select_a_time_that_is_after_all_of_s_dail', { p0: isBn ? currentChild?.nickname || currentChild?.name || 'সন্তানের' : currentChild?.nickname || currentChild?.name || 'your child' }, `Please select a time that is after all of ${currentChild?.nickname || currentChild?.name || 'your child'}'s daily educational activities (school/college, private tuition, and evening self-study) are finished (e.g. 9:00 PM or 9:30 PM). This ensures your child has enough time to log their study, and you will only be alerted if lessons remain unlogged.`)}
               </p>
             </div>
 
             {/* Notification Channel Choice */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-foreground">
-                {isBn ? 'নোটিফিকেশন চ্যানেল' : 'Notification Channel'}
+                {t('childLog.text_98')}
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: 'all', label: isBn ? 'উভয় চ্যানেল' : 'All Channels', desc: isBn ? 'ইন-অ্যাপ + ইমেইল' : 'In-App + Email' },
-                  { id: 'in_app', label: isBn ? 'ইন-অ্যাপ' : 'In-App Only', desc: isBn ? 'অ্যাপ নোটিফিকেশন' : 'App Bell Icon' },
-                  { id: 'email', label: isBn ? 'ইমেইল' : 'Email Only', desc: isBn ? 'অভিভাবকের মেইল' : 'Parent Email' },
+                  { id: 'all', label: t('childLog.text_99'), desc: t('childLog.text_100') },
+                  { id: 'in_app', label: t('childLog.text_101'), desc: t('childLog.text_102') },
+                  { id: 'email', label: t('childLog.text_103'), desc: t('childLog.text_104') },
                 ].map((c) => (
                   <button
                     key={c.id}
@@ -1215,7 +1141,7 @@ export default function LearningLogPage() {
                 className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
               >
                 <Bell className="w-3.5 h-3.5 text-amber-500" />
-                <span>{testingAlert ? (isBn ? 'পাঠানো হচ্ছে...' : 'Sending...') : (isBn ? 'পরীক্ষামূলক নোটিফিকেশন পাঠান' : 'Send Test Notification')}</span>
+                <span>{testingAlert ? (t('childLog.text_105')) : (t('childLog.text_106'))}</span>
               </Button>
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -1226,7 +1152,7 @@ export default function LearningLogPage() {
                   onClick={() => setAlertModalOpen(false)}
                   className="text-xs"
                 >
-                  {isBn ? 'বাতিল' : 'Cancel'}
+                  {t('childLog.text_107')}
                 </Button>
                 <Button
                   type="submit"
@@ -1235,7 +1161,7 @@ export default function LearningLogPage() {
                   className="text-xs gap-1.5 bg-primary"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>{savingAlert ? (isBn ? 'সংরক্ষণ হচ্ছে...' : 'Saving...') : (isBn ? 'সেভ করুন' : 'Save Settings')}</span>
+                  <span>{savingAlert ? (t('childLog.text_108')) : (t('childLog.text_109'))}</span>
                 </Button>
               </div>
             </div>

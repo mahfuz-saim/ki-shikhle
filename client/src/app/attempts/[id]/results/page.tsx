@@ -56,9 +56,7 @@ export default function ResultsPage() {
         // failure: the page says so.
         setLoadError(
           err?.response?.data?.error?.message ||
-          (isBn
-            ? 'ফলাফল লোড করা যায়নি। আবার চেষ্টা করুন।'
-            : 'Could not load the results. Please try again.')
+          (t('results.text'))
         );
         setData(null);
       });
@@ -84,9 +82,7 @@ export default function ResultsPage() {
       const serverMsg = err?.response?.data?.error?.message;
       setExplanationError(
         serverMsg ||
-          (isBn
-            ? 'এআই ব্যাখ্যা তৈরি করা যায়নি। আবার চেষ্টা করুন।'
-            : 'Could not generate the AI explanation. Please try again.')
+          (t('results.text_2'))
       );
     } finally {
       setExplaining(false);
@@ -106,7 +102,7 @@ export default function ResultsPage() {
           <Link href="/quizzes">
             <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>{isBn ? 'কুইজ তালিকায় ফিরুন' : 'Back to Quizzes'}</span>
+              <span>{t('results.text_3')}</span>
             </Button>
           </Link>
         </div>
@@ -117,7 +113,7 @@ export default function ResultsPage() {
               <XCircle className="w-8 h-8 text-destructive" />
               <p className="text-sm font-bold text-foreground">{loadError}</p>
               <Button size="sm" variant="outline" onClick={() => router.refresh()} className="text-xs h-8">
-                {isBn ? 'আবার চেষ্টা করুন' : 'Try again'}
+                {t('results.text_4')}
               </Button>
             </CardContent>
           </Card>
@@ -129,15 +125,13 @@ export default function ResultsPage() {
         <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-indigo-700 text-white shadow-xl shadow-indigo-600/10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="space-y-1.5">
             <Badge className="bg-white/20 hover:bg-white/30 text-white border-0 text-xs font-semibold">
-              {isBn ? 'কুইজ সম্পন্ন হয়েছে' : 'Quiz Completed'}
+              {t('results.text_5')}
             </Badge>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
               {scorePercent >= 80 ? '🌟 Excellent Effort!' : '👍 Good Practice Session!'}
             </h1>
             <p className="text-xs sm:text-sm text-indigo-100 max-w-md">
-              {isBn
-                ? 'ফলাফল ও এআই ব্যাখ্যা অভিভাবকের জন্য প্রস্তুত। কোনো লাল ব্যর্থতার বার্তা নেই।'
-                : 'Every quiz is an opportunity to practice. Detailed AI insights below.'}
+              {t('results.text_6')}
             </p>
           </div>
 
@@ -164,12 +158,10 @@ export default function ResultsPage() {
         <Card className="rounded-2xl border shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-bold">
-              {isBn ? 'অধ্যায়ভিত্তিক নির্ভুলতা (কোডে গণনা করা)' : 'Per-Topic Accuracy Breakdown'}
+              {t('results.text_7')}
             </CardTitle>
             <CardDescription className="text-xs">
-              {isBn
-                ? 'কোন কোন বিষয়ে সন্তান সম্পূর্ণ পারদর্শী এবং কোনগুলোতে রিভিশন দরকার'
-                : 'Calculated directly from questions and answers.'}
+              {t('results.text_8')}
             </CardDescription>
           </CardHeader>
 
@@ -177,7 +169,7 @@ export default function ResultsPage() {
             <div className="space-y-2.5">
               {(!data?.perTopic || data.perTopic.length === 0) && (
                 <p className="text-xs text-muted-foreground">
-                  {isBn ? 'কোনো অধ্যায়ভিত্তিক তথ্য নেই।' : 'No per-topic breakdown available.'}
+                  {t('results.text_9')}
                 </p>
               )}
               {data?.perTopic?.map((p: any, idx: number) => {
@@ -217,12 +209,10 @@ export default function ResultsPage() {
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Brain className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                  <span>{isBn ? 'অভিভাবকের জন্য এআই অগ্রগতি বিশ্লেষণ' : 'AI Explanation for Parent'}</span>
+                  <span>{t('results.text_10')}</span>
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  {isBn
-                    ? 'সহজ ভাষায় শিক্ষার্থীর শক্তি, দুর্বলতা ও রিভিশন পরামর্শ (ক্লদ এআই মডেল)'
-                    : 'Plain language explanation: what your child understands, revision roadmap & conversation starters.'}
+                  {t('results.text_11')}
                 </CardDescription>
               </div>
 
@@ -263,7 +253,7 @@ export default function ResultsPage() {
               <div className="p-8 text-center border-2 border-dashed rounded-2xl space-y-2">
                 <Sparkles className="w-8 h-8 text-amber-500 mx-auto" />
                 <p className="text-xs font-bold text-foreground">
-                  {isBn ? 'এআই ব্যাখ্যা দেখতে উপরের বাটনে ক্লিক করুন' : 'Generate plain-language AI explanation for this quiz'}
+                  {t('results.text_12')}
                 </p>
                 <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
                   Summarizes strengths, weak topics, and concrete questions to ask your child during study time.
@@ -287,14 +277,14 @@ export default function ResultsPage() {
         <Card className="rounded-2xl border shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-bold">
-              {isBn ? 'প্রশ্নোত্তর পর্যালোচনা' : 'Per-Question Detailed Review'}
+              {t('results.text_13')}
             </CardTitle>
           </CardHeader>
 
           <CardContent className="space-y-3">
             {(!attempt?.answers || attempt.answers.length === 0) && (
               <p className="text-xs text-muted-foreground">
-                {isBn ? 'কোনো উত্তর রেকর্ড করা হয়নি।' : 'No answers were recorded for this attempt.'}
+                {t('results.text_14')}
               </p>
             )}
             {attempt?.answers?.map((a: any, idx: number) => (
@@ -360,7 +350,7 @@ export default function ResultsPage() {
         {!loadError && !attempt && (
           <Card className="rounded-2xl border">
             <CardContent className="p-8 text-center text-sm text-muted-foreground">
-              {isBn ? 'কোনো ফলাফল পাওয়া যায়নি।' : 'No results found for this attempt.'}
+              {t('results.text_15')}
             </CardContent>
           </Card>
         )}

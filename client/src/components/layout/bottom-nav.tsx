@@ -11,11 +11,11 @@ export function BottomNav() {
   const { t, isBn } = useI18n();
 
   const navItems = [
-    { href: '/dashboard', label: t('bottomNav.dashboard', isBn ? 'ড্যাশবোর্ড' : 'Dashboard'), icon: LayoutDashboard },
-    { href: '/children', label: t('bottomNav.children', isBn ? 'সন্তান' : 'Children'), icon: Users },
-    { href: '/schedule', label: t('bottomNav.routine', isBn ? 'রুটিন' : 'Routine'), icon: Calendar },
-    { href: '/notes', label: t('bottomNav.notes', isBn ? 'নোট' : 'Notes'), icon: FileText },
-    { href: '/quizzes', label: t('bottomNav.quiz', isBn ? 'কুইজ' : 'Quiz'), icon: Brain },
+    { href: '/dashboard', label: t('bottomNav.dashboard', t('bottomNav.text')), icon: LayoutDashboard },
+    { href: '/children', label: t('bottomNav.children', t('bottomNav.text_2')), icon: Users },
+    { href: '/schedule', label: t('bottomNav.routine', t('bottomNav.text_3')), icon: Calendar },
+    { href: '/notes', label: t('bottomNav.notes', t('bottomNav.text_4')), icon: FileText },
+    { href: '/quizzes', label: t('bottomNav.quiz', t('bottomNav.text_5')), icon: Brain },
   ];
 
   return (

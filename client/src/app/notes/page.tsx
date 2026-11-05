@@ -103,13 +103,13 @@ function NotesPageInner() {
 
   // Preloaded subject options
   const subjects = [
-    { id: 'math', name: isBn ? 'গণিত (Mathematics)' : 'Mathematics' },
-    { id: 'phys', name: isBn ? 'পদার্থবিজ্ঞান (Physics)' : 'Physics' },
-    { id: 'chem', name: isBn ? 'রসায়ন (Chemistry)' : 'Chemistry' },
-    { id: 'bio', name: isBn ? 'জীববিজ্ঞান (Biology)' : 'Biology' },
-    { id: 'eng', name: isBn ? 'ইংরেজি (English)' : 'English' },
-    { id: 'bn', name: isBn ? 'বাংলা (Bangla)' : 'Bangla' },
-    { id: 'ict', name: isBn ? 'আইসিটি (ICT)' : 'ICT' },
+    { id: 'math', name: t('notes.mathematics') },
+    { id: 'phys', name: t('notes.physics') },
+    { id: 'chem', name: t('notes.chemistry') },
+    { id: 'bio', name: t('notes.biology') },
+    { id: 'eng', name: t('notes.english') },
+    { id: 'bn', name: t('notes.bangla') },
+    { id: 'ict', name: t('notes.ict') },
   ];
 
   const loadNotes = async () => {
@@ -133,9 +133,7 @@ function NotesPageInner() {
                   id: 'n-t1',
                   subject: 'Elementary Mathematics',
                   title: 'গুণনীয়ক ও গুণিতক (Factors & Multiples)',
-                  textClean: isBn
-                    ? 'প্রাথমিক গণিত অধ্যায় ৫: গুণনীয়ক ও গুণিতক। যে সংখ্যা দিয়ে কোনো সংখ্যা নিঃশেষে বিভাজ্য হয় তা হলো ঐ সংখ্যার গুণনীয়ক বা উৎপাদক।'
-                    : 'Elementary Math Chapter 5: Factors & Multiples. A number that divides another number evenly without remainder is a factor.',
+                  textClean: t('notes.text'),
                   aiSummary: `### 📌 মৌলিক ধারণা ও সংজ্ঞা
 - **গুণনীয়ক (Factor)**: কোনো সংখ্যাকে যে যে সংখ্যা দিয়ে ভাগ করলে কোনো ভাগশেষ থাকে না।
 - **গুণিতক (Multiple)**: কোনো সংখ্যাকে পূর্ণসংখ্যা দিয়ে গুণ করলে যে ফল পাওয়া যায়।`,
@@ -147,9 +145,7 @@ function NotesPageInner() {
                   id: 'n-t2',
                   subject: 'Primary Science',
                   title: 'জীবনের জন্য পানি ও বিশুদ্ধকরণ',
-                  textClean: isBn
-                    ? 'প্রাথমিক বিজ্ঞান অধ্যায় ৩: জীবনের জন্য পানি। পানি বিশুদ্ধ করার সবচেয়ে সহজ উপায় হলো ২০ মিনিট ধরে ফোটানো।'
-                    : 'Primary Science Chapter 3: Water for Life. Boiling water for 20 minutes kills all harmful bacteria and germs.',
+                  textClean: t('notes.text_2'),
                   aiSummary: `### 📌 পানি বিশুদ্ধকরণের নিয়মাবলী
 - টগবগিয়ে কমপক্ষে ২০ মিনিট ফোটাতে হবে।
 - ছাঁকন ও থিতানোর মাধ্যমে ময়লা আলাদা করা যায়।`,
@@ -163,9 +159,7 @@ function NotesPageInner() {
                   id: 'n1',
                   subject: 'Physics',
                   title: 'গতির সমীকরণ ও নিউটনের ২য় সূত্র',
-                  textClean: isBn
-                    ? 'পদার্থবিজ্ঞান অধ্যায় ৩: বল ও ত্বরণ। নিউটনের ২য় সূত্র: কোনো বস্তুর ভরবেগের পরিবর্তনের হার তার উপর প্রযুক্ত বলের সমানুপাতিক। F = ma'
-                    : 'Physics Chapter 3: Force & Motion. Newton\'s Second Law: Force equals mass times acceleration (F = ma). Net force accelerates an object.',
+                  textClean: t('notes.f_ma'),
                   aiSummary: `### 📌 মূল সংজ্ঞা ও সূত্রাবলী
 - **নিউটনের ২য় সূত্র**: \\(F = ma\\) (বল = ভর × ত্বরণ)
 - **গতির সমীকরণ**: \\(v = u + at\\), \\(s = ut + \\frac{1}{2}at^2\\), \\(v^2 = u^2 + 2as\\)`,
@@ -177,9 +171,7 @@ function NotesPageInner() {
                   id: 'n2',
                   subject: 'Mathematics',
                   title: 'দ্বিঘাত সমীকরণ ও উৎপাদক',
-                  textClean: isBn
-                    ? 'গণিত অধ্যায় ৫: দ্বিঘাত সমীকরণ ax² + bx + c = 0। মূল নির্ণয়ের সূত্র: x = [-b ± √(b² - 4ac)] / 2a'
-                    : 'Mathematics Chapter 5: Quadratic Equations ax² + bx + c = 0. Quadratic formula: x = [-b ± √(b² - 4ac)] / 2a.',
+                  textClean: t('notes.ax_bx_c_0_x_b_b_4ac_2a'),
                   aiSummary: `### 📌 দ্বিঘাত সমীকরণের মূল
 - সূত্র: \\(x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\\)`,
                   ocrConfidence: 0.98,
@@ -274,7 +266,7 @@ function NotesPageInner() {
       await api.post(`/children/${childId}/notes`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setMsg(isBn ? 'এআই নোট সফলভাবে সংরক্ষিত হয়েছে এবং কুইজ ডাইজেস্টে যুক্ত হয়েছে' : 'AI study note saved and queued for AI quiz digests!');
+      setMsg(t('notes.text_3'));
       setMsgIsError(false);
       setTextClean('');
       setAiSummary('');
@@ -289,9 +281,7 @@ function NotesPageInner() {
       const serverMsg = err?.response?.data?.error?.message;
       setMsg(
         serverMsg ||
-        (isBn
-          ? 'নোট সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।'
-          : 'Could not save the note. Please try again.')
+        (t('notes.text_4'))
       );
       setMsgIsError(true);
     } finally {
@@ -312,7 +302,7 @@ function NotesPageInner() {
           );
         }
       }
-      setMsg(isBn ? 'এআই ভিশন দিয়ে নোটের পাঠ্য স্পষ্ট ও পরিচ্ছন্ন করা হয়েছে' : 'Note refined with AI vision processing');
+      setMsg(t('notes.text_5'));
     } catch {
       // fallback
     } finally {
@@ -321,7 +311,7 @@ function NotesPageInner() {
   };
 
   const handleDeleteNote = async (id: string) => {
-    if (!confirm(isBn ? 'এই নোটটি মুছতে চান?' : 'Delete this note?')) return;
+    if (!confirm(t('notes.text_6'))) return;
     try {
       await api.delete(`/notes/${id}`);
       loadNotes();
@@ -329,7 +319,7 @@ function NotesPageInner() {
       // The note was not deleted — do not remove it from the list as if it were.
       const serverMsg = err?.response?.data?.error?.message;
       setMsg(
-        serverMsg || (isBn ? 'নোট মুছতে পারা যায়নি।' : 'Could not delete the note.')
+        serverMsg || (t('notes.text_7'))
       );
       setMsgIsError(true);
     }
@@ -342,12 +332,10 @@ function NotesPageInner() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              {isBn ? 'শিক্ষার্থীর নোট ও খাতা নিরীক্ষণ' : 'Student Notebooks & Notes'}
+              {t('notes.text_8')}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {isBn
-                ? 'শিক্ষার্থীর আপলোডকৃত খাতার ছবি থেকে Claude Vision AI দিয়ে তৈরি সুবিন্যস্ত নোট নিরীক্ষণ করুন'
-                : 'Review, verify, and audit AI-generated study notes from student notebook photos.'}
+              {t('notes.claude_vision_ai')}
             </p>
           </div>
 
@@ -355,10 +343,10 @@ function NotesPageInner() {
             {/* A parent with more than one child needs a way to switch which
                 child's notes this page shows. */}
             <ChildSelector />
-            <Link href={notes.length > 0 ? `/children/${childId ?? ''}/quizzes/new?subject=${encodeURIComponent(notes[0].subject || '')}&topic=${encodeURIComponent((notes[0].aiSummary || notes[0].textClean)?.slice(0, 50) || '')}&title=${encodeURIComponent(`${notes[0].subject || 'Study'} — ${isBn ? 'নোট রিভিশন কুইজ' : 'Notes Revision Quiz'}`)}` : `/children/${childId ?? ''}/quizzes/new`}>
+            <Link href={notes.length > 0 ? `/children/${childId ?? ''}/quizzes/new?subject=${encodeURIComponent(notes[0].subject || '')}&topic=${encodeURIComponent((notes[0].aiSummary || notes[0].textClean)?.slice(0, 50) || '')}&title=${encodeURIComponent(`${notes[0].subject || 'Study'} — ${t('notes.text_9')}`)}` : `/children/${childId ?? ''}/quizzes/new`}>
               <Button size="sm" className="gap-1.5 text-xs h-9 shadow-sm shadow-primary/20">
                 <Brain className="w-3.5 h-3.5" />
-                <span>{isBn ? 'এআই কুইজ তৈরি করুন' : 'Generate AI Quiz from Notes'}</span>
+                <span>{t('notes.text_10')}</span>
               </Button>
             </Link>
           </div>
@@ -372,15 +360,13 @@ function NotesPageInner() {
             </div>
             <div className="space-y-0.5">
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <span>{isBn ? 'খাতার ছবি থেকে সরাসরি এআই নোট তৈরি' : 'AI Study Notes from Notebook Photos'}</span>
+                <span>{t('notes.text_11')}</span>
                 <Badge variant="outline" className="text-[10px] font-semibold bg-background/50 border-primary/20 text-primary">
-                  {isBn ? 'অভিভাবক পর্যবেক্ষণ' : 'Parent Review'}
+                  {t('notes.text_12')}
                 </Badge>
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-                {isBn
-                  ? 'শিক্ষার্থীরা তাদের স্টুডেন্ট পোর্টাল (/child/notes) থেকে সরাসরি খাতার পাতার ছবি আপলোড করে Claude Vision AI এর মাধ্যমে সম্পূর্ণ পাঠ্য নোট তৈরি করে। অভিভাবক হিসেবে আপনি এখানে সেই নোটের সঠিকতা নিরীক্ষণ ও রিভিশন কুইজ তৈরি করতে পারেন।'
-                  : 'Students photograph and upload their class notebook pages via their student portal (/child/notes). Claude Vision AI directly structures equations and key facts.'}
+                {t('notes.child_notes_claude_vision_ai')}
               </p>
             </div>
           </div>
@@ -394,8 +380,8 @@ function NotesPageInner() {
               <Upload className="w-3.5 h-3.5" />
               <span>
                 {showUploader
-                  ? (isBn ? 'সহায়ক আপলোডার বন্ধ করুন' : 'Hide Backup Uploader')
-                  : (isBn ? 'সহায়ক নোট আপলোড (প্রয়োজনে)' : 'Upload on Behalf of Student')}
+                  ? (t('notes.text_13'))
+                  : (t('notes.text_14'))}
               </span>
               {showUploader ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </Button>
@@ -423,12 +409,10 @@ function NotesPageInner() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
                 <Camera className="w-4 h-4 text-primary" />
-                <span>{isBn ? 'শিক্ষার্থীর পক্ষে সহায়ক নোট আপলোড ও এআই বিশ্লেষণ' : 'Assistance Mode: Upload Note Image for AI Analysis'}</span>
+                <span>{t('notes.text_15')}</span>
               </CardTitle>
               <CardDescription className="text-xs">
-                {isBn
-                  ? 'খাতার পৃষ্ঠার ছবি আপলোড করুন। Claude Vision AI সরাসরি চিত্র বিশ্লেষণ করে সম্পূর্ণ স্টাডি নোট সাজিয়ে দেবে।'
-                  : 'Upload an image of the student notebook. Claude Vision AI directly synthesizes a structured study note.'}
+                {t('notes.claude_vision_ai_2')}
               </CardDescription>
             </CardHeader>
 
@@ -437,7 +421,7 @@ function NotesPageInner() {
                 {/* File upload box */}
                 <div>
                   <Label className="text-xs font-semibold block mb-1">
-                    {isBn ? 'খাতার পাতার ছবি (Image File)' : 'Notebook Image File'}
+                    {t('notes.image_file')}
                   </Label>
                   {imagePreview ? (
                     <div className="rounded-2xl border p-3 bg-card space-y-2">
@@ -453,7 +437,7 @@ function NotesPageInner() {
                           {file?.name}
                         </span>
                         <label className="text-xs text-primary font-bold hover:underline cursor-pointer">
-                          {isBn ? 'ছবি পরিবর্তন করুন' : 'Change Photo'}
+                          {t('notes.text_16')}
                           <input
                             type="file"
                             accept="image/*"
@@ -477,7 +461,7 @@ function NotesPageInner() {
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-foreground">
-                            {file ? file.name : (isBn ? 'খাতার ছবি নির্বাচন করতে ক্লিক করুন' : 'Click or drop notebook image')}
+                            {file ? file.name : (t('notes.text_17'))}
                           </p>
                           <p className="text-[11px] text-muted-foreground mt-0.5">
                             JPG, PNG • Claude Vision AI Multimodal Analysis
@@ -490,7 +474,7 @@ function NotesPageInner() {
                   {loadingAi && (
                     <div className="flex items-center gap-2 mt-2 text-xs text-amber-600 dark:text-amber-400 animate-pulse font-medium">
                       <Sparkles className="w-4 h-4 animate-spin" />
-                      <span>{isBn ? 'Claude Vision AI খাতার ছবি বিশ্লেষণ করে নোট বানাচ্ছে...' : 'Claude Vision AI is synthesizing study note...'}</span>
+                      <span>{t('notes.claude_vision_ai_3')}</span>
                     </div>
                   )}
                 </div>
@@ -498,7 +482,7 @@ function NotesPageInner() {
                 {/* Subject & options */}
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-xs font-semibold">{isBn ? 'বিষয় নির্বাচন' : 'Subject'}</Label>
+                    <Label className="text-xs font-semibold">{t('notes.text_18')}</Label>
                     <select
                       value={subject}
                       onChange={(e) => setSubject(e.target.value)}
@@ -515,7 +499,7 @@ function NotesPageInner() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <Label className="text-xs font-semibold">
-                        {isBn ? 'এআই প্রস্তুতকৃত সুবিন্যস্ত স্টাডি নোট' : 'AI Generated Structured Note'}
+                        {t('notes.text_19')}
                       </Label>
                       {(textClean || aiSummary) && (
                         <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border text-[11px]">
@@ -528,7 +512,7 @@ function NotesPageInner() {
                                 : 'text-muted-foreground'
                             }`}
                           >
-                            {isBn ? 'সাজানো প্রিভিউ' : 'Formatted'}
+                            {t('notes.text_20')}
                           </button>
                           <button
                             type="button"
@@ -539,7 +523,7 @@ function NotesPageInner() {
                                 : 'text-muted-foreground'
                             }`}
                           >
-                            {isBn ? 'এডিট' : 'Edit'}
+                            {t('notes.text_21')}
                           </button>
                         </div>
                       )}
@@ -557,9 +541,7 @@ function NotesPageInner() {
                           setAiSummary(e.target.value);
                         }}
                         placeholder={
-                          isBn
-                            ? 'ছবি আপলোড করলে Claude Vision AI স্বয়ংক্রিয়ভাবে মূল সংজ্ঞা, সূত্র ও সারসংক্ষেপ তৈরি করে দেবে...'
-                            : 'AI structured note with core concepts, formulas, and checklist will appear here...'
+                          t('notes.claude_vision_ai_4')
                         }
                         className="w-full h-36 border rounded-xl p-3 text-xs bg-background mt-1 leading-relaxed"
                       />
@@ -596,12 +578,10 @@ function NotesPageInner() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-base font-bold">
-                  {isBn ? 'সংরক্ষিত খাতার নোট ও এআই বিবরণী' : 'Student Study Notes Library'} ({notes.length})
+                  {t('notes.text_22')} ({notes.length})
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  {isBn
-                    ? 'শিক্ষার্থীর আপলোডকৃত এই নোটগুলো বিশ্লেষণ করে এআই স্বয়ংক্রিয় রিভিশন কুইজ প্রস্তুত করে।'
-                    : 'Notes used by the AI engine to generate curriculum-aligned revision quizzes.'}
+                  {t('notes.text_23')}
                 </CardDescription>
               </div>
             </div>
@@ -660,7 +640,7 @@ function NotesPageInner() {
                         className="flex-1 h-8 text-xs font-bold gap-1.5 rounded-xl border-primary/30 text-primary hover:bg-primary/5"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        <span>{isBn ? 'সম্পূর্ণ নোট পড়ুন' : 'Read Full Note'}</span>
+                        <span>{t('notes.text_24')}</span>
                       </Button>
 
                       <Button
@@ -678,7 +658,7 @@ function NotesPageInner() {
               </div>
             ) : (
               <p className="text-xs text-muted-foreground py-4 text-center">
-                {isBn ? 'এখনো কোনো নোট যোগ করা হয়নি।' : 'No study notes saved yet. Upload your first class note above.'}
+                {t('notes.text_25')}
               </p>
             )}
           </CardContent>
@@ -708,7 +688,7 @@ function NotesPageInner() {
                 <div className="rounded-2xl border p-3 bg-muted/10 space-y-2">
                   <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
                     <ImageIcon className="w-3.5 h-3.5 text-primary" />
-                    <span>{isBn ? 'মূল আপলোডকৃত ছবি' : 'Attached Photo'}</span>
+                    <span>{t('notes.text_26')}</span>
                   </span>
                   <div className="max-h-56 overflow-hidden rounded-xl border bg-background">
                     <img
@@ -725,11 +705,11 @@ function NotesPageInner() {
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-amber-500" />
                     <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      {isBn ? 'সাজানো স্টাডি নোট (Formatted Study Note)' : 'Formatted Study Note'}
+                      {t('notes.formatted_study_note')}
                     </span>
                   </div>
                   <Badge variant="outline" className="text-[10px] font-semibold text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
-                    {isBn ? 'ফরম্যাটেড' : 'Formatted'}
+                    {t('notes.text_27')}
                   </Badge>
                 </div>
                 <div className="p-1">
@@ -744,7 +724,7 @@ function NotesPageInner() {
                   onClick={() => setDetailModalOpen(false)}
                   className="rounded-xl text-xs"
                 >
-                  {isBn ? 'বন্ধ করুন' : 'Close'}
+                  {t('notes.text_28')}
                 </Button>
 
                 <Button
@@ -757,7 +737,7 @@ function NotesPageInner() {
                   className="h-8 rounded-xl text-xs gap-1"
                 >
                   <Trash2 className="w-3 h-3" />
-                  <span>{isBn ? 'মুছুন' : 'Delete'}</span>
+                  <span>{t('notes.text_29')}</span>
                 </Button>
               </div>
             </div>

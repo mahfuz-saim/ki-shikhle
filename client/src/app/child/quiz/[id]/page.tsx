@@ -26,7 +26,7 @@ export default function TakeQuiz() {
   const params = useParams();
   const router = useRouter();
   const { activeChild } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   const quizId = (params as any)?.id as string;
   // The child this attempt belongs to. It used to fall back to the literal string
@@ -156,11 +156,11 @@ export default function TakeQuiz() {
     }));
     try {
       await api.put(`/attempts/${attempt.id}/answers`, { answers: payload });
-      setSaveMsg(isBn ? 'অগ্রগতি সংরক্ষিত হয়েছে!' : 'Progress saved! You can resume anytime.');
+      setSaveMsg(t('childQuizPlay.text'));
     } catch {
       // Do not claim a save that did not happen.
       setSaveMsg(
-        isBn ? 'অগ্রগতি সংরক্ষণ করা যায়নি।' : 'Could not save your progress. Please try again.'
+        t('childQuizPlay.text_2')
       );
     }
     setTimeout(() => setSaveMsg(''), 3000);
@@ -181,7 +181,7 @@ export default function TakeQuiz() {
     // existed — which rendered a hardcoded 8/10.
     if (!attemptId) {
       setSubmitError(
-        isBn ? 'কুইজ শুরু করা যায়নি। আবার চেষ্টা করুন।' : 'The attempt could not be started. Please try again.'
+        t('childQuizPlay.text_3')
       );
       setSubmitting(false);
       return;
@@ -197,7 +197,7 @@ export default function TakeQuiz() {
       const serverMsg = err?.response?.data?.error?.message;
       setSubmitError(
         serverMsg ||
-        (isBn ? 'উত্তর জমা দেওয়া যায়নি। আবার চেষ্টা করুন।' : 'Could not submit your answers. Please try again.')
+        (t('childQuizPlay.text_4'))
       );
       setSubmitting(false);
     }
@@ -230,7 +230,7 @@ export default function TakeQuiz() {
           <div>
             <h1 className="text-base font-bold text-foreground truncate">{quiz.title}</h1>
             <p className="text-xs text-muted-foreground">
-              {isBn ? `প্রশ্ন ${idx + 1} / ${totalQ}` : `Question ${idx + 1} of ${totalQ}`}
+              {t('childQuizPlay.question_of', { p0: idx + 1, p1: totalQ }, `Question ${idx + 1} of ${totalQ}`)}
             </p>
           </div>
 
@@ -320,7 +320,7 @@ export default function TakeQuiz() {
                   type="text"
                   value={answers[currentQ.id] || ''}
                   onChange={(e) => handleSelectOption(currentQ.id, e.target.value)}
-                  placeholder={isBn ? 'এখানে তোমার উত্তর লেখো...' : 'Type your answer here...'}
+                  placeholder={t('childQuizPlay.text_5')}
                   className="w-full h-12 border rounded-2xl px-4 text-sm bg-background font-medium"
                 />
               </div>

@@ -213,9 +213,7 @@ export default function ChildrenPage() {
               {t('child.title', 'Children Profiles')}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {isBn
-                ? 'সন্তানদের পৃথক প্রোফাইল ও লগইন ক্রেডেনশিয়াল পরিচালনা করুন'
-                : 'Create and manage student logins, curriculum grades, and individual portals.'}
+              {t('children.text')}
             </p>
           </div>
 
@@ -312,7 +310,7 @@ export default function ChildrenPage() {
                         {c.grade}
                       </Badge>
                       <Badge variant="outline" className="font-medium text-[11px]">
-                        {c.medium === 'English' ? (isBn ? 'ইংলিশ ভার্সন' : 'English Version') : (isBn ? 'বাংলা মাধ্যম' : 'Bangla Version')}
+                        {c.medium === 'English' ? (t('children.text_2')) : (t('children.text_3'))}
                       </Badge>
                     </div>
 
@@ -383,12 +381,10 @@ export default function ChildrenPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold">
-                  {isBn ? 'বিষয় তালিকা' : 'Subjects List'}
+                  {t('children.text_4')}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  {isBn
-                    ? 'প্রাক-নির্ধারিত বিষয়সমূহ এবং প্রয়োজন অনুসারে নতুন বিষয় যোগ করুন'
-                    : 'Preloaded subjects with bilingual names. You can add custom subjects.'}
+                  {t('children.text_5')}
                 </CardDescription>
               </div>
             </div>
@@ -682,7 +678,7 @@ export default function ChildrenPage() {
 }
 
 function SubjectsManager() {
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
   const [list, setList] = useState<any[]>([]);
   const [nameEn, setNameEn] = useState('');
   const [nameBn, setNameBn] = useState('');
@@ -730,7 +726,7 @@ function SubjectsManager() {
       const serverMsg = err?.response?.data?.error?.message;
       setAddError(
         serverMsg ||
-          (isBn ? 'বিষয় যোগ করা যায়নি। আবার চেষ্টা করুন।' : 'Could not add the subject. Please try again.')
+          (t('children.text_6'))
       );
     } finally {
       setLoading(false);

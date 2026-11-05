@@ -189,29 +189,29 @@ export default function DashboardPage() {
         setSubjects(
           isFahim
             ? [
-                { subject: isBn ? 'পদার্থবিজ্ঞান ১ম পত্র' : 'Physics 1st Paper', value: 14 },
-                { subject: isBn ? 'উচ্চতর গণিত ১ম পত্র' : 'Higher Math 1st Paper', value: 12 },
-                { subject: isBn ? 'রসায়ন ১ম পত্র' : 'Chemistry 1st Paper', value: 10 },
-                { subject: isBn ? 'তথ্য ও প্রযুক্তি' : 'ICT', value: 8 },
-                { subject: isBn ? 'উদ্ভিদবিজ্ঞান' : 'Biology 1st Paper', value: 6 },
-                { subject: isBn ? 'ইংরেজি ১ম পত্র' : 'English 1st Paper', value: 5 },
+                { subject: t('dashboard.text'), value: 14 },
+                { subject: t('dashboard.text_2'), value: 12 },
+                { subject: t('dashboard.text_3'), value: 10 },
+                { subject: t('dashboard.text_4'), value: 8 },
+                { subject: t('dashboard.text_5'), value: 6 },
+                { subject: t('dashboard.text_6'), value: 5 },
               ]
             : isTasnim
             ? [
-                { subject: isBn ? 'প্রাথমিক গণিত' : 'Elementary Math', value: 9 },
-                { subject: isBn ? 'প্রাথমিক বিজ্ঞান' : 'Primary Science', value: 6 },
-                { subject: isBn ? 'ইংরেজি' : 'English for Today', value: 5 },
-                { subject: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS', value: 4 },
-                { subject: isBn ? 'বাংলা' : 'Bangla', value: 3 },
-                { subject: isBn ? 'ধর্ম ও নৈতিক শিক্ষা' : 'Moral Education', value: 3 },
+                { subject: t('dashboard.text_7'), value: 9 },
+                { subject: t('dashboard.text_8'), value: 6 },
+                { subject: t('dashboard.text_9'), value: 5 },
+                { subject: t('dashboard.text_10'), value: 4 },
+                { subject: t('dashboard.text_11'), value: 3 },
+                { subject: t('dashboard.text_12'), value: 3 },
               ]
             : [
-                { subject: isBn ? 'গণিত' : 'Mathematics', value: 12 },
-                { subject: isBn ? 'সাধারণ বিজ্ঞান' : 'General Science', value: 8 },
-                { subject: isBn ? 'ইংরেজি ১ম পত্র' : 'English 1st Paper', value: 6 },
-                { subject: isBn ? 'তথ্য ও প্রযুক্তি' : 'ICT', value: 5 },
-                { subject: isBn ? 'বাংলা ১ম পত্র' : 'Bangla 1st Paper', value: 4 },
-                { subject: isBn ? 'বাংলাদেশ ও বিশ্বপরিচয়' : 'BGS', value: 4 },
+                { subject: t('dashboard.text_13'), value: 12 },
+                { subject: t('dashboard.text_14'), value: 8 },
+                { subject: t('dashboard.text_6'), value: 6 },
+                { subject: t('dashboard.text_4'), value: 5 },
+                { subject: t('dashboard.text_15'), value: 4 },
+                { subject: t('dashboard.text_10'), value: 4 },
               ]
         );
       } else {
@@ -258,26 +258,26 @@ export default function DashboardPage() {
         setMastery(
           isFahim
             ? [
-                { subject: isBn ? 'পদার্থবিজ্ঞান (গতিবিদ্যা ও প্রক্ষেপক)' : 'Physics (Projectile Motion)', accuracy: 95 },
-                { subject: isBn ? 'উচ্চতর গণিত (ম্যাট্রিক্স ও নির্ণায়ক)' : 'Higher Math (Matrices)', accuracy: 92 },
-                { subject: isBn ? 'রসায়ন (গুণগত রসায়ন ও কোয়ান্টাম)' : 'Chemistry (Quantum Numbers)', accuracy: 88 },
-                { subject: isBn ? 'তথ্যপ্রযুক্তি (সংখ্যা পদ্ধতি)' : 'ICT (Number Systems)', accuracy: 85 },
-                { subject: isBn ? 'উদ্ভিদবিজ্ঞান (কোষ ও এর গঠন)' : 'Biology (Cell Structure)', accuracy: 82 },
+                { subject: t('dashboard.text_16'), accuracy: 95 },
+                { subject: t('dashboard.text_17'), accuracy: 92 },
+                { subject: t('dashboard.text_18'), accuracy: 88 },
+                { subject: t('dashboard.text_19'), accuracy: 85 },
+                { subject: t('dashboard.text_20'), accuracy: 82 },
               ]
             : isTasnim
             ? [
-                { subject: isBn ? 'গণিত (লসাগু ও গসাগু)' : 'Math (LCM-HCF)', accuracy: 96 },
-                { subject: isBn ? 'বিজ্ঞান (পানি চক্র ও নিরাপদ পানি)' : 'Science (Water Cycle)', accuracy: 92 },
-                { subject: isBn ? 'ইংরেজি (Vocabulary & Reading)' : 'English (Vocabulary)', accuracy: 90 },
-                { subject: isBn ? 'বিজিএস (আমাদের মুক্তিযুদ্ধ)' : 'BGS (Liberation War)', accuracy: 94 },
-                { subject: isBn ? 'বাংলা (যুক্তবর্ণ ও শব্দার্থ)' : 'Bangla (Grammar)', accuracy: 88 },
+                { subject: t('dashboard.text_21'), accuracy: 96 },
+                { subject: t('dashboard.text_22'), accuracy: 92 },
+                { subject: t('dashboard.vocabulary_reading'), accuracy: 90 },
+                { subject: t('dashboard.text_23'), accuracy: 94 },
+                { subject: t('dashboard.text_24'), accuracy: 88 },
               ]
             : [
-                { subject: isBn ? 'বিজ্ঞান (পদার্থ ও গতিসূত্র)' : 'Science (Physics & Motion)', accuracy: 92 },
-                { subject: isBn ? 'গণিত (বীজগণিতীয় সূত্রাবলী)' : 'Math (Algebra)', accuracy: 88 },
-                { subject: isBn ? 'বাংলা (বঙ্গভূমির প্রতি)' : 'Bangla (Literature)', accuracy: 85 },
-                { subject: isBn ? 'ইংরেজি (Grammar & Verbs)' : 'English (Grammar)', accuracy: 80 },
-                { subject: isBn ? 'আইসিটি (স্প্রেডশিট ফর্মুলা)' : 'ICT (Spreadsheet)', accuracy: 75 },
+                { subject: t('dashboard.text_25'), accuracy: 92 },
+                { subject: t('dashboard.text_26'), accuracy: 88 },
+                { subject: t('dashboard.text_27'), accuracy: 85 },
+                { subject: t('dashboard.grammar_verbs'), accuracy: 80 },
+                { subject: t('dashboard.text_28'), accuracy: 75 },
               ]
         );
       } else {
@@ -306,33 +306,33 @@ export default function DashboardPage() {
           isFahim
             ? {
                 weakest: [
-                  { subject: isBn ? 'রসায়ন: কোয়ান্টাম সংখ্যা ও পলির নীতি' : 'Chemistry: Quantum Numbers', accuracy: 72 },
-                  { subject: isBn ? 'পদার্থবিজ্ঞান: প্রক্ষেপকের উচ্চতর গাণিতিক সমস্যা' : 'Physics: Projectile Equations', accuracy: 76 },
+                  { subject: t('dashboard.text_29'), accuracy: 72 },
+                  { subject: t('dashboard.text_30'), accuracy: 76 },
                 ],
                 strongest: [
-                  { subject: isBn ? 'উচ্চতর গণিত: ম্যাট্রিক্সের গুণন ও বিপরীত ম্যাট্রিক্স' : 'Higher Math: Inverse Matrix', accuracy: 96 },
-                  { subject: isBn ? 'আইসিটি: বাইনারি ও হেক্সাডেসিমেল রূপান্তর' : 'ICT: Number System Conversion', accuracy: 94 },
+                  { subject: t('dashboard.text_31'), accuracy: 96 },
+                  { subject: t('dashboard.text_32'), accuracy: 94 },
                 ],
               }
             : isTasnim
             ? {
                 weakest: [
-                  { subject: isBn ? 'ইংরেজি: Spelling & Prepositions' : 'English: Spelling & Prepositions', accuracy: 84 },
-                  { subject: isBn ? 'বিজ্ঞান: পরিবেশ দূষণ ও পানি বিশুদ্ধকরণ' : 'Science: Water Purification', accuracy: 86 },
+                  { subject: t('dashboard.spelling_prepositions'), accuracy: 84 },
+                  { subject: t('dashboard.text_33'), accuracy: 86 },
                 ],
                 strongest: [
-                  { subject: isBn ? 'গণিত: লসাগু ও গসাগু ডাকের অঙ্ক' : 'Math: LCM & HCF Word Problems', accuracy: 98 },
-                  { subject: isBn ? 'বিজিএস: আমাদের মুক্তিযুদ্ধ ও বীরশ্রেষ্ঠ' : 'BGS: Liberation War History', accuracy: 96 },
+                  { subject: t('dashboard.text_34'), accuracy: 98 },
+                  { subject: t('dashboard.text_35'), accuracy: 96 },
                 ],
               }
             : {
                 weakest: [
-                  { subject: isBn ? 'আইসিটি: স্প্রেডশিটে সেল ফর্মুলার প্রয়োগ' : 'ICT: Excel Spreadsheet Formulas', accuracy: 72 },
-                  { subject: isBn ? 'ইংরেজি: Right Forms of Verbs' : 'English: Right Forms of Verbs', accuracy: 78 },
+                  { subject: t('dashboard.text_36'), accuracy: 72 },
+                  { subject: t('dashboard.right_forms_of_verbs'), accuracy: 78 },
                 ],
                 strongest: [
-                  { subject: isBn ? 'বিজ্ঞান: গতির সমীকরণ ও ত্বরণ নির্ণয়' : 'Science: Motion Equations', accuracy: 92 },
-                  { subject: isBn ? 'গণিত: বর্গের সূত্রাবলী ও মান নির্ণয়' : 'Math: Algebraic Formulae', accuracy: 90 },
+                  { subject: t('dashboard.text_37'), accuracy: 92 },
+                  { subject: t('dashboard.text_38'), accuracy: 90 },
                 ],
               }
         );
@@ -362,43 +362,43 @@ export default function DashboardPage() {
   const upcomingRoutines = isCurrentFahim
     ? [
         {
-          name: isBn ? 'পদার্থবিজ্ঞান কোচিং — গতিবিদ্যা' : 'Physics Coaching – Dynamics',
-          time: isBn ? 'রবিবার বিকাল ৪:৩০' : 'Sun 4:30 PM',
+          name: t('dashboard.text_39'),
+          time: t('dashboard.text_40'),
           source: 'tuition',
         },
         {
-          name: isBn ? 'রসায়ন প্রাইভেট — গুণগত রসায়ন' : 'Chemistry Tuition – Qualitative Chemistry',
-          time: isBn ? 'মঙ্গলবার বিকাল ৫:০০' : 'Tue 5:00 PM',
+          name: t('dashboard.text_41'),
+          time: t('dashboard.text_42'),
           source: 'tuition',
         },
         {
-          name: isBn ? 'উচ্চতর গণিত সেলফ স্টাডি — ম্যাট্রিক্স' : 'Higher Math Self-Study – Matrices',
-          time: isBn ? 'প্রতিদিন রাত ৮:৩০' : 'Daily 8:30 PM',
+          name: t('dashboard.text_43'),
+          time: t('dashboard.text_44'),
           source: 'self_study',
         },
       ]
     : isCurrentTasnim
     ? [
         {
-          name: isBn ? 'প্রাথমিক গণিত প্রাইভেট' : 'Elementary Math Tuition',
-          time: isBn ? 'রবিবার বিকাল ৪:০০' : 'Sun 4:00 PM',
+          name: t('dashboard.text_45'),
+          time: t('dashboard.text_46'),
           source: 'tuition',
         },
         {
-          name: isBn ? 'ইংরেজি টিউটর' : 'English Tutor',
-          time: isBn ? 'মঙ্গলবার বিকাল ৫:৩০' : 'Tue 5:30 PM',
+          name: t('dashboard.text_47'),
+          time: t('dashboard.text_48'),
           source: 'tuition',
         },
       ]
     : [
         {
-          name: isBn ? 'গণিত প্রাইভেট — রহিম স্যার' : 'Math Tuition – Rahim Sir',
-          time: isBn ? 'রবিবার বিকাল ৪:০০' : 'Sun 4:00 PM',
+          name: t('dashboard.text_49'),
+          time: t('dashboard.text_46'),
           source: 'tuition',
         },
         {
-          name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching',
-          time: isBn ? 'মঙ্গলবার বিকাল ৫:৩০' : 'Tue 5:30 PM',
+          name: t('dashboard.text_50'),
+          time: t('dashboard.text_48'),
           source: 'tuition',
         },
       ];
@@ -427,12 +427,10 @@ export default function DashboardPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              {isBn ? 'লার্নিং ওভারভিউ' : 'Learning Overview'}
+              {t('dashboard.text_51')}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {isBn
-                ? 'এক নজরে সন্তানের পড়ার অগ্রগতি, সময় ও কুইজ ফলাফল'
-                : '30-second snapshot of your child\'s study consistency and quiz performance.'}
+              {t('dashboard.text_52')}
             </p>
           </div>
 
@@ -440,13 +438,13 @@ export default function DashboardPage() {
             <Link href={`/children/${childId}/log`}>
               <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9">
                 <BookOpen className="w-3.5 h-3.5" />
-                <span>{isBn ? 'পড়ার লগ দেখুন' : 'View Study Logs'}</span>
+                <span>{t('dashboard.text_53')}</span>
               </Button>
             </Link>
             <Link href={`/children/${childId}/quizzes/new`}>
               <Button size="sm" className="gap-1.5 text-xs h-9 shadow-sm shadow-primary/20">
                 <Brain className="w-3.5 h-3.5" />
-                <span>{isBn ? 'নতুন এআই কুইজ' : 'Create AI Quiz'}</span>
+                <span>{t('dashboard.text_54')}</span>
               </Button>
             </Link>
           </div>
@@ -459,7 +457,7 @@ export default function DashboardPage() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-xs font-semibold uppercase tracking-wider">
-                  {isBn ? 'পড়ার দিন' : 'Study Days'}
+                  {t('dashboard.text_55')}
                 </CardDescription>
                 <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <Calendar className="w-4 h-4" />
@@ -476,7 +474,7 @@ export default function DashboardPage() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-xs font-semibold uppercase tracking-wider">
-                  {isBn ? 'মোট সময়' : 'Total Study Time'}
+                  {t('dashboard.text_56')}
                 </CardDescription>
                 <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                   <Clock className="w-4 h-4" />
@@ -493,7 +491,7 @@ export default function DashboardPage() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-xs font-semibold uppercase tracking-wider">
-                  {isBn ? 'কুইজ সম্পন্ন' : 'Quizzes Taken'}
+                  {t('dashboard.text_57')}
                 </CardDescription>
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <Brain className="w-4 h-4" />
@@ -510,7 +508,7 @@ export default function DashboardPage() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-xs font-semibold uppercase tracking-wider">
-                  {isBn ? 'গড় স্কোর' : 'Average Score'}
+                  {t('dashboard.text_58')}
                 </CardDescription>
                 <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                   <Award className="w-4 h-4" />
@@ -527,7 +525,7 @@ export default function DashboardPage() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-xs font-semibold uppercase tracking-wider">
-                  {isBn ? 'পড়ার স্ট্রিক' : 'Daily Streak'}
+                  {t('dashboard.text_59')}
                 </CardDescription>
                 <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
                   <Flame className="w-4 h-4 fill-amber-500" />
@@ -535,7 +533,7 @@ export default function DashboardPage() {
               </div>
               <CardTitle className="text-2xl sm:text-3xl font-extrabold mt-1 flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                 <span>{kpis.streak}</span>
-                <span className="text-xs font-normal text-muted-foreground">{isBn ? 'দিন একটানা' : 'Days active'}</span>
+                <span className="text-xs font-normal text-muted-foreground">{t('dashboard.text_60')}</span>
               </CardTitle>
             </CardHeader>
           </Card>
@@ -551,9 +549,7 @@ export default function DashboardPage() {
                     {t('dashboard.weeklyStudyTime', 'Weekly Study Time')}
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    {isBn
-                      ? 'স্কুল, প্রাইভেট ও নিজের পড়ার সময়কাল (মিনিটে)'
-                      : 'Time spent across school, tuition, and self-study (minutes)'}
+                    {t('dashboard.text_61')}
                   </CardDescription>
                 </div>
               </div>
@@ -569,7 +565,7 @@ export default function DashboardPage() {
                 {t('dashboard.subjectDistribution', 'Subject Distribution')}
               </CardTitle>
               <CardDescription className="text-xs">
-                {isBn ? 'কোন বিষয়ে কতগুলো পাঠ সম্পন্ন হয়েছে' : 'Breakdown of lessons completed per subject'}
+                {t('dashboard.text_62')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -586,7 +582,7 @@ export default function DashboardPage() {
                 {t('dashboard.scoreTrend', 'Quiz Score Progress')}
               </CardTitle>
               <CardDescription className="text-xs">
-                {isBn ? 'গত কয়েকটি কুইজের স্কোরের অগ্রগতি' : 'Quiz performance trend over recent weeks'}
+                {t('dashboard.text_63')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -600,7 +596,7 @@ export default function DashboardPage() {
                 {t('dashboard.subjectMastery', 'Subject Mastery Radar')}
               </CardTitle>
               <CardDescription className="text-xs">
-                {isBn ? 'বিষয়ভিত্তিক নির্ভুলতার হার ও দক্ষতা' : 'Calculated accuracy percentage across curriculum subjects'}
+                {t('dashboard.text_64')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -615,12 +611,10 @@ export default function DashboardPage() {
           <Card className="rounded-2xl border shadow-sm min-w-0 overflow-hidden">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold">
-                {isBn ? 'মাসিক পড়ার ধারাবাহিকতা ক্যালেন্ডার' : 'Monthly Study Consistency Calendar'}
+                {t('dashboard.text_65')}
               </CardTitle>
               <CardDescription className="text-xs">
-                {isBn
-                  ? 'প্রতি মাসের দৈনিক পাঠ সম্পন্ন ও মিসের হিসাব — হালকা সবুজ: সম্পন্ন, হালকা লাল: মিস'
-                  : 'Monthly activity tracking — soft green indicates completed study logs, soft red indicates missed sessions'}
+                {t('dashboard.text_66')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -632,10 +626,10 @@ export default function DashboardPage() {
           <Card className="rounded-2xl border shadow-sm min-w-0 overflow-hidden">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold">
-                {isBn ? 'অধ্যায়ভিত্তিক পারদর্শিতা' : 'Topic Accuracy & Revision Needs'}
+                {t('dashboard.text_67')}
               </CardTitle>
               <CardDescription className="text-xs">
-                {isBn ? 'দুর্বল ও আয়ত্তাধীন অধ্যায়সমূহ' : 'Identified from actual quiz questions and wrong answers'}
+                {t('dashboard.text_68')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -697,9 +691,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
               <CardDescription className="text-xs">
-                {isBn
-                  ? 'আসন্ন ৭ দিনের রুটিন ও ক্লাসের তালিকা'
-                  : 'Weekly routine tracker and upcoming classes'}
+                {t('dashboard.text_69')}
               </CardDescription>
             </CardHeader>
 
@@ -771,13 +763,11 @@ export default function DashboardPage() {
                   href={`/children/${childId}/log`}
                   className="text-xs text-primary hover:underline font-medium shrink-0"
                 >
-                  {isBn ? 'সব লগ' : 'All logs'} →
+                  {t('dashboard.text_70')} →
                 </Link>
               </div>
               <CardDescription className="text-xs">
-                {isBn
-                  ? 'সর্বশেষ এন্ট্রি এবং কুইজের তালিকা'
-                  : 'Latest study logs and quiz attempts for this student'}
+                {t('dashboard.text_71')}
               </CardDescription>
             </CardHeader>
 
@@ -800,16 +790,10 @@ export default function DashboardPage() {
                           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
                             <span className="capitalize font-semibold text-primary/80">
                               {r.source === 'tuition'
-                                ? isBn
-                                  ? 'টিউশন'
-                                  : 'Tuition'
+                                ? t('dashboard.text_72')
                                 : r.source === 'school'
-                                ? isBn
-                                ? 'স্কুল'
-                                : 'School'
-                                : isBn
-                                ? 'স্ব-শিক্ষা'
-                                : 'Self-study'}
+                                ? t('dashboard.text_73')
+                                : t('dashboard.text_74')}
                             </span>
                             <span>•</span>
                             <span>
@@ -834,9 +818,7 @@ export default function DashboardPage() {
                   ))
                 ) : (
                   <div className="py-8 text-center text-xs text-muted-foreground">
-                    {isBn
-                      ? 'এখনো কোনো সাম্প্রতিক অ্যাক্টিভিটি পাওয়া যায়নি'
-                      : 'No recent activities recorded yet'}
+                    {t('dashboard.text_75')}
                   </div>
                 )}
               </div>

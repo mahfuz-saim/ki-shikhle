@@ -182,12 +182,12 @@ export function Header() {
               />
               <span>
                 {activePlanCode === 'pro'
-                  ? (isBn ? 'প্রো ফ্যামিলি (১৫০ AI কুইজ/মাস)' : 'Pro Family (150 Quizzes/mo)')
+                  ? (t('header.ai'))
                   : activePlanCode === 'premium'
-                  ? (isBn ? 'প্রিমিয়াম (৫০ AI কুইজ + অটো কুইজ)' : 'Premium (50 Quizzes + Auto Quiz)')
+                  ? (t('header.ai_2'))
                   : activePlanCode === 'basic'
-                  ? (isBn ? 'বেসিক (১০ AI কুইজ/মাস)' : 'Basic Plan (10 Quizzes/mo)')
-                  : (isBn ? 'ফ্রি প্ল্যান (২ AI কুইজ/মাস)' : 'Free Tier (2 Quizzes/mo)')}
+                  ? (t('header.ai_3'))
+                  : (t('header.ai_4'))}
               </span>
             </div>
           </Link>
@@ -281,7 +281,7 @@ export function Header() {
                   >
                     <span className="flex items-center gap-2">
                       <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>{isBn ? 'ভাষা (Language)' : 'Language (ভাষা)'}</span>
+                      <span>{t('header.language')}</span>
                     </span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
                       {locale === 'en' ? 'বাংলা' : 'EN'}
@@ -302,10 +302,10 @@ export function Header() {
                       ) : (
                         <Moon className="w-3.5 h-3.5 text-indigo-500" />
                       )}
-                      <span>{isBn ? 'থিম (Theme)' : 'Theme'}</span>
+                      <span>{t('header.theme')}</span>
                     </span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize">
-                      {theme === 'dark' ? (isBn ? 'ডার্ক' : 'Dark') : (isBn ? 'লাইট' : 'Light')}
+                      {theme === 'dark' ? (t('header.text')) : (t('header.text_2'))}
                     </span>
                   </button>
                 </div>
@@ -328,7 +328,7 @@ export function Header() {
  */
 export function TrialBanner() {
   const { user, subscription } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   const trialEnds = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
   if (!trialEnds || Number.isNaN(trialEnds.getTime())) return null;
@@ -355,18 +355,14 @@ export function TrialBanner() {
         <span className="flex items-center gap-2">
           <Sparkles className="w-3.5 h-3.5 shrink-0" />
           {trialDays <= 3
-            ? isBn
-              ? `ফ্রি ট্রায়াল শেষ হতে ${trialDays} দিন বাকি!`
-              : `Your free trial ends in ${trialDays} day${trialDays === 1 ? '' : 's'}!`
-            : isBn
-              ? `ফ্রি ট্রায়ালে আর ${trialDays} দিন আছে।`
-              : `${trialDays} days left in your free trial.`}
+            ? t('header.your_free_trial_ends_in_day', { p0: trialDays, p1: trialDays === 1 ? '' : 's' }, `Your free trial ends in ${trialDays} day${trialDays === 1 ? '' : 's'}!`)
+            : t('header.days_left_in_your_free_trial', { p0: trialDays }, `${trialDays} days left in your free trial.`)}
         </span>
         <Link
           href="/billing"
           className="underline underline-offset-2 hover:no-underline font-bold shrink-0"
         >
-          {isBn ? 'প্ল্যান আপগ্রেড করুন' : 'Upgrade your plan'}
+          {t('header.text_3')}
         </Link>
       </div>
     </div>

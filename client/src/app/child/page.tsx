@@ -30,7 +30,7 @@ function toBnNum(num: number | string): string {
 
 export default function KidDashboard() {
   const { activeChild, user } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   // The child this session acts for, and which demo dataset (if any) applies.
   //
@@ -283,8 +283,8 @@ export default function KidDashboard() {
     pendingQuizzes[0] ||
     (isDemoChild
       ? isTasnim
-        ? { title: isBn ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification' }
-        : { title: isBn ? 'পদার্থবিজ্ঞান: গতির সমীকরণ ও ত্বরণ' : 'Physics: Equations of Motion & Acceleration' }
+        ? { title: t('childHome.text') }
+        : { title: t('childHome.text_2') }
       : null);
 
   return (
@@ -295,16 +295,14 @@ export default function KidDashboard() {
           <div className="space-y-1.5 max-w-2xl">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold bg-white/20 text-white px-2.5 py-0.5 rounded-full">
-                🔥 {isBn ? `${toBnNum(kpis.streak)} দিনের স্ট্রিক` : `${kpis.streak}-Day Streak`}
+                🔥 {t('childHome.day_streak', { p0: isBn ? toBnNum(kpis.streak) : kpis.streak }, `${kpis.streak}-Day Streak`)}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              {isBn ? `${studentName}, আজকে তুমি কী শিখলে?` : `${studentName}, what did you learn today?`}
+              {t('childHome.what_did_you_learn_today', { p0: studentName }, `${studentName}, what did you learn today?`)}
             </h1>
             <p className="text-xs sm:text-sm text-indigo-100 leading-relaxed">
-              {isBn
-                ? 'পড়ার টপিক ১ মিনিটে লগ করো, ক্লাস নোট আপলোড করো এবং কুইজ দিয়ে প্রস্তুতি যাচাই করো!'
-                : 'Log what was taught in 1 minute, scan your notebooks, and test your mastery with AI quizzes!'}
+              {t('childHome.text_3')}
             </p>
           </div>
         </div>
@@ -321,22 +319,16 @@ export default function KidDashboard() {
                 <div className="space-y-0.5 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm sm:text-base font-extrabold text-foreground group-hover:text-primary transition-colors">
-                      {isBn
-                        ? `তোমার জন্য ${toBnNum(pendingCount)}টি নতুন এআই কুইজ অপেক্ষমাণ আছে!`
-                        : `${pendingCount} Pending AI Quiz${pendingCount > 1 ? 'zes' : ''} Ready For You!`}
+                      {t('childHome.pending_ai_quiz_ready_for_you', { p0: isBn ? toBnNum(pendingCount) : pendingCount, p1: pendingCount > 1 ? 'zes' : '' }, `${pendingCount} Pending AI Quiz${pendingCount > 1 ? 'zes' : ''} Ready For You!`)}
                     </h3>
                     <Badge className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 animate-pulse shadow-xs">
-                      {isBn ? `${toBnNum(pendingCount)}টি বাকি` : `${pendingCount} Pending`}
+                      {t('childHome.pending', { p0: isBn ? toBnNum(pendingCount) : pendingCount }, `${pendingCount} Pending`)}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed line-clamp-1">
                     {firstPendingQuiz
-                      ? isBn
-                        ? `সর্বশেষ: "${firstPendingQuiz.title}" — প্রস্তুতি যাচাই করতে কুইজ পেজে যান`
-                        : `Latest: "${firstPendingQuiz.title}" — Click to open Quiz page & test your mastery`
-                      : isBn
-                      ? 'কুইজ পেজে গিয়ে প্রস্তুতি যাচাই করো'
-                      : 'Open the Quiz page to test your mastery'}
+                      ? t('childHome.latest_click_to_open_quiz_page_test_your_mastery', { p0: firstPendingQuiz.title }, `Latest: "${firstPendingQuiz.title}" — Click to open Quiz page & test your mastery`)
+                      : t('childHome.text_4')}
                   </p>
                 </div>
               </div>
@@ -346,7 +338,7 @@ export default function KidDashboard() {
                   size="sm"
                   className="h-9 px-4 rounded-xl text-xs font-bold gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                 >
-                  <span>{isBn ? 'কুইজ পেজে যান' : 'Go to Quizzes'}</span>
+                  <span>{t('childHome.text_5')}</span>
                   <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </Button>
               </div>
@@ -363,16 +355,14 @@ export default function KidDashboard() {
                 <div className="space-y-0.5 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm sm:text-base font-extrabold text-foreground">
-                      {isBn ? 'আজকের ক্লাসের পড়া জমা দেওয়া হয়নি' : 'Log your classes today'}
+                      {t('childHome.text_6')}
                     </h3>
                     <Badge variant="outline" className="text-[10px] font-bold border-amber-500/40 text-amber-600 bg-amber-500/15">
-                      {isBn ? 'লগ বাকি' : 'Log Pending'}
+                      {t('childHome.text_7')}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    {isBn
-                      ? 'আজকের ক্লাসে বা প্রাইভেটে কী কী শিখলে তা ১ ক্লিকে ভয়েস বা টেক্সট দিয়ে লিখে ফেলো এবং তোমার স্ট্রিক রক্ষা করো!'
-                      : 'Submit what was taught in school or tuition today in 1 minute to protect your streak!'}
+                    {t('childHome.text_8')}
                   </p>
                 </div>
               </div>
@@ -384,7 +374,7 @@ export default function KidDashboard() {
                     className="h-9 px-4 rounded-xl text-xs font-bold gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
-                    <span>{isBn ? 'আজকের ক্লাসের পড়া লগ দিন' : 'Log Your Classes'}</span>
+                    <span>{t('childHome.text_9')}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Button>
                 </Link>
@@ -400,14 +390,14 @@ export default function KidDashboard() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-xs font-semibold uppercase tracking-wider">
-                  {isBn ? 'পড়ার দিন' : 'Study Days'}
+                  {t('childHome.text_10')}
                 </CardDescription>
                 <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <Calendar className="w-4 h-4" />
                 </div>
               </div>
               <CardTitle className="text-2xl sm:text-3xl font-extrabold mt-1">
-                {isBn ? toBnNum(kpis.studyDays || 5) : (kpis.studyDays || 5)} <span className="text-xs font-normal text-muted-foreground">/ {isBn ? '৭ দিন' : '7 days'}</span>
+                {isBn ? toBnNum(kpis.studyDays || 5) : (kpis.studyDays || 5)} <span className="text-xs font-normal text-muted-foreground">/ {t('childHome.text_11')}</span>
               </CardTitle>
             </CardHeader>
           </Card>
@@ -417,14 +407,14 @@ export default function KidDashboard() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-xs font-semibold uppercase tracking-wider">
-                  {isBn ? 'মোট সময়' : 'Total Study Time'}
+                  {t('childHome.text_12')}
                 </CardDescription>
                 <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                   <Clock className="w-4 h-4" />
                 </div>
               </div>
               <CardTitle className="text-2xl sm:text-3xl font-extrabold mt-1">
-                {isBn ? `${toBnNum(hours)}ঘ ${toBnNum(minutes)}মি` : `${hours}h ${minutes}m`}
+                {t('childHome.h_m', { p0: isBn ? toBnNum(hours) : hours, p1: isBn ? toBnNum(minutes) : minutes }, `${hours}h ${minutes}m`)}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -435,14 +425,14 @@ export default function KidDashboard() {
               <CardHeader className="p-4 pb-1">
                 <div className="flex items-center justify-between">
                   <CardDescription className="text-xs font-semibold uppercase tracking-wider group-hover:text-primary transition-colors">
-                    {isBn ? 'কুইজ সম্পন্ন' : 'Quizzes Done'}
+                    {t('childHome.text_13')}
                   </CardDescription>
                   <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                     <Brain className="w-4 h-4" />
                   </div>
                 </div>
                 <CardTitle className="text-2xl sm:text-3xl font-extrabold mt-1">
-                  {isBn ? toBnNum(kpis.quizzes || 4) : (kpis.quizzes || 4)} <span className="text-xs font-normal text-muted-foreground">{isBn ? 'টি' : 'tests'}</span>
+                  {isBn ? toBnNum(kpis.quizzes || 4) : (kpis.quizzes || 4)} <span className="text-xs font-normal text-muted-foreground">{t('childHome.text_14')}</span>
                 </CardTitle>
               </CardHeader>
             </Card>
@@ -453,14 +443,14 @@ export default function KidDashboard() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-xs font-semibold uppercase tracking-wider">
-                  {isBn ? 'গড় স্কোর' : 'Avg Score'}
+                  {t('childHome.text_15')}
                 </CardDescription>
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <Award className="w-4 h-4" />
                 </div>
               </div>
               <CardTitle className="text-2xl sm:text-3xl font-extrabold mt-1 text-emerald-600 dark:text-emerald-400">
-                {isBn ? `${toBnNum(kpis.avgScore || 88)}%` : `${kpis.avgScore || 88}%`}
+                {t('childHome.text', { p0: isBn ? toBnNum(kpis.avgScore || 88) : kpis.avgScore || 88 }, `${kpis.avgScore || 88}%`)}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -470,7 +460,7 @@ export default function KidDashboard() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-xs font-semibold uppercase tracking-wider">
-                  {isBn ? 'স্ট্রিক' : 'Daily Streak'}
+                  {t('childHome.text_16')}
                 </CardDescription>
                 <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
                   <Flame className="w-4 h-4 fill-rose-500 text-rose-500" />
@@ -478,7 +468,7 @@ export default function KidDashboard() {
               </div>
               <CardTitle className="text-2xl sm:text-3xl font-extrabold mt-1 text-rose-500 flex items-center gap-1">
                 <span>{isBn ? toBnNum(kpis.streak || 5) : (kpis.streak || 5)}</span>
-                <span className="text-xs font-normal text-muted-foreground">{isBn ? 'দিন 🔥' : 'days 🔥'}</span>
+                <span className="text-xs font-normal text-muted-foreground">{t('childHome.text_17')}</span>
               </CardTitle>
             </CardHeader>
           </Card>
@@ -488,12 +478,10 @@ export default function KidDashboard() {
         <Card className="rounded-3xl border shadow-sm">
           <CardHeader className="p-4 sm:p-6 pb-3">
             <CardTitle className="text-base font-bold">
-              {isBn ? 'মাসিক পড়ার ধারাবাহিকতা ক্যালেন্ডার' : 'Monthly Study Consistency Calendar'}
+              {t('childHome.text_18')}
             </CardTitle>
             <CardDescription className="text-xs">
-              {isBn
-                ? 'সবুজ: সম্পন্ন পড়া, লাল: মিস হওয়া দিন — তোমার ধারাবাহিকতা ট্র্যাক করো'
-                : 'Green shows logged study days, red shows missed sessions. Keep your habit strong!'}
+              {t('childHome.text_19')}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 pt-0">
@@ -507,15 +495,15 @@ export default function KidDashboard() {
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-primary" />
-                <span>{isBn ? 'সর্বশেষ পড়ার বিবরণী' : 'Recent Study Logs'}</span>
+                <span>{t('childHome.text_20')}</span>
               </CardTitle>
               <Link href="/child/schedule" className="text-xs text-primary hover:underline font-semibold flex items-center gap-1">
-                <span>{isBn ? 'রুটিন ও ক্লাস বিবরণী' : 'Routine & Class Logs'}</span>
+                <span>{t('childHome.text_21')}</span>
                 <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
             <CardDescription className="text-xs">
-              {isBn ? 'তোমার সম্পন্ন করা সাম্প্রতিক পাঠসমূহ' : 'Your recently completed study sessions'}
+              {t('childHome.text_22')}
             </CardDescription>
           </CardHeader>
 
@@ -537,12 +525,12 @@ export default function KidDashboard() {
                       <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
                         <span className="capitalize font-semibold text-primary/80">
                           {r.source === 'tuition'
-                            ? (isBn ? 'টিউশন' : 'Tuition')
+                            ? (t('childHome.text_23'))
                             : r.source === 'college'
-                            ? (isBn ? 'কলেজ' : 'College')
+                            ? (t('childHome.text_24'))
                             : r.source === 'school'
-                            ? (isBn ? 'স্কুল' : 'School')
-                            : (isBn ? 'স্ব-শিক্ষা' : 'Self-study')}
+                            ? (t('childHome.text_25'))
+                            : (t('childHome.text_26'))}
                         </span>
                         <span>•</span>
                         <span>
@@ -555,7 +543,7 @@ export default function KidDashboard() {
                   </div>
 
                   <Badge variant="outline" className="text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10 shrink-0 font-bold">
-                    ✓ {isBn ? 'সম্পন্ন' : 'Logged'}
+                    ✓ {t('childHome.text_27')}
                   </Badge>
                 </div>
               ))}

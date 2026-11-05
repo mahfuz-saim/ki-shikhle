@@ -51,7 +51,7 @@ function KidLogContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { activeChild, user } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   const studentGrade = user?.grade || activeChild?.grade || 'Class 8';
   const institutionType = getInstitutionType(studentGrade);
@@ -115,9 +115,7 @@ function KidLogContent() {
     if (!SpeechRecognition) {
       setVoiceSupported(false);
       setVoiceError(
-        isBn
-          ? 'আপনার ব্রাউজারে ভয়েস রেকর্ডিং সাপোর্ট নেই। নিচের নমুনা প্রম্পট বা টাইপ অপশন ব্যবহার করুন।'
-          : 'Speech recognition is not supported in this browser. Please use the quick prompts or manual entry.'
+        t('childLogHome.text')
       );
       return;
     }
@@ -148,9 +146,7 @@ function KidLogContent() {
         console.warn('Speech recognition error:', event.error);
         if (event.error === 'not-allowed') {
           setVoiceError(
-            isBn
-              ? 'মাইক্রোফোন ব্যবহারের অনুমতি দেওয়া হয়নি। ব্রাউজারের পারমিশন চালু করুন।'
-              : 'Microphone permission denied. Please allow microphone access.'
+            t('childLogHome.text_2')
           );
         }
         setIsListening(false);
@@ -180,7 +176,7 @@ function KidLogContent() {
   const handleAnalyzeWithClaude = async (customText?: string) => {
     const textToAnalyze = (customText || voiceTranscript).trim();
     if (!textToAnalyze) {
-      setVoiceError(isBn ? 'অনুগ্রহ করে কিছু কথা বলুন বা লিখুন' : 'Please speak or enter some lesson text first');
+      setVoiceError(t('childLogHome.text_3'));
       return;
     }
 
@@ -210,11 +206,11 @@ function KidLogContent() {
         durationMin: 60,
         confidence: 5,
         keyConcepts: [
-          isBn ? 'পাঠ্যবইয়ের মূল ধারণাসমূহ ও সূত্রাবলী' : 'Core textbook concepts & formulas',
-          isBn ? 'শ্রেণিকক্ষের গুরুত্বপূর্ণ উদাহরণ অনুশীলন' : 'Classroom worked examples & solutions',
+          t('childLogHome.text_4'),
+          t('childLogHome.text_5'),
         ],
-        homeworkAssigned: isBn ? 'অনুশীলনীর বাকি প্রশ্নাবলী' : 'Remaining textbook exercises',
-        summaryMessage: isBn ? 'দারুণ! আজকের পড়ার বিবরণ প্রস্তুত হয়েছে।' : 'Great job! Lesson record ready.',
+        homeworkAssigned: t('childLogHome.text_6'),
+        summaryMessage: t('childLogHome.text_7'),
         rawTranscript: textToAnalyze,
         aiModelUsed: 'Claude 3.5 Haiku',
       });
@@ -251,7 +247,7 @@ function KidLogContent() {
       const serverMsg = err?.response?.data?.error?.message;
       setSaveError(
         serverMsg ||
-        (isBn ? 'পড়ার লগ সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।' : 'Could not save your study log. Please try again.')
+        (t('childLogHome.text_8'))
       );
     } finally {
       setSubmitting(false);
@@ -282,7 +278,7 @@ function KidLogContent() {
       const serverMsg = err?.response?.data?.error?.message;
       setSaveError(
         serverMsg ||
-        (isBn ? 'পড়ার লগ সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।' : 'Could not save your study log. Please try again.')
+        (t('childLogHome.text_8'))
       );
     } finally {
       setSubmitting(false);
@@ -331,12 +327,12 @@ function KidLogContent() {
             className="text-xs h-8 gap-1.5"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>{isBn ? 'ড্যাশবোর্ডে ফিরুন' : 'Back to Dashboard'}</span>
+            <span>{t('childLogHome.text_9')}</span>
           </Button>
 
           <span className="text-xs font-bold text-amber-500 flex items-center gap-1 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
             <Flame className="w-4 h-4 fill-amber-500" />
-            <span>{isBn ? '৫ দিনের স্ট্রিক জ্বলছে 🔥' : '5-Day Study Streak Burning!'}</span>
+            <span>{t('childLogHome.text_10')}</span>
           </span>
         </div>
 
@@ -354,12 +350,10 @@ function KidLogContent() {
             </div>
             <div className="space-y-1">
               <h2 className="text-2xl sm:text-3xl font-black text-foreground">
-                {isBn ? 'অভিনন্দন! পড়ার রেকর্ড সফলভাবে সম্পন্ন!' : 'Awesome! Lesson Approved & Logged!'}
+                {t('childLogHome.text_11')}
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
-                {isBn
-                  ? 'Claude AI দ্বারা প্রস্তুতকৃত লার্নিং লগটি অভিভাবকের পোর্টালে পাঠানো হয়েছে। অভিভাবক আগামীকাল এটার ওপর অটো কুইজ দিতে পারবেন।'
-                  : 'Your lesson record has been verified. Parents can now view this in the dashboard and auto-quizzes will be scheduled.'}
+                {t('childLogHome.claude_ai')}
               </p>
             </div>
 
@@ -378,10 +372,10 @@ function KidLogContent() {
                 <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-1 border-t">
                   <span className="flex items-center gap-1 font-semibold text-foreground">
                     <Clock className="w-3 h-3 text-indigo-500" />
-                    {savedEntry.durationMin || 60} {isBn ? 'মিনিট' : 'mins'}
+                    {savedEntry.durationMin || 60} {t('childLogHome.text_12')}
                   </span>
                   <span>•</span>
-                  <span>⭐ {savedEntry.confidence || 5}/5 {isBn ? 'বোঝাপড়া' : 'Mastery'}</span>
+                  <span>⭐ {savedEntry.confidence || 5}/5 {t('childLogHome.text_13')}</span>
                 </div>
               </div>
             )}
@@ -397,13 +391,13 @@ function KidLogContent() {
                 variant="outline"
                 className="rounded-xl text-xs h-10 px-4"
               >
-                {isBn ? 'আরেকটি ভয়েস লগ দিন' : 'Log Another Lesson'}
+                {t('childLogHome.text_14')}
               </Button>
               <Button
                 onClick={() => router.push('/child')}
                 className="rounded-xl text-xs h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/20"
               >
-                {isBn ? 'ড্যাশবোর্ডে দেখুন' : 'Go to Dashboard'}
+                {t('childLogHome.text_15')}
               </Button>
             </div>
           </Card>
@@ -421,7 +415,7 @@ function KidLogContent() {
                 }`}
               >
                 <Mic className={`w-4 h-4 ${mode === 'voice' ? 'text-rose-500' : ''}`} />
-                <span>{isBn ? 'ভয়েস দিয়ে বলো (Claude AI)' : 'Voice Entry with AI'}</span>
+                <span>{t('childLogHome.claude_ai_2')}</span>
                 <span className="text-[9px] bg-rose-500 text-white font-black px-1.5 py-0.2 rounded-full">
                   NEW
                 </span>
@@ -437,7 +431,7 @@ function KidLogContent() {
                 }`}
               >
                 <Edit3 className="w-4 h-4" />
-                <span>{isBn ? 'টাইপ করে লিখুন' : 'Manual Typing'}</span>
+                <span>{t('childLogHome.text_16')}</span>
               </button>
             </div>
 
@@ -457,12 +451,10 @@ function KidLogContent() {
                           </div>
                           <div>
                             <CardTitle className="text-base sm:text-lg font-black text-foreground">
-                              {isBn ? 'ভয়েস দিয়ে পড়ার বিবরণ দাও' : 'Speak What You Studied Today'}
+                              {t('childLogHome.text_17')}
                             </CardTitle>
                             <CardDescription className="text-xs">
-                              {isBn
-                                ? 'মুখে বলো, Claude AI স্বয়ংক্রিয়ভাবে সাজিয়ে প্রিভিউ তৈরি করবে'
-                                : 'Just speak naturally, Claude AI will structure your lesson'}
+                              {t('childLogHome.claude_ai_3')}
                             </CardDescription>
                           </div>
                         </div>
@@ -522,13 +514,13 @@ function KidLogContent() {
                         <div>
                           <p className="text-sm font-bold text-foreground">
                             {isListening
-                              ? (isBn ? '🎙️ শুনছি... বলো আজকে ক্লাসে বা প্রাইভেটে কী কী শিখেছ...' : '🎙️ Listening... Speak about today\'s lessons...')
-                              : (isBn ? 'মাইক্রোফোনে ট্যাপ করে কথা বলা শুরু করো' : 'Tap microphone and start speaking')}
+                              ? (t('childLogHome.text_18'))
+                              : (t('childLogHome.text_19'))}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {isListening
-                              ? (isBn ? 'বলা শেষ হলে আবার ট্যাপ করো বা থামাও' : 'Tap again when finished speaking')
-                              : (isBn ? 'যেমন: বিষয়, কী কী সূত্র বা অধ্যায় পড়েছ এবং হোমওয়ার্ক' : 'Include subject, chapters, key topics & homework')}
+                              ? (t('childLogHome.text_20'))
+                              : (t('childLogHome.text_21'))}
                           </p>
                         </div>
 
@@ -545,7 +537,7 @@ function KidLogContent() {
                         <div className="flex items-center justify-between">
                           <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
                             <Volume2 className="w-3.5 h-3.5 text-indigo-500" />
-                            <span>{isBn ? 'শনাক্তকৃত কথার বিবরণ (Live Speech Transcript)' : 'Live Speech Transcript'}</span>
+                            <span>{t('childLogHome.live_speech_transcript')}</span>
                           </Label>
                           {voiceTranscript && (
                             <button
@@ -553,7 +545,7 @@ function KidLogContent() {
                               onClick={() => setVoiceTranscript('')}
                               className="text-[11px] text-muted-foreground hover:text-foreground underline"
                             >
-                              {isBn ? 'মুছে ফেলুন' : 'Clear'}
+                              {t('childLogHome.text_22')}
                             </button>
                           )}
                         </div>
@@ -562,9 +554,7 @@ function KidLogContent() {
                           value={voiceTranscript}
                           onChange={(e) => setVoiceTranscript(e.target.value)}
                           placeholder={
-                            isBn
-                              ? 'এখানে তোমার ভয়েস থেকে কনভার্ট হওয়া কথাগুলো রিয়েল-টাইমে প্রদর্শিত হবে। প্রয়োজনে কীবোর্ড দিয়েও লিখে দিতে পারো...'
-                              : 'Your spoken speech will appear here in real time. You can also edit or type directly...'
+                            t('childLogHome.text_23')
                           }
                           rows={3}
                           className="w-full p-3.5 rounded-2xl border bg-muted/20 text-xs sm:text-sm font-medium leading-relaxed resize-none focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
@@ -574,7 +564,7 @@ function KidLogContent() {
                       {/* Quick Sample Voice Prompts (1-Click Test Chips) */}
                       <div className="space-y-2">
                         <Label className="text-xs font-semibold text-muted-foreground block">
-                          {isBn ? 'অথবা নিচের নমুনা ভয়েস ক্লিক করে পরীক্ষা করো:' : 'Or tap a sample prompt to try:'}
+                          {t('childLogHome.text_24')}
                         </Label>
                         <div className="grid sm:grid-cols-3 gap-2">
                           {sampleVoicePrompts.map((sp, idx) => (
@@ -608,8 +598,8 @@ function KidLogContent() {
                         <Sparkles className="w-4 h-4 fill-amber-300 text-amber-300" />
                         <span>
                           {isAnalyzingAI
-                            ? (isBn ? 'Claude AI বিশ্লেষণ করে সাজাচ্ছে...' : 'Claude AI is Structuring Response...')
-                            : (isBn ? '✨ Claude AI দিয়ে বিশ্লেষণ করুন ও প্রিভিউ দেখুন' : 'Extract & Preview with Claude AI')}
+                            ? (t('childLogHome.claude_ai_4'))
+                            : (t('childLogHome.claude_ai_5'))}
                         </span>
                       </Button>
                     </CardContent>
@@ -630,16 +620,14 @@ function KidLogContent() {
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <CardTitle className="text-base sm:text-lg font-black text-foreground">
-                                {isBn ? 'লগ প্রিভিউ ও অনুমোদন' : 'Learning Log Preview & Approval'}
+                                {t('childLogHome.text_25')}
                               </CardTitle>
                               <Badge className="bg-purple-600 text-white text-[10px] font-bold">
                                 {structuredPreview.aiModelUsed || 'Claude 3.5 Haiku'}
                               </Badge>
                             </div>
                             <CardDescription className="text-xs">
-                              {isBn
-                                ? 'Claude AI তোমার ভয়েস নোটটি নিচের মতো সাজিয়েছে। অনুমোদন দিলে লগ সম্পন্ন হবে।'
-                                : 'Claude AI structured your spoken note. Review and approve to finish.'}
+                              {t('childLogHome.claude_ai_6')}
                             </CardDescription>
                           </div>
                         </div>
@@ -652,7 +640,7 @@ function KidLogContent() {
                           className="h-8 text-xs font-semibold rounded-xl gap-1.5 self-start sm:self-auto"
                         >
                           <Edit3 className="w-3.5 h-3.5 text-primary" />
-                          <span>{isEditingPreview ? (isBn ? 'প্রিভিউ দেখুন' : 'Done Editing') : (isBn ? 'তথ্য সংশোধন' : 'Edit Details')}</span>
+                          <span>{isEditingPreview ? (t('childLogHome.text_26')) : (t('childLogHome.text_27'))}</span>
                         </Button>
                       </div>
                     </CardHeader>
@@ -665,19 +653,19 @@ function KidLogContent() {
                         </Badge>
                         <Badge variant="outline" className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-xl">
                           {structuredPreview.source === 'school'
-                            ? (isBn ? '🏫 স্কুল ক্লাস' : '🏫 School')
+                            ? (t('childLogHome.text_28'))
                             : structuredPreview.source === 'tuition'
-                            ? (isBn ? '👨‍🏫 প্রাইভেট টিউশন' : '👨‍🏫 Private Tuition')
+                            ? (t('childLogHome.text_29'))
                             : structuredPreview.source === 'college'
-                            ? (isBn ? '🏛️ কলেজ' : '🏛️ College')
-                            : (isBn ? '📖 নিজে পড়া' : '📖 Self-Study')}
+                            ? (t('childLogHome.text_30'))
+                            : (t('childLogHome.text_31'))}
                         </Badge>
                         <span className="text-xs font-bold text-muted-foreground flex items-center gap-1 bg-muted px-2.5 py-1 rounded-xl">
                           <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                          {structuredPreview.durationMin} {isBn ? 'মিনিট' : 'mins'}
+                          {structuredPreview.durationMin} {t('childLogHome.text_12')}
                         </span>
                         <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20">
-                          ⭐ {structuredPreview.confidence}/5 {isBn ? 'বোঝাপড়া' : 'Confidence'}
+                          ⭐ {structuredPreview.confidence}/5 {t('childLogHome.text_13')}
                         </span>
                       </div>
 
@@ -686,7 +674,7 @@ function KidLogContent() {
                         <div className="p-4 rounded-2xl border bg-muted/20 space-y-3 text-xs">
                           <div>
                             <Label className="text-xs font-semibold block mb-1">
-                              {isBn ? 'টপিক শিরোনাম' : 'Topic Title'}
+                              {t('childLogHome.text_32')}
                             </Label>
                             <Input
                               value={structuredPreview.topicsText}
@@ -707,18 +695,18 @@ function KidLogContent() {
                                 className="w-full h-9 border rounded-xl px-2.5 bg-background text-xs"
                               >
                                 {institutionType === 'school' && (
-                                  <option value="school">{isBn ? 'স্কুল ক্লাস' : 'School'}</option>
+                                  <option value="school">{t('childLogHome.text_33')}</option>
                                 )}
                                 {institutionType === 'college' && (
-                                  <option value="college">{isBn ? 'কলেজ' : 'College'}</option>
+                                  <option value="college">{t('childLogHome.text_34')}</option>
                                 )}
-                                <option value="tuition">{institutionType === 'admission' ? (isBn ? 'এডমিশন কোচিং' : 'Admission Coaching') : 'Private Tuition'}</option>
+                                <option value="tuition">{institutionType === 'admission' ? (t('childLogHome.text_35')) : 'Private Tuition'}</option>
                                 <option value="self_study">Self-Study</option>
                               </select>
                             </div>
                             <div>
                               <Label className="text-xs font-semibold block mb-1">
-                                {isBn ? 'সময়সীমা (মিনিট)' : 'Duration (mins)'}
+                                {t('childLogHome.text_36')}
                               </Label>
                               <Input
                                 type="number"
@@ -740,7 +728,7 @@ function KidLogContent() {
                           {/* Topic Headline */}
                           <div className="p-4 rounded-2xl bg-muted/30 border space-y-1">
                             <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground block">
-                              {isBn ? 'মূল পাঠ ও অধ্যায় (Lesson Topic)' : 'Structured Lesson Topic'}
+                              {t('childLogHome.lesson_topic')}
                             </span>
                             <h3 className="text-base sm:text-lg font-black text-foreground">
                               {structuredPreview.topicsText}
@@ -752,7 +740,7 @@ function KidLogContent() {
                             <div className="p-4 rounded-2xl border bg-card space-y-2">
                               <span className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
                                 <ListChecks className="w-4 h-4 text-emerald-500" />
-                                <span>{isBn ? 'কী কী শেখা হয়েছে (Key Concepts Learned):' : 'Key Concepts Covered:'}</span>
+                                <span>{t('childLogHome.key_concepts_learned')}</span>
                               </span>
                               <ul className="space-y-1.5 pt-1">
                                 {structuredPreview.keyConcepts.map((kc, idx) => (
@@ -769,7 +757,7 @@ function KidLogContent() {
                           {structuredPreview.homeworkAssigned && (
                             <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-1">
                               <span className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-                                📋 {isBn ? 'বাড়ির কাজ / হোমওয়ার্ক:' : 'Homework Assigned:'}
+                                📋 {t('childLogHome.text_37')}
                               </span>
                               <p className="text-foreground font-medium pl-4">
                                 {structuredPreview.homeworkAssigned}
@@ -781,7 +769,7 @@ function KidLogContent() {
                           <div className="p-3.5 rounded-2xl bg-muted/20 border text-xs space-y-1">
                             <span className="text-[10px] font-semibold text-muted-foreground uppercase flex items-center gap-1">
                               <Mic className="w-3 h-3 text-indigo-500" />
-                              <span>{isBn ? 'তোমার বলা ভয়েস নোট:' : 'Your Spoken Voice Words:'}</span>
+                              <span>{t('childLogHome.text_38')}</span>
                             </span>
                             <p className="text-muted-foreground italic text-xs">
                               &ldquo;{structuredPreview.rawTranscript}&rdquo;
@@ -809,7 +797,7 @@ function KidLogContent() {
                           className="w-full sm:w-auto h-10 text-xs rounded-xl gap-1.5"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
-                          <span>{isBn ? 'আবার ভয়েস দিন' : 'Speak Again'}</span>
+                          <span>{t('childLogHome.text_39')}</span>
                         </Button>
 
                         <Button
@@ -821,8 +809,8 @@ function KidLogContent() {
                           <CheckCircle2 className="w-4 h-4" />
                           <span>
                             {submitting
-                              ? (isBn ? 'লগ সংরক্ষিত হচ্ছে...' : 'Saving Log...')
-                              : (isBn ? '✅ অনুমোদন করুন ও লগ সম্পন্ন করুন 🎉' : 'Approve & Complete Logging 🎉')}
+                              ? (t('childLogHome.text_40'))
+                              : (t('childLogHome.text_41'))}
                           </span>
                         </Button>
                       </div>
@@ -840,12 +828,10 @@ function KidLogContent() {
                 <CardHeader className="pb-3 border-b">
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-primary" />
-                    <span>{isBn ? 'আজকে তুমি কী শিখেছ?' : 'What did you study today?'}</span>
+                    <span>{t('childLogHome.text_42')}</span>
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    {isBn
-                      ? 'নিচের যেকোনো একটিতে ট্যাপ করো অথবা নিজেই টাইপ করো'
-                      : 'Tap a recent lesson below or type manually'}
+                    {t('childLogHome.text_43')}
                   </CardDescription>
                 </CardHeader>
 
@@ -853,15 +839,13 @@ function KidLogContent() {
                   <form onSubmit={handleManualSave} className="space-y-4">
                     <div>
                       <Label className="text-xs font-semibold">
-                        {isBn ? 'পড়ার বিবরণ / টপিক' : 'Lesson Topic'}
+                        {t('childLogHome.text_44')}
                       </Label>
                       <Input
                         value={topic}
                         onChange={(e) => setTopic(e.target.value)}
                         placeholder={
-                          isBn
-                            ? 'যেমন: পদার্থবিজ্ঞান অধ্যায় ৩ বল ও ভরবেগ'
-                            : 'e.g. Physics Chapter 3: Newton\'s 2nd Law derivation'
+                          t('childLogHome.text_45')
                         }
                         className="mt-1 h-11 text-sm rounded-xl"
                         required
@@ -877,13 +861,13 @@ function KidLogContent() {
                           className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
                         >
                           {institutionType === 'school' && (
-                            <option value="school">{isBn ? 'স্কুল ক্লাস' : 'School'}</option>
+                            <option value="school">{t('childLogHome.text_33')}</option>
                           )}
                           {institutionType === 'college' && (
-                            <option value="college">{isBn ? 'কলেজ' : 'College'}</option>
+                            <option value="college">{t('childLogHome.text_34')}</option>
                           )}
-                          <option value="tuition">{institutionType === 'admission' ? (isBn ? 'এডমিশন কোচিং' : 'Admission Coaching') : (isBn ? 'প্রাইভেট টিউশন' : 'Private Tuition')}</option>
-                          <option value="self_study">{isBn ? 'সেলফ-স্টাডি' : 'Self-Study'}</option>
+                          <option value="tuition">{institutionType === 'admission' ? (t('childLogHome.text_35')) : (t('childLogHome.text_46'))}</option>
+                          <option value="self_study">{t('childLogHome.text_47')}</option>
                         </select>
                       </div>
 
@@ -910,7 +894,7 @@ function KidLogContent() {
                     {/* Confidence Rating */}
                     <div>
                       <Label className="text-xs font-semibold block mb-1">
-                        {isBn ? 'কতটুকু ভালো বুঝেছ?' : 'How well did you understand this? (Confidence)'}
+                        {t('childLogHome.text_48')}
                       </Label>
                       <div className="flex items-center gap-2">
                         {[1, 2, 3, 4, 5].map((num) => (
@@ -935,7 +919,7 @@ function KidLogContent() {
                       disabled={submitting || !topic.trim()}
                       className="w-full h-11 rounded-2xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20"
                     >
-                      {submitting ? 'Saving...' : isBn ? 'সংরক্ষণ করুন 🎉' : 'Save Lesson 🎉'}
+                      {submitting ? 'Saving...' : t('childLogHome.text_49')}
                     </Button>
                   </form>
                 </CardContent>

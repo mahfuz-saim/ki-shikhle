@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { AppShell } from '@/components/layout/app-shell';
 import { NotificationListSkeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/components/auth/auth-context';
-import { useI18n } from '@/lib/i18n-context';
+import { useI18n, type Translator } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import { demoProfileOf } from '@/lib/child-scope';
 import {
@@ -40,7 +40,18 @@ interface ParsedNotification {
   };
 }
 
-function parseNotification(n: any, childrenList: any[], isBn: boolean): ParsedNotification {
+/**
+ * Turn a stored notification into something renderable.
+ *
+ * `t` is passed in rather than read from `useI18n()`: this is a module-level
+ * function, and a hook cannot be called outside a component.
+ */
+function parseNotification(
+  n: any,
+  childrenList: any[],
+  isBn: boolean,
+  t: Translator
+): ParsedNotification {
   let payload = n.payloadJson;
   if (typeof payload === 'string') {
     try {
@@ -64,11 +75,11 @@ function parseNotification(n: any, childrenList: any[], isBn: boolean): ParsedNo
       // The demo children's ids moved to UUIDs, so `childId === 'demo-child-1'`
       // never matched. The name is resolved from the demo profile instead.
       const demo = childrenList?.find((c: any) => demoProfileOf(c) === 'rahim');
-      if (demo) childName = demo.name || demo.nickname || (isBn ? 'রহিম আহমেদ' : 'Rahim Ahmed');
+      if (demo) childName = demo.name || demo.nickname || (t('notifications.text'));
     }
   } else if (!childName && (n.type === 'quiz_completed' || n.type === 'results_ready')) {
     const demo = childrenList?.find((c: any) => demoProfileOf(c) === 'rahim');
-    childName = demo?.name || demo?.nickname || (isBn ? 'রহিম আহমেদ' : 'Rahim Ahmed');
+    childName = demo?.name || demo?.nickname || (t('notifications.text'));
   }
 
   // Localize Rahim Ahmed and Tasnim Islam when in Bengali
@@ -77,12 +88,12 @@ function parseNotification(n: any, childrenList: any[], isBn: boolean): ParsedNo
 
   // Quiz Completed
   if (n.type === 'quiz_completed' || n.type === 'results_ready') {
-    const title = isBn ? 'কুইজ সম্পন্ন হয়েছে' : 'Quiz Completed';
+    const title = t('notifications.text_2');
     const score = typeof payload.score === 'number' ? payload.score : 0;
     const maxScore = typeof payload.maxScore === 'number' ? payload.maxScore : 0;
     const pct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-    const quizTitle = payload.quizTitle || (isBn ? 'এআই কুইজ' : 'AI Quiz');
-    const childDisplayName = childName || (isBn ? 'শিক্ষার্থী' : 'Student');
+    const quizTitle = payload.quizTitle || (t('notifications.text_3'));
+    const childDisplayName = childName || (t('notifications.text_4'));
 
     let message = n.message;
     // Format friendly text if message is missing or raw JSON string
@@ -101,7 +112,7 @@ function parseNotification(n: any, childrenList: any[], isBn: boolean): ParsedNo
       title,
       message,
       link,
-      actionText: isBn ? 'ফলাফল দেখুন' : 'View Results',
+      actionText: t('notifications.text_5'),
       childName: childDisplayName,
       scoreBadge: { score, maxScore, pct },
     };
@@ -109,35 +120,31 @@ function parseNotification(n: any, childrenList: any[], isBn: boolean): ParsedNo
 
   // Plan / Upgrade Notification
   if (n.type === 'trial_reminder' || n.type === 'plan_update') {
-    const title = isBn ? 'প্ল্যান নোটিফিকেশন' : 'Plan Notification';
+    const title = t('notifications.text_6');
     let message = n.message;
     if (!message || message.trim().startsWith('{')) {
-      message = isBn
-        ? 'আপনার চিরকাল ফ্রি প্ল্যান সক্রিয় রয়েছে। প্রিমিয়ামে আপগ্রেড করে স্বয়ংক্রিয় কুইজ সেটআপ উপভোগ করুন।'
-        : 'Your Always Free plan is active. Upgrade to Premium to unlock Automatic Quiz Setup.';
+      message = t('notifications.text_7');
     }
     return {
       title,
       message,
       link: n.link || '/billing',
-      actionText: isBn ? 'প্ল্যান দেখুন' : 'View Plans',
+      actionText: t('notifications.text_8'),
     };
   }
 
   // Missed Session
   if (n.type === 'missed_session' || n.type === 'missed_sessions') {
-    const title = isBn ? 'পড়ার রুটিন সেশন মিস হয়েছে' : 'Missed Routine Session';
+    const title = t('notifications.text_9');
     let message = n.message;
     if (!message || message.trim().startsWith('{')) {
-      message = isBn
-        ? 'গতকাল নির্ধারিত রুটিন সেশনের কোনো পড়ার বিবরণী পাওয়া যায়নি।'
-        : "Yesterday's scheduled study session has no recorded learning log.";
+      message = t('notifications.yesterday_s_scheduled_study_session_has_no_recor');
     }
     return {
       title,
       message,
       link: n.link || '/schedule',
-      actionText: isBn ? 'রুটিন দেখুন' : 'View Routine',
+      actionText: t('notifications.text_10'),
     };
   }
 
@@ -148,20 +155,18 @@ function parseNotification(n: any, childrenList: any[], isBn: boolean): ParsedNo
       ? rawTitle
       : n.type
       ? n.type.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
-      : isBn
-      ? 'বিজ্ঞপ্তি'
-      : 'Notification';
+      : t('notifications.text_11');
 
   let message = n.message;
   if (!message || message.trim().startsWith('{')) {
-    message = payload.text || payload.message || (isBn ? 'নতুন আপডেট বা বার্তা' : 'New notification update');
+    message = payload.text || payload.message || (t('notifications.text_12'));
   }
 
   return {
     title,
     message,
     link: n.link,
-    actionText: isBn ? 'দেখুন' : 'View',
+    actionText: t('notifications.text_13'),
     childName,
   };
 }
@@ -171,22 +176,20 @@ function parseNotification(n: any, childrenList: any[], isBn: boolean): ParsedNo
  * a real account with an empty inbox sees an honest empty state instead of the
  * demo parent's Rahim/Tasnim/Fahim activity.
  */
-const getDefaultNotifications = (isBn: boolean, demoChildId: string) => [
+const getDefaultNotifications = (isBn: boolean, demoChildId: string, t: Translator) => [
   {
     id: 'n1',
     type: 'quiz_completed',
-    title: isBn ? 'কুইজ সম্পন্ন হয়েছে' : 'Quiz Completed',
+    title: t('notifications.text_2'),
     payloadJson: {
       childId: demoChildId,
-      childName: isBn ? 'রহিম আহমেদ' : 'Rahim Ahmed',
+      childName: t('notifications.text'),
       score: 8,
       maxScore: 10,
-      quizTitle: isBn ? 'পদার্থবিজ্ঞান ও বলবিদ্যা অধ্যায় কুইজ' : 'Physics & Newton Laws Chapter Quiz',
+      quizTitle: t('notifications.text_14'),
       attemptId: 'att-1',
     },
-    message: isBn
-      ? 'রহিম "পদার্থবিজ্ঞান ও বলবিদ্যা অধ্যায় কুইজ"-এ ৮/১০ স্কোর করেছে। ফলাফল ও এআই বিশ্লেষণ প্রস্তুত।'
-      : 'Rahim completed "Physics & Newton Laws Chapter Quiz" with score 8/10. AI Explanation is ready.',
+    message: t('notifications.text_15'),
     link: '/attempts/att-1/results',
     readAt: null,
     createdAt: new Date().toISOString(),
@@ -194,10 +197,8 @@ const getDefaultNotifications = (isBn: boolean, demoChildId: string) => [
   {
     id: 'n2',
     type: 'plan_update',
-    title: isBn ? 'ফ্রিমিয়াম প্ল্যান সক্রিয়' : 'Freemium Plan Active',
-    message: isBn
-      ? 'আপনি চিরকাল ফ্রি প্ল্যানে আছেন (২টি AI কুইজ/মাস)। ৩য় প্যাকেজ প্রিমিয়ামে রয়েছে স্বয়ংক্রিয় কুইজ সেটআপ!'
-      : 'You are on the Always Free plan (2 AI quizzes/mo). Package 3 Premium includes Automatic Quiz Setup!',
+    title: t('notifications.text_16'),
+    message: t('notifications.ai'),
     link: '/billing',
     readAt: null,
     createdAt: new Date(Date.now() - 3600000).toISOString(),
@@ -205,10 +206,8 @@ const getDefaultNotifications = (isBn: boolean, demoChildId: string) => [
   {
     id: 'n3',
     type: 'missed_session',
-    title: isBn ? 'পড়ার লগ মিস হয়েছে' : 'Missed Routine Session',
-    message: isBn
-      ? 'গতকাল বিকাল ৫:৩০ মিনিটে নির্ধারিত গণিত প্রাইভেটের কোনো লগ পাওয়া যায়নি।'
-      : "Yesterday's 5:30 PM Math Tuition has no recorded learning log.",
+    title: t('notifications.text_17'),
+    message: t('notifications.yesterday_s_5_30_pm_math_tuition_has_no_recorded'),
     link: '/schedule',
     readAt: new Date(Date.now() - 86400000).toISOString(),
     createdAt: new Date(Date.now() - 86400000).toISOString(),
@@ -235,9 +234,11 @@ export default function NotificationsPage() {
    * it is read at call time.
    */
   const isBnRef = useRef(isBn);
+  const tRef = useRef(t);
   useEffect(() => {
     isBnRef.current = isBn;
-  }, [isBn]);
+    tRef.current = t;
+  }, [isBn, t]);
 
   const loadNotifications = async () => {
     setLoading(true);
@@ -247,10 +248,10 @@ export default function NotificationsPage() {
       if (data && data.length > 0) {
         setList(data);
       } else {
-        setList(isDemoTenant && demoChild ? getDefaultNotifications(isBnRef.current, demoChild.id) : []);
+        setList(isDemoTenant && demoChild ? getDefaultNotifications(isBnRef.current, demoChild.id, tRef.current) : []);
       }
     } catch {
-      setList(isDemoTenant && demoChild ? getDefaultNotifications(isBnRef.current, demoChild.id) : []);
+      setList(isDemoTenant && demoChild ? getDefaultNotifications(isBnRef.current, demoChild.id, tRef.current) : []);
     } finally {
       setLoading(false);
     }
@@ -278,7 +279,7 @@ export default function NotificationsPage() {
       const serverMsg = err?.response?.data?.error?.message;
       setActionError(
         serverMsg ||
-          (isBn ? 'নোটিফিকেশনটি আপডেট করা যায়নি।' : 'Could not update the notification.')
+          (t('notifications.text_18'))
       );
     }
   };
@@ -291,7 +292,7 @@ export default function NotificationsPage() {
     } catch (err: any) {
       const serverMsg = err?.response?.data?.error?.message;
       setActionError(
-        serverMsg || (isBn ? 'সব নোটিফিকেশন আপডেট করা যায়নি।' : 'Could not mark all notifications as read.')
+        serverMsg || (t('notifications.text_19'))
       );
     }
   };
@@ -325,14 +326,12 @@ export default function NotificationsPage() {
               </h1>
               {unreadCount > 0 && (
                 <Badge className="bg-primary text-primary-foreground text-xs font-bold">
-                  {isBn ? `${toBnNum(unreadCount)}টি নতুন` : `${unreadCount} New`}
+                  {t('notifications.new', { p0: isBn ? toBnNum(unreadCount) : unreadCount }, `${unreadCount} New`)}
                 </Badge>
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {isBn
-                ? 'সন্তানের কুইজ ফলাফল, পড়ার রুটিনের অনুস্মারক এবং ট্রায়াল স্ট্যাটাসের আপডেট জানুন।'
-                : 'Stay updated on child quiz submissions, routine reminders, and trial status.'}
+              {t('notifications.text_20')}
             </p>
           </div>
 
@@ -344,7 +343,7 @@ export default function NotificationsPage() {
             className="text-xs h-8 gap-1.5 self-start sm:self-auto"
           >
             <CheckCheck className="w-3.5 h-3.5" />
-            <span>{isBn ? 'সবগুলো পঠিত করুন' : 'Mark all as read'}</span>
+            <span>{t('notifications.text_21')}</span>
           </Button>
         </div>
 
@@ -359,7 +358,7 @@ export default function NotificationsPage() {
           <NotificationListSkeleton count={4} />
         ) : list.length === 0 ? (
           <Card className="p-8 text-center text-sm text-muted-foreground rounded-2xl border">
-            {isBn ? 'কোনো নোটিফিকেশন নেই' : 'No notifications'}
+            {t('notifications.text_22')}
           </Card>
         ) : (
           <div className="space-y-3">
@@ -368,7 +367,8 @@ export default function NotificationsPage() {
             const { title, message, link, actionText, childName, scoreBadge } = parseNotification(
               n,
               childrenList,
-              isBn
+              isBn,
+              t
             );
 
             return (
@@ -414,9 +414,7 @@ export default function NotificationsPage() {
                             }`}
                           >
                             <span>
-                              {isBn
-                                ? `স্কোর: ${toBnNum(scoreBadge.score)}/${toBnNum(scoreBadge.maxScore)}`
-                                : `Score: ${scoreBadge.score}/${scoreBadge.maxScore}`}
+                              {t('notifications.score', { p0: isBn ? toBnNum(scoreBadge.score) : scoreBadge.score, p1: isBn ? toBnNum(scoreBadge.maxScore) : scoreBadge.maxScore }, `Score: ${scoreBadge.score}/${scoreBadge.maxScore}`)}
                             </span>
                             <span className="opacity-70 text-[9px]">
                               ({isBn ? toBnNum(scoreBadge.pct) : scoreBadge.pct}%)
@@ -427,7 +425,7 @@ export default function NotificationsPage() {
                         {isUnread && (
                           <span
                             className="w-2 h-2 rounded-full bg-primary shrink-0"
-                            title={isBn ? 'অপঠিত' : 'Unread'}
+                            title={t('notifications.text_23')}
                           />
                         )}
                       </div>
@@ -479,9 +477,9 @@ export default function NotificationsPage() {
                         size="sm"
                         onClick={() => handleMark(n.id)}
                         className="h-8 text-[11px] text-muted-foreground hover:text-foreground"
-                        title={isBn ? 'পঠিত চিহ্নিত করুন' : 'Mark as read'}
+                        title={t('notifications.text_24')}
                       >
-                        {isBn ? 'পঠিত' : 'Dismiss'}
+                        {t('notifications.text_25')}
                       </Button>
                     )}
                   </div>

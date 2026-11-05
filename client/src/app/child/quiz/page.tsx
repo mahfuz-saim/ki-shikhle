@@ -35,7 +35,7 @@ function toBnNum(num: number | string): string {
 
 export default function ChildQuizHubPage() {
   const { activeChild, user } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   // The child this session acts for, and the demo dataset that applies (if any).
   // The old fallback chain ended at the hardcoded `'demo-child-1'`, so an account with
@@ -343,19 +343,17 @@ export default function ChildQuizHubPage() {
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
                 <Brain className="w-4 h-4" />
-                {isBn ? 'এআই রিভিশন কুইজ সেন্টার' : 'AI Revision Quiz Hub'}
+                {t('childQuiz.text')}
               </span>
               <Badge variant="secondary" className="text-[10px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25 font-bold">
                 {studentGrade}
               </Badge>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground flex items-center gap-2.5">
-              <span>{isBn ? 'কুইজ অনুশীলন ও ফলাফল বিবরণী' : 'Quizzes & Previous Results'}</span>
+              <span>{t('childQuiz.text_2')}</span>
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-              {isBn
-                ? 'পড়ার টপিক ও নোট থেকে প্রস্তুতকৃত কুইজ দিয়ে প্রস্তুতি যাচাই করো, পূর্ববর্তী ফলাফল দেখো এবং দুর্বল অধ্যায়ে রিভিশন নাও।'
-                : 'Take quizzes prepared from your study logs, inspect detailed score summaries, and master weak chapters.'}
+              {t('childQuiz.text_3')}
             </p>
           </div>
 
@@ -365,7 +363,7 @@ export default function ChildQuizHubPage() {
                 variant="outline"
                 className="rounded-2xl h-10 px-4 text-xs font-bold gap-1.5 border-border hover:bg-muted"
               >
-                <span>{isBn ? 'ড্যাশবোর্ডে ফিরুন' : 'Back to Dashboard'}</span>
+                <span>{t('childQuiz.text_4')}</span>
               </Button>
             </Link>
           </div>
@@ -380,7 +378,7 @@ export default function ChildQuizHubPage() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-muted-foreground">
-                  {isBn ? 'নতুন কুইজ অপেক্ষমাণ' : 'Pending Quizzes'}
+                  {t('childQuiz.text_5')}
                 </span>
                 <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
                   <Flame className="w-4 h-4" />
@@ -391,19 +389,19 @@ export default function ChildQuizHubPage() {
               <div className="text-2xl font-black text-foreground">
                 {isBn ? toBnNum(totalPending) : totalPending}
                 <span className="text-xs font-normal text-muted-foreground ml-1">
-                  {isBn ? 'টি বাকি' : 'waiting'}
+                  {t('childQuiz.text_6')}
                 </span>
               </div>
               <p className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold mt-1 flex items-center gap-1">
                 {totalPending > 0 ? (
                   <>
                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                    <span>{isBn ? 'এখনই অংশ নাও' : 'Ready to take'}</span>
+                    <span>{t('childQuiz.text_7')}</span>
                   </>
                 ) : (
                   <>
                     <Check className="w-3 h-3 text-emerald-500" />
-                    <span>{isBn ? 'সব সম্পন্ন!' : 'All clear!'}</span>
+                    <span>{t('childQuiz.text_8')}</span>
                   </>
                 )}
               </p>
@@ -415,7 +413,7 @@ export default function ChildQuizHubPage() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-muted-foreground">
-                  {isBn ? 'সম্পন্ন কুইজ' : 'Completed Quizzes'}
+                  {t('childQuiz.text_9')}
                 </span>
                 <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
                   <CheckCircle2 className="w-4 h-4" />
@@ -426,11 +424,11 @@ export default function ChildQuizHubPage() {
               <div className="text-2xl font-black text-foreground">
                 {isBn ? toBnNum(totalCompleted) : totalCompleted}
                 <span className="text-xs font-normal text-muted-foreground ml-1">
-                  {isBn ? 'টি পরীক্ষা' : 'tests'}
+                  {t('childQuiz.text_10')}
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground font-medium mt-1">
-                {isBn ? 'যাচাইকৃত প্রস্তুতি' : 'Verified by AI'}
+                {t('childQuiz.text_11')}
               </p>
             </CardContent>
           </Card>
@@ -440,7 +438,7 @@ export default function ChildQuizHubPage() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-muted-foreground">
-                  {isBn ? 'গড় স্কোর (মাস্টারি)' : 'Average Score'}
+                  {t('childQuiz.text_12')}
                 </span>
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
                   <Star className="w-4 h-4 fill-emerald-500 text-emerald-500" />
@@ -449,12 +447,12 @@ export default function ChildQuizHubPage() {
             </CardHeader>
             <CardContent className="p-4 pt-1">
               <div className="text-2xl font-black text-foreground">
-                {isBn ? `${toBnNum(avgScore)}%` : `${avgScore}%`}
+                {t('childQuiz.text', { p0: isBn ? toBnNum(avgScore) : avgScore }, `${avgScore}%`)}
               </div>
               <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
                 {avgScore >= 85
-                  ? isBn ? '🌟 চমৎকার অগ্রগতি' : '🌟 Excellent mastery'
-                  : isBn ? '👍 সন্তোষজনক' : '👍 Good progress'}
+                  ? t('childQuiz.text_13')
+                  : t('childQuiz.text_14')}
               </p>
             </CardContent>
           </Card>
@@ -464,7 +462,7 @@ export default function ChildQuizHubPage() {
             <CardHeader className="p-4 pb-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-muted-foreground">
-                  {isBn ? 'সর্বোচ্চ স্কোর' : 'Highest Score'}
+                  {t('childQuiz.text_15')}
                 </span>
                 <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
                   <Award className="w-4 h-4 text-amber-500" />
@@ -473,10 +471,10 @@ export default function ChildQuizHubPage() {
             </CardHeader>
             <CardContent className="p-4 pt-1">
               <div className="text-2xl font-black text-foreground">
-                {isBn ? `${toBnNum(highestScore)}%` : `${highestScore}%`}
+                {t('childQuiz.text', { p0: isBn ? toBnNum(avgScore) : avgScore }, `${avgScore}%`)}
               </div>
               <p className="text-[11px] text-muted-foreground font-medium mt-1">
-                {isBn ? 'ব্যক্তিগত সেরা রেকর্ড' : 'Personal best record'}
+                {t('childQuiz.text_16')}
               </p>
             </CardContent>
           </Card>
@@ -496,7 +494,7 @@ export default function ChildQuizHubPage() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {isBn ? 'সকল কুইজ' : 'All Quizzes'} ({isBn ? toBnNum(quizList.length) : quizList.length})
+              {t('childQuiz.text_17')} ({isBn ? toBnNum(quizList.length) : quizList.length})
             </button>
 
             <button
@@ -508,7 +506,7 @@ export default function ChildQuizHubPage() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <span>{isBn ? 'নতুন অপেক্ষমাণ কুইজ' : 'Pending Quizzes'}</span>
+              <span>{t('childQuiz.text_18')}</span>
               {totalPending > 0 && (
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
@@ -529,7 +527,7 @@ export default function ChildQuizHubPage() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <span>{isBn ? 'পূর্ববর্তী ফলাফল' : 'Completed Results'}</span>
+              <span>{t('childQuiz.text_19')}</span>
               <span
                 className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
                   filter === 'completed' ? 'bg-white/20 text-white' : 'bg-muted-foreground/20 text-foreground'
@@ -541,9 +539,7 @@ export default function ChildQuizHubPage() {
           </div>
 
           <span className="text-xs text-muted-foreground font-medium">
-            {isBn
-              ? `মোট ${toBnNum(filteredQuizzes.length)} টি কুইজ দেখানো হচ্ছে`
-              : `Showing ${filteredQuizzes.length} quiz${filteredQuizzes.length === 1 ? '' : 'zes'}`}
+            {t('childQuiz.showing_quiz', { p0: isBn ? toBnNum(filteredQuizzes.length) : filteredQuizzes.length, p1: filteredQuizzes.length === 1 ? '' : 'zes' }, `Showing ${filteredQuizzes.length} quiz${filteredQuizzes.length === 1 ? '' : 'zes'}`)}
           </span>
         </div>
 
@@ -556,21 +552,13 @@ export default function ChildQuizHubPage() {
               <Brain className="w-12 h-12 mx-auto text-muted-foreground/60 mb-3" />
               <h3 className="text-base font-bold text-foreground">
                 {filter === 'pending'
-                  ? isBn
-                    ? '🎉 চমৎকার! কোনো কুইজ অপেক্ষমাণ নেই!'
-                    : '🎉 Great job! No pending quizzes waiting.'
-                  : isBn
-                  ? 'কোনো কুইজ পাওয়া যায়নি'
-                  : 'No quizzes found'}
+                  ? t('childQuiz.text_20')
+                  : t('childQuiz.text_21')}
               </h3>
               <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
                 {filter === 'pending'
-                  ? isBn
-                    ? 'তোমার সবকটি কুইজ সম্পন্ন হয়েছে। নতুন পড়ার লগ দিলে অভিভাবক তোমার জন্য নতুন কুইজ তৈরি করবেন।'
-                    : 'All assigned quizzes are completed. Log new topics or scan notes to generate fresh quizzes.'
-                  : isBn
-                  ? 'নতুন কুইজের জন্য ফিল্টার পরিবর্তন করুন অথবা ড্যাশবোর্ডে ফিরে যান।'
-                  : 'Try switching filters to view other quizzes or previous results.'}
+                  ? t('childQuiz.text_22')
+                  : t('childQuiz.text_23')}
               </p>
               <div className="mt-4">
                 <Button
@@ -579,7 +567,7 @@ export default function ChildQuizHubPage() {
                   onClick={() => setFilter('all')}
                   className="rounded-xl text-xs"
                 >
-                  {isBn ? 'সব কুইজ দেখুন' : 'View All Quizzes'}
+                  {t('childQuiz.text_24')}
                 </Button>
               </div>
             </Card>
@@ -611,12 +599,12 @@ export default function ChildQuizHubPage() {
                           {isDone ? (
                             <Badge className="bg-emerald-500 text-white font-bold text-[10px] px-2 py-0.5 flex items-center gap-1">
                               <Check className="w-3 h-3 stroke-[3]" />
-                              <span>{isBn ? 'সম্পন্ন' : 'Completed'}</span>
+                              <span>{t('childQuiz.text_25')}</span>
                             </Badge>
                           ) : (
                             <Badge className="bg-rose-500 text-white font-bold text-[10px] px-2 py-0.5 flex items-center gap-1 animate-pulse">
                               <Sparkles className="w-3 h-3" />
-                              <span>{isBn ? 'নতুন কুইজ • অপেক্ষমাণ' : 'Pending Quiz'}</span>
+                              <span>{t('childQuiz.text_26')}</span>
                             </Badge>
                           )}
 
@@ -629,11 +617,11 @@ export default function ChildQuizHubPage() {
                           <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-lg border">
                             <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                             <span>
-                              {q.questionCount || 5} {isBn ? 'টি প্রশ্ন' : 'Questions'}
+                              {q.questionCount || 5} {t('childQuiz.text_27')}
                             </span>
                             <span>•</span>
                             <span>
-                              {isBn ? `${toBnNum(q.timeLimitMin || 15)} মিনিট` : `${q.timeLimitMin || 15} mins`}
+                              {t('childQuiz.mins', { p0: isBn ? toBnNum(q.timeLimitMin || 15) : q.timeLimitMin || 15 }, `${q.timeLimitMin || 15} mins`)}
                             </span>
                           </div>
                         </div>
@@ -644,12 +632,8 @@ export default function ChildQuizHubPage() {
                           </h3>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {isDone
-                              ? isBn
-                                ? `সম্পন্ন হয়েছে: ${q.completedAt || 'সম্প্রতি'}`
-                                : `Taken: ${q.completedAt || 'Recently'}`
-                              : isBn
-                              ? 'পড়ার টপিক ও নোট থেকে প্রস্তুতকৃত প্রস্তুতি কুইজ'
-                              : 'AI revision quiz prepared from daily study logs & class notes'}
+                              ? t('childQuiz.taken', { p0: isBn ? q.completedAt || 'সম্প্রতি' : q.completedAt || 'Recently' }, `Taken: ${q.completedAt || 'Recently'}`)
+                              : t('childQuiz.text_28')}
                           </p>
                         </div>
 
@@ -658,7 +642,7 @@ export default function ChildQuizHubPage() {
                           <div className="pt-2 flex items-center gap-3 flex-wrap">
                             <div className="flex items-center gap-1.5">
                               <span className={`text-xs font-black px-2.5 py-1 rounded-xl border ${scoreColor}`}>
-                                {isBn ? `স্কোর: ${toBnNum(scoreNum)}%` : `Score: ${scoreNum}%`}
+                                {t('childQuiz.score', { p0: isBn ? toBnNum(scoreNum) : scoreNum }, `Score: ${scoreNum}%`)}
                               </span>
                             </div>
 
@@ -674,7 +658,7 @@ export default function ChildQuizHubPage() {
                                 />
                               ))}
                               <span className="text-[11px] font-bold text-foreground ml-1">
-                                ({scoreNum >= 85 ? (isBn ? 'চমৎকার!' : 'Mastered!') : (isBn ? 'ভালো আয়ত্ত' : 'Good!')})
+                                ({scoreNum >= 85 ? (t('childQuiz.text_29')) : (t('childQuiz.text_30'))})
                               </span>
                             </div>
                           </div>
@@ -695,12 +679,12 @@ export default function ChildQuizHubPage() {
                             {!isDone ? (
                               <>
                                 <Play className="w-3.5 h-3.5 fill-white" />
-                                <span>{isBn ? 'কুইজ শুরু করো' : 'Start Quiz'}</span>
+                                <span>{t('childQuiz.text_31')}</span>
                               </>
                             ) : (
                               <>
                                 <RotateCcw className="w-3.5 h-3.5" />
-                                <span>{isBn ? 'পুনরায় অনুশীলন' : 'Retake Quiz'}</span>
+                                <span>{t('childQuiz.text_32')}</span>
                               </>
                             )}
                           </Button>
@@ -723,12 +707,10 @@ export default function ChildQuizHubPage() {
             <CardHeader className="p-4 sm:p-6 pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
-                <span>{isBn ? 'রিভিশন ও অনুশীলনের প্রয়োজন' : 'Topics Needing Revision'}</span>
+                <span>{t('childQuiz.text_33')}</span>
               </CardTitle>
               <CardDescription className="text-xs">
-                {isBn
-                  ? 'এই অধ্যায়গুলোতে আরও ১ বার কুইজ বা নোট পড়লে প্রস্তুতি নিখুঁত হবে'
-                  : 'Chapters where additional practice will boost test performance'}
+                {t('childQuiz.text_34')}
               </CardDescription>
             </CardHeader>
 
@@ -742,7 +724,7 @@ export default function ChildQuizHubPage() {
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-foreground">{w.subject}</span>
                       <span className="font-extrabold text-amber-700 dark:text-amber-400">
-                        {isBn ? `${toBnNum(w.accuracy)}% নির্ভুলতা` : `${w.accuracy}% Accuracy`}
+                        {t('childQuiz.accuracy', { p0: isBn ? toBnNum(w.accuracy) : w.accuracy }, `${w.accuracy}% Accuracy`)}
                       </span>
                     </div>
                     <div className="w-full h-2 bg-amber-500/20 rounded-full overflow-hidden">
@@ -755,7 +737,7 @@ export default function ChildQuizHubPage() {
                 ))
               ) : (
                 <p className="text-xs text-muted-foreground p-3 text-center">
-                  {isBn ? 'বর্তমানে কোনো দুর্বল অধ্যায় চিহ্নিত নেই!' : 'No weak topics identified yet!'}
+                  {t('childQuiz.text_35')}
                 </p>
               )}
             </CardContent>
@@ -766,12 +748,10 @@ export default function ChildQuizHubPage() {
             <CardHeader className="p-4 sm:p-6 pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                <span>{isBn ? 'আয়ত্তাধীন চমৎকার অধ্যায়' : 'Strong & Mastered Topics'}</span>
+                <span>{t('childQuiz.text_36')}</span>
               </CardTitle>
               <CardDescription className="text-xs">
-                {isBn
-                  ? 'এই অধ্যায়গুলোতে তোমার কুইজ পারফরম্যান্স সর্বোচ্চ মানের'
-                  : 'High accuracy achieved across these subjects and chapters'}
+                {t('childQuiz.text_37')}
               </CardDescription>
             </CardHeader>
 
@@ -785,7 +765,10 @@ export default function ChildQuizHubPage() {
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-foreground">{s.subject}</span>
                       <span className="font-extrabold text-emerald-700 dark:text-emerald-400">
-                        {isBn ? `${toBnNum(s.accuracy)}% নির্ভুলতা` : `${s.accuracy}% Accuracy`}
+                        {/* `s.accuracy`, not `w.accuracy` — this is the *strongest* topics
+                            list, and `w` belongs to the weak-topics map above. It
+                            rendered `undefined%` before. */}
+                        {t('childQuiz.accuracy', { p0: isBn ? toBnNum(s.accuracy) : s.accuracy }, `${s.accuracy}% Accuracy`)}
                       </span>
                     </div>
                     <div className="w-full h-2 bg-emerald-500/20 rounded-full overflow-hidden">
@@ -798,7 +781,7 @@ export default function ChildQuizHubPage() {
                 ))
               ) : (
                 <p className="text-xs text-muted-foreground p-3 text-center">
-                  {isBn ? 'কুইজ সম্পন্ন হলে এখানে আয়ত্তাধীন বিষয় দেখাবে।' : 'Take quizzes to see your strong topics.'}
+                  {t('childQuiz.text_38')}
                 </p>
               )}
             </CardContent>
@@ -812,12 +795,10 @@ export default function ChildQuizHubPage() {
           <CardHeader className="p-4 sm:p-6 pb-2">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>{isBn ? 'এআই কুইজ অনুশীলনের টিপস' : 'Helpful Quiz Practice Tips'}</span>
+              <span>{t('childQuiz.text_39')}</span>
             </CardTitle>
             <CardDescription className="text-xs leading-relaxed">
-              {isBn
-                ? 'স্কুল ও প্রাইভেটের ক্লাস শেষে পড়ার বিবরণী জমা দিলে এবং ক্লাস নোট স্ক্যান করলে এআই স্বয়ংক্রিয়ভাবে নতুন কুইজ তৈরি করে। নিয়মিত কুইজ দিলে পড়া দীর্ঘস্থায়ীভাবে মনে থাকে এবং পরীক্ষার ভয় দূর হয়।'
-                : 'Logging daily tuition and school study topics automatically feeds our Claude AI engine to generate tailor-made revision quizzes matching your exact school syllabus.'}
+              {t('childQuiz.text_40')}
             </CardDescription>
           </CardHeader>
         </Card>

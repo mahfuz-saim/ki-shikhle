@@ -22,7 +22,7 @@ import {
 export default function Onboarding() {
   const router = useRouter();
   const { refreshChildren } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -63,9 +63,7 @@ export default function Onboarding() {
     const serverMsg = err?.response?.data?.error?.message;
     if (serverMsg) return serverMsg;
     if (err?.request) {
-      return isBn
-        ? 'সার্ভারে পৌঁছানো যায়নি। অনুগ্রহ করে ইন্টারনেট সংযোগ পরীক্ষা করুন।'
-        : 'Could not reach the server. Please check your connection and try again.';
+      return t('onboarding.text');
     }
     return fallback;
   }
@@ -78,7 +76,7 @@ export default function Onboarding() {
       const cId = res.data?.data?.id;
       if (!cId) {
         setError(
-          isBn ? 'স্টুডেন্ট প্রোফাইল তৈরি হয়নি। আবার চেষ্টা করুন।' : 'The student profile was not created. Please try again.'
+          t('onboarding.text_2')
         );
         return;
       }
@@ -89,7 +87,7 @@ export default function Onboarding() {
       setError(
         errorMessage(
           err,
-          isBn ? 'স্টুডেন্ট প্রোফাইল তৈরি করা যায়নি। আবার চেষ্টা করুন।' : 'Could not create the student profile. Please try again.'
+          t('onboarding.text_3')
         )
       );
     } finally {
@@ -110,7 +108,7 @@ export default function Onboarding() {
       setError(
         errorMessage(
           err,
-          isBn ? 'রুটিন সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।' : 'Could not save the routine. Please try again.'
+          t('onboarding.text_4')
         )
       );
     } finally {
@@ -132,7 +130,7 @@ export default function Onboarding() {
       setError(
         errorMessage(
           err,
-          isBn ? 'স্টাডি লগ সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।' : 'Could not save the study log. Please try again.'
+          t('onboarding.text_5')
         )
       );
     } finally {
@@ -194,7 +192,7 @@ export default function Onboarding() {
                 <Input
                   value={child.name}
                   onChange={(e) => setChild({ ...child, name: e.target.value })}
-                  placeholder={isBn ? 'যেমন: রহিম আহমেদ' : 'e.g. Rahim Ahmed'}
+                  placeholder={t('onboarding.text_6')}
                   className="mt-1"
                 />
               </div>

@@ -16,7 +16,7 @@ import { ArrowLeft, Sparkles, GraduationCap, UserCheck, Eye, EyeOff } from 'luci
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const { isBn } = useI18n();
+  const { t, isBn } = useI18n();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,15 +51,13 @@ export default function LoginPage() {
       if (serverMsg) {
         setError(serverMsg);
       } else if (err.response?.status === 401) {
-        setError(isBn ? 'ইমেইল অথবা পাসওয়ার্ড সঠিক নয়' : 'Incorrect email or password');
+        setError(t('login.text'));
       } else if (err.request) {
         setError(
-          isBn
-            ? 'সার্ভারে পৌঁছানো যায়নি। অনুগ্রহ করে ইন্টারনেট সংযোগ পরীক্ষা করুন।'
-            : 'Could not reach the server. Please check your connection and try again.'
+          t('login.text_2')
         );
       } else {
-        setError(isBn ? 'লগইন করা যায়নি। আবার চেষ্টা করুন।' : 'Could not sign in. Please try again.');
+        setError(t('login.text_3'));
       }
     } finally {
       setLoading(false);
@@ -95,7 +93,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-4">
         <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-1">
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>{isBn ? 'হোমপেজে ফিরুন' : 'Back to Home'}</span>
+          <span>{t('login.text_4')}</span>
         </Link>
 
         <Card className="rounded-3xl border shadow-xl bg-card">
@@ -119,12 +117,10 @@ export default function LoginPage() {
               />
             </div>
             <CardTitle className="text-2xl font-black text-foreground">
-              {isBn ? 'লগইন করুন' : 'Welcome Back'}
+              {t('login.text_5')}
             </CardTitle>
             <CardDescription className="text-xs">
-              {isBn
-                ? 'অভিভাবক অথবা শিক্ষার্থীর ইমেইল ও পাসওয়ার্ড দিয়ে লগইন করুন'
-                : 'Sign in with your parent or student account to enter your portal'}
+              {t('login.text_6')}
             </CardDescription>
           </CardHeader>
 
@@ -132,7 +128,7 @@ export default function LoginPage() {
             <form onSubmit={onSubmit} className="space-y-3.5">
               <div>
                 <Label htmlFor="login-email" className="text-xs font-semibold">
-                  {isBn ? 'ইমেইল অ্যাড্রেস' : 'Email Address'}
+                  {t('login.text_7')}
                 </Label>
                 <Input
                   id="login-email"
@@ -148,10 +144,10 @@ export default function LoginPage() {
               <div>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="login-password" className="text-xs font-semibold">
-                    {isBn ? 'পাসওয়ার্ড' : 'Password'}
+                    {t('login.text_8')}
                   </Label>
                   <Link href="/forgot-password" className="text-[11px] text-primary hover:underline">
-                    {isBn ? 'পাসওয়ার্ড ভুলে গেছেন?' : 'Forgot password?'}
+                    {t('login.text_9')}
                   </Link>
                 </div>
                 <div className="relative mt-1">
@@ -168,7 +164,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5 focus:outline-none"
-                    title={showPassword ? (isBn ? 'পাসওয়ার্ড লুকান' : 'Hide password') : (isBn ? 'পাসওয়ার্ড দেখুন' : 'Show password')}
+                    title={showPassword ? (t('login.text_10')) : (t('login.text_11'))}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? (
@@ -187,7 +183,7 @@ export default function LoginPage() {
                 className="w-full h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
                 disabled={loading}
               >
-                {loading ? (isBn ? 'লগইন হচ্ছে...' : 'Logging in...') : isBn ? 'লগইন করুন' : 'Sign In'}
+                {loading ? (t('login.text_12')) : t('login.text_5')}
               </Button>
             </form>
 
@@ -195,7 +191,7 @@ export default function LoginPage() {
             <div className="p-3.5 rounded-2xl bg-muted/50 border space-y-2.5">
               <p className="text-[11px] text-muted-foreground font-semibold flex items-center justify-center gap-1">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>{isBn ? 'ডেমো অ্যাকাউন্টের ক্রেডেনশিয়াল লোড করুন' : "Load demo account's credentials"}</span>
+                <span>{t('login.load_demo_account_s_credentials')}</span>
               </p>
               <div className="space-y-1.5">
                 <button
@@ -258,7 +254,7 @@ export default function LoginPage() {
             <p className="text-xs text-center text-muted-foreground pt-1">
               Don&apos;t have an account?{' '}
               <Link href="/register" className="text-primary font-bold hover:underline">
-                {isBn ? 'ফ্রি অ্যাকাউন্ট তৈরি করুন' : 'Create Free Account'}
+                {t('login.text_13')}
               </Link>
             </p>
           </CardContent>

@@ -50,11 +50,17 @@ const NAMESPACE = {
   'src/app/settings/page.tsx': 'settings',
 };
 
-/** `isBn ? 'English' : 'বাংলা'` — both sides plain literals, no interpolation. */
-const PAIR_RE = /isBn\s*\?\s*'((?:[^'\\]|\\.)*)'\s*:\s*'((?:[^'\\]|\\.)*)'/g;
+/**
+ * `isBn ? 'English' : 'বাংলা'` — both sides plain literals, no interpolation.
+ *
+ * The leading `\b` matters: without it the pattern matches the trailing `sBn` of one
+ * `isBn` plus the `?` of the next one, so `isBn ? 'a' : 'b'` was read as `i` + the
+ * whole `sBn ? 'a' : 'b'` body. Every key was wrong and no rewrite applied.
+ */
+const PAIR_RE = /\bisBn\s*\?\s*'((?:[^'\\]|\\.)*)'\s*:\s*'((?:[^'\\]|\\.)*)'/g;
 
 /** A template-literal variant, which needs `{placeholder}` support. */
-const TEMPLATE_RE = /isBn\s*\?\s*`([^`]*)`\s*:\s*`([^`]*)`/g;
+const TEMPLATE_RE = /\bisBn\s*\?\s*`([^`]*)`\s*:\s*`([^`]*)`/g;
 
 function collectFiles(dir, out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

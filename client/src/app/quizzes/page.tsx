@@ -127,7 +127,7 @@ export default function QuizzesPage() {
             ? [
                 {
                   id: 'q-t1',
-                  title: isBn ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু কুইজ' : 'Primary Math: Factors & LCM-HCF Quiz',
+                  title: t('quizzes.text'),
                   subject: 'Elementary Math',
                   questionCount: 5,
                   difficulty: 'easy',
@@ -140,7 +140,7 @@ export default function QuizzesPage() {
                 },
                 {
                   id: 'q-t2',
-                  title: isBn ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification',
+                  title: t('quizzes.text_2'),
                   subject: 'Primary Science',
                   questionCount: 5,
                   difficulty: 'easy',
@@ -152,7 +152,7 @@ export default function QuizzesPage() {
                 },
                 {
                   id: 'q-t3',
-                  title: isBn ? 'ইংরেজি: Unit 6 Eat Healthy Vocabulary' : 'English: Unit 6 Eat Healthy Vocabulary',
+                  title: t('quizzes.unit_6_eat_healthy_vocabulary'),
                   subject: 'English for Today',
                   questionCount: 5,
                   difficulty: 'easy',
@@ -166,7 +166,7 @@ export default function QuizzesPage() {
             : [
                 {
                   id: 'q1',
-                  title: isBn ? 'পদার্থবিজ্ঞান ও বলবিদ্যা অধ্যায় কুইজ' : 'Physics & Newton Laws Chapter Quiz',
+                  title: t('quizzes.text_3'),
                   subject: 'Physics',
                   questionCount: 10,
                   difficulty: 'mixed',
@@ -179,7 +179,7 @@ export default function QuizzesPage() {
                 },
                 {
                   id: 'q2',
-                  title: isBn ? 'গণিত: বীজগাণিতিক সূত্রাবলী ও প্রয়োগ' : 'Mathematics: Algebraic Formulae Revision',
+                  title: t('quizzes.text_4'),
                   subject: 'Mathematics',
                   questionCount: 10,
                   difficulty: 'easy',
@@ -191,7 +191,7 @@ export default function QuizzesPage() {
                 },
                 {
                   id: 'q3',
-                  title: isBn ? 'রসায়ন: পর্যায় সারণি ও পরমাণু' : 'Chemistry: Periodic Table & Atoms',
+                  title: t('quizzes.text_5'),
                   subject: 'Chemistry',
                   questionCount: 5,
                   difficulty: 'mixed',
@@ -216,7 +216,7 @@ export default function QuizzesPage() {
           ? [
               {
                 id: 'q-t1',
-                title: isBn ? 'প্রাথমিক গণিত: গুণনীয়ক ও লসাগু-গসাগু কুইজ' : 'Primary Math: Factors & LCM-HCF Quiz',
+                title: t('quizzes.text'),
                 subject: 'Elementary Math',
                 questionCount: 5,
                 difficulty: 'easy',
@@ -229,7 +229,7 @@ export default function QuizzesPage() {
               },
               {
                 id: 'q-t2',
-                title: isBn ? 'প্রাথমিক বিজ্ঞান: জীবনের জন্য পানি বিশুদ্ধকরণ' : 'Primary Science: Safe Water & Purification',
+                title: t('quizzes.text_2'),
                 subject: 'Primary Science',
                 questionCount: 5,
                 difficulty: 'easy',
@@ -243,7 +243,7 @@ export default function QuizzesPage() {
           : [
               {
                 id: 'q1',
-                title: isBn ? 'পদার্থবিজ্ঞান ও বলবিদ্যা অধ্যায় কুইজ' : 'Physics & Newton Laws Chapter Quiz',
+                title: t('quizzes.text_3'),
                 subject: 'Physics',
                 questionCount: 10,
                 difficulty: 'mixed',
@@ -256,7 +256,7 @@ export default function QuizzesPage() {
               },
               {
                 id: 'q2',
-                title: isBn ? 'গণিত: বীজগাণিতিক সূত্রাবলী ও প্রয়োগ' : 'Mathematics: Algebraic Formulae Revision',
+                title: t('quizzes.text_4'),
                 subject: 'Mathematics',
                 questionCount: 10,
                 difficulty: 'easy',
@@ -308,15 +308,13 @@ export default function QuizzesPage() {
       }
       setScheduleMsg({
         type: 'success',
-        text: isBn
-          ? 'স্বয়ংক্রিয় কুইজ শিডিউল সেটিংস সফলভাবে সংরক্ষিত হয়েছে!'
-          : 'Auto-quiz schedule settings saved successfully!',
+        text: t('quizzes.text_6'),
       });
       setTimeout(() => setScheduleMsg(null), 5000);
     } catch (err: any) {
       setScheduleMsg({
         type: 'error',
-        text: err.response?.data?.error?.message || (isBn ? 'সেটিংস সংরক্ষণে ব্যর্থ হয়েছে' : 'Failed to save settings'),
+        text: err.response?.data?.error?.message || (t('quizzes.text_7')),
       });
     } finally {
       setSavingSchedule(false);
@@ -345,15 +343,13 @@ export default function QuizzesPage() {
 
       setScheduleMsg({
         type: 'success',
-        text: isBn
-          ? `⚡ আজকের স্বয়ংক্রিয় কুইজ সফলভাবে প্রস্তুত হয়েছে! (${quiz?.title || 'কুইজ'})`
-          : `⚡ Today's auto-quiz generated successfully! (${quiz?.title || 'Quiz'})`,
+        text: t('quizzes.today_s_auto_quiz_generated_successfully', { p0: isBn ? quiz?.title || 'কুইজ' : quiz?.title || 'Quiz' }, `⚡ Today's auto-quiz generated successfully! (${quiz?.title || 'Quiz'})`),
         details: timingInfo,
       });
     } catch (err: any) {
       setScheduleMsg({
         type: 'error',
-        text: err.response?.data?.error?.message || (isBn ? 'স্বয়ংক্রিয় কুইজ তৈরিতে সমস্যা হয়েছে' : 'Failed to generate auto-quiz'),
+        text: err.response?.data?.error?.message || (t('quizzes.text_8')),
       });
     } finally {
       setRunningAutoQuiz(false);
@@ -384,9 +380,7 @@ export default function QuizzesPage() {
               {t('quiz.title', 'AI Quizzes')}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {isBn
-                ? `${childName}-এর জন্য ক্লাস নোট ও ১ দিন আগের পাঠের ওপর স্বয়ংক্রিয় কুইজ প্রস্তুতি`
-                : `Custom quizzes and spaced repetition auto-scheduler for ${childName}`}
+              {t('quizzes.custom_quizzes_and_spaced_repetition_auto_schedu', { p0: childName }, `Custom quizzes and spaced repetition auto-scheduler for ${childName}`)}
             </p>
           </div>
 
@@ -394,14 +388,14 @@ export default function QuizzesPage() {
             {/* Which child these quizzes belong to. The selector also keeps the URL in
                 sync, so `/children/<id>/quizzes/new` targets the same child. */}
             <ChildSelector
-              label={isBn ? 'শিক্ষার্থী' : 'Student'}
+              label={t('quizzes.text_9')}
               className="mr-1"
             />
             {childId && (
             <Link href={`/children/${childId}/quizzes/new`}>
               <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
                 <Plus className="w-4 h-4" />
-                <span>{isBn ? 'ম্যানুয়াল কুইজ তৈরি' : 'Manual Quiz Builder'}</span>
+                <span>{t('quizzes.text_10')}</span>
               </Button>
             </Link>
             )}
@@ -412,7 +406,7 @@ export default function QuizzesPage() {
               className="gap-1.5 text-xs h-9 bg-purple-600 hover:bg-purple-700 text-white shadow-sm shadow-purple-500/20"
             >
               <Zap className="w-4 h-4 fill-amber-300 text-amber-300" />
-              <span>{runningAutoQuiz ? (isBn ? 'প্রস্তুত হচ্ছে...' : 'Generating...') : (isBn ? '⚡ অটো কুইজ এখনই নাও' : 'Run Auto Quiz Now')}</span>
+              <span>{runningAutoQuiz ? (t('quizzes.text_11')) : (t('quizzes.text_12'))}</span>
             </Button>
           </div>
         </div>
@@ -430,16 +424,14 @@ export default function QuizzesPage() {
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <CardTitle className="text-lg sm:text-xl font-black text-foreground">
-                      {isBn ? 'স্বয়ংক্রিয় কুইজ শিডিউলার ব্যবস্থাপনা' : 'Auto Quiz Scheduling Management'}
+                      {t('quizzes.text_13')}
                     </CardTitle>
                     <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold">
-                      {isBn ? '৩য় প্যাকেজ: প্রিমিয়াম ফিচার' : 'Package 3: Premium Feature'}
+                      {t('quizzes.text_14')}
                     </Badge>
                   </div>
                   <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                    {isBn
-                      ? 'সন্তানের স্মৃতি ধরে রাখতে ১ দিন আগের পাঠ ও দুর্বল টপিক থেকে এআই স্বয়ংক্রিয়ভাবে কুইজ তৈরি করে টাইমিং সেট করবে।'
-                      : 'Automatically prepares quizzes from 1-day-old topics with AI dynamic timing allocation.'}
+                    {t('quizzes.text_15')}
                   </CardDescription>
                 </div>
               </div>
@@ -449,17 +441,17 @@ export default function QuizzesPage() {
                 {/* Active / Paused Pill */}
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-card text-xs">
                   <span className="text-muted-foreground font-medium text-[11px]">
-                    {isBn ? 'অবস্থা:' : 'Status:'}
+                    {t('quizzes.text_16')}
                   </span>
                   {autoSchedule.enabled ? (
                     <span className="inline-flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      {isBn ? 'সক্রিয় (Auto Taking ON)' : 'Active (Taking ON)'}
+                      {t('quizzes.auto_taking_on')}
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 font-bold text-muted-foreground">
                       <span className="w-2 h-2 rounded-full bg-muted-foreground" />
-                      {isBn ? 'বন্ধ (Paused)' : 'Paused'}
+                      {t('quizzes.paused')}
                     </span>
                   )}
                 </div>
@@ -476,8 +468,8 @@ export default function QuizzesPage() {
                   }`}
                 >
                   {autoSchedule.enabled
-                    ? (isBn ? 'সাময়িক বন্ধ করুন' : 'Pause Auto-Quiz')
-                    : (isBn ? 'সক্রিয় করুন' : 'Enable Auto-Quiz')}
+                    ? (t('quizzes.text_17'))
+                    : (t('quizzes.text_18'))}
                 </Button>
 
                 {/* Configure Button */}
@@ -488,7 +480,7 @@ export default function QuizzesPage() {
                   className="h-9 text-xs font-bold rounded-xl gap-1.5"
                 >
                   <Settings2 className="w-3.5 h-3.5 text-primary" />
-                  <span>{isBn ? 'কাস্টমাইজ ও সেটিংস' : 'Configure Options'}</span>
+                  <span>{t('quizzes.text_19')}</span>
                   {showConfig ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 </Button>
 
@@ -500,7 +492,7 @@ export default function QuizzesPage() {
                   className="h-9 text-xs font-bold rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-md gap-1.5"
                 >
                   <Zap className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-                  <span>{runningAutoQuiz ? (isBn ? 'কুইজ তৈরি হচ্ছে...' : 'Generating...') : (isBn ? '⚡ আজকের কুইজ এখনই তৈরি করো' : 'Run Today\'s Auto-Quiz')}</span>
+                  <span>{runningAutoQuiz ? (t('quizzes.text_20')) : (t('quizzes.text_21'))}</span>
                 </Button>
               </div>
             </div>
@@ -517,20 +509,20 @@ export default function QuizzesPage() {
                 <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs space-y-1.5">
                   <div className="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-300">
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>{isBn ? 'এআই স্মার্ট টাইমিং বিশ্লেষণ (AI Smart Dynamic Timing Breakdown):' : 'AI Smart Timing Calculation Breakdown:'}</span>
+                    <span>{t('quizzes.ai_smart_dynamic_timing_breakdown')}</span>
                   </div>
                   <div className="grid sm:grid-cols-3 gap-2 pt-1 text-[11px]">
                     <div className="p-2 rounded-lg bg-card border">
-                      <span className="text-muted-foreground block">{isBn ? '📐 গণিত ও বিশ্লেষণমূলক প্রশ্ন:' : '📐 Math & Analytical Questions:'}</span>
+                      <span className="text-muted-foreground block">{t('quizzes.text_22')}</span>
                       <strong className="text-foreground">{toBnNum(scheduleMsg.details.mathCount)}টি × ৩ মিনিট = {toBnNum(scheduleMsg.details.mathCount * 3)} মিনিট</strong>
                     </div>
                     <div className="p-2 rounded-lg bg-card border">
-                      <span className="text-muted-foreground block">{isBn ? '⏱️ তত্ত্বীয় ও মুখস্থ প্রশ্ন:' : '⏱️ Theory & Recall Questions:'}</span>
+                      <span className="text-muted-foreground block">{t('quizzes.text_23')}</span>
                       <strong className="text-foreground">{toBnNum(scheduleMsg.details.nonMathCount)}টি × ৫০ সেকেন্ড = {toBnNum(Math.round((scheduleMsg.details.nonMathCount * 50) / 60))} মিনিট</strong>
                     </div>
                     <div className="p-2 rounded-lg bg-purple-600 text-white font-bold flex flex-col justify-center">
-                      <span className="text-[10px] text-purple-200 block">{isBn ? 'মোট সময় বরাদ্দ:' : 'Total Time Allocated:'}</span>
-                      <span className="text-sm">{toBnNum(scheduleMsg.details.minutes)} {isBn ? 'মিনিট' : 'minutes'}</span>
+                      <span className="text-[10px] text-purple-200 block">{t('quizzes.text_24')}</span>
+                      <span className="text-sm">{toBnNum(scheduleMsg.details.minutes)} {t('quizzes.text_25')}</span>
                     </div>
                   </div>
                 </div>
@@ -546,10 +538,10 @@ export default function QuizzesPage() {
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-extrabold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                     <Layers className="w-4 h-4 text-purple-600" />
-                    <span>{isBn ? '১. পাঠ ও টপিক নির্বাচনের মাধ্যম (Topic Source Selection)' : '1. Topic Source Selection Strategy'}</span>
+                    <span>{t('quizzes.topic_source_selection')}</span>
                   </label>
                   <span className="text-[11px] text-muted-foreground">
-                    {isBn ? 'অভিভাবকের পছন্দ অনুযায়ী এআই প্রশ্ন বাছাই করবে' : 'Select how AI sources questions'}
+                    {t('quizzes.text_26')}
                   </span>
                 </div>
 
@@ -566,19 +558,17 @@ export default function QuizzesPage() {
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <Badge className="bg-purple-600 text-white text-[10px] font-bold">
-                          {isBn ? 'সুপারিশকৃত' : 'Recommended'}
+                          {t('quizzes.text_27')}
                         </Badge>
                         {autoSchedule.topicStrategy === 'one_day_old' && (
                           <Check className="w-4 h-4 text-purple-600" />
                         )}
                       </div>
                       <p className="text-xs font-bold text-foreground">
-                        {isBn ? 'গতকালকের শেখা পাঠ (১ দিন আগে)' : '1-Day-Old Topics (Spaced Repetition)'}
+                        {t('quizzes.text_28')}
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                        {isBn
-                          ? 'স্মৃতিশক্তি স্থায়ী করতে গতকাল স্কুল ও প্রাইভেটে যা শিখেছে, ঠিক ১ দিন পর সেই টপিক থেকে প্রশ্ন তৈরি হবে।'
-                          : 'Generates revision tests strictly from topics taught 24 hours ago for optimal memory consolidation.'}
+                        {t('quizzes.text_29')}
                       </p>
                     </div>
                     <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 mt-2 block">
@@ -598,19 +588,17 @@ export default function QuizzesPage() {
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 font-bold">
-                          {isBn ? 'এআই বিশ্লেষণ' : 'AI Adaptive'}
+                          {t('quizzes.text_30')}
                         </Badge>
                         {autoSchedule.topicStrategy === 'ai_adaptive' && (
                           <Check className="w-4 h-4 text-purple-600" />
                         )}
                       </div>
                       <p className="text-xs font-bold text-foreground">
-                        {isBn ? 'টপিক অনুধাবন ও দুর্বলতা ফোকাস' : 'AI Topic Understanding & Weaknesses'}
+                        {t('quizzes.text_31')}
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                        {isBn
-                          ? 'বিগত দিনের কুইজে যে যে ধারণায় ঘাটতি দেখা গেছে, এআই তা গভীরভাবে বিশ্লেষণ করে সেই দুর্বলতায় বেশি প্রশ্ন দেবে।'
-                          : 'AI assesses topic mastery and crafts quizzes targeting concepts where the student scored lower.'}
+                        {t('quizzes.text_32')}
                       </p>
                     </div>
                     <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 mt-2 block">
@@ -630,19 +618,17 @@ export default function QuizzesPage() {
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <Badge variant="outline" className="text-[10px] border-blue-500/40 text-blue-600 font-bold">
-                          {isBn ? 'নোট ও ওসিআর' : 'OCR Notes'}
+                          {t('quizzes.text_33')}
                         </Badge>
                         {autoSchedule.topicStrategy === 'recent_notes' && (
                           <Check className="w-4 h-4 text-purple-600" />
                         )}
                       </div>
                       <p className="text-xs font-bold text-foreground">
-                        {isBn ? 'সর্বশেষ খাতার নোট ও ওসিআর' : 'Recent Class Notes & OCR'}
+                        {t('quizzes.text_34')}
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                        {isBn
-                          ? 'ক্যামেরায় তোলা সাম্প্রতিক খাতার ছবি ও এআই নোটমেকিংয়ের সারসংক্ষেপ থেকে সুনির্দিষ্ট প্রশ্ন তৈরি হবে।'
-                          : 'Constructs questions directly from scanned handwritten notebooks and teacher board summaries.'}
+                        {t('quizzes.text_35')}
                       </p>
                     </div>
                     <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-2 block">
@@ -662,19 +648,17 @@ export default function QuizzesPage() {
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <Badge variant="outline" className="text-[10px] font-bold">
-                          {isBn ? 'নিয়মিত চক্র' : 'All Subjects'}
+                          {t('quizzes.text_36')}
                         </Badge>
                         {autoSchedule.topicStrategy === 'all_subjects' && (
                           <Check className="w-4 h-4 text-purple-600" />
                         )}
                       </div>
                       <p className="text-xs font-bold text-foreground">
-                        {isBn ? 'সকল বিষয়ের সমন্বিত আবর্তন' : 'All Subjects Rotation'}
+                        {t('quizzes.text_37')}
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                        {isBn
-                          ? 'গণিত, বিজ্ঞান, ব্যাকরণ ইত্যাদি সকল মূল বিষয়ের সমন্বয়ে ভারসাম্যপূর্ণ নিয়মিত প্রশ্নমালা।'
-                          : 'Rotates evenly across curriculum subjects to ensure broad examination readiness.'}
+                        {t('quizzes.text_38')}
                       </p>
                     </div>
                     <span className="text-[10px] font-bold text-muted-foreground mt-2 block">
@@ -690,14 +674,14 @@ export default function QuizzesPage() {
                 <div className="space-y-2.5">
                   <label className="text-xs font-extrabold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                     <BookOpen className="w-4 h-4 text-purple-600" />
-                    <span>{isBn ? '২. প্রশ্নের সংখ্যা (Number of Questions)' : '2. Question Count'}</span>
+                    <span>{t('quizzes.number_of_questions')}</span>
                   </label>
                   <div className="grid grid-cols-4 gap-2">
                     {[
-                      { count: 3, label: isBn ? '৩টি (দ্রুত)' : '3 Qs (Quick)' },
-                      { count: 5, label: isBn ? '৫টি (আদর্শ)' : '5 Qs (Standard)', pop: true },
-                      { count: 8, label: isBn ? '৮টি (গভীর)' : '8 Qs (Deep)' },
-                      { count: 10, label: isBn ? '১০টি (পরীক্ষা)' : '10 Qs (Exam)' },
+                      { count: 3, label: t('quizzes.text_39') },
+                      { count: 5, label: t('quizzes.text_40'), pop: true },
+                      { count: 8, label: t('quizzes.text_41') },
+                      { count: 10, label: t('quizzes.text_42') },
                     ].map((opt) => (
                       <button
                         key={opt.count}
@@ -711,7 +695,7 @@ export default function QuizzesPage() {
                       >
                         {opt.pop && (
                           <span className={`text-[8px] font-extrabold px-1 rounded uppercase tracking-wider ${autoSchedule.questionCount === opt.count ? 'bg-white/20 text-white' : 'bg-purple-500/15 text-purple-700 dark:text-purple-300'}`}>
-                            {isBn ? 'জনপ্রিয়' : 'Best'}
+                            {t('quizzes.text_43')}
                           </span>
                         )}
                         <span>{opt.label}</span>
@@ -724,7 +708,7 @@ export default function QuizzesPage() {
                 <div className="space-y-2.5">
                   <label className="text-xs font-extrabold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                     <Calculator className="w-4 h-4 text-purple-600" />
-                    <span>{isBn ? '৩. বুদ্ধিমান সময় বরাদ্দ (Intelligent Timing Allocation)' : '3. Intelligent Timing Strategy'}</span>
+                    <span>{t('quizzes.intelligent_timing_allocation')}</span>
                   </label>
 
                   <div className="space-y-2">
@@ -740,25 +724,23 @@ export default function QuizzesPage() {
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-extrabold text-foreground flex items-center gap-1.5">
                           <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                          <span>{isBn ? 'এআই স্মার্ট ডায়নামিক টাইমিং (AI Dynamic Smart Timing)' : 'AI Dynamic Smart Timing'}</span>
+                          <span>{t('quizzes.ai_dynamic_smart_timing')}</span>
                         </span>
                         <Badge className="bg-purple-600 text-white text-[9px] font-bold">
-                          {isBn ? 'সুপারিশকৃত' : 'Optimal'}
+                          {t('quizzes.text_27')}
                         </Badge>
                       </div>
                       <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        {isBn
-                          ? '⚡ সাধারণ ও বর্ণনামূলক প্রশ্নে আঁটসাঁট সময় (৫০ সেকেন্ড/প্রশ্ন - দ্রুত স্মরণের জন্য); 🧮 গণিত ও বিশ্লেষণমূলক প্রশ্নে পর্যাপ্ত সময় (৩ মিনিট/প্রশ্ন - খসড়া ও হিসাবের জন্য)।'
-                          : 'Tight time for factual/theory questions (50s each for fast recall); generous time for math/analytical questions (3 mins each for scratchwork).'}
+                        {t('quizzes.text_44')}
                       </p>
                     </div>
 
                     {/* Fixed options */}
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { id: 'fixed_10', label: isBn ? '১০ মিনিট ফিক্সড' : 'Fixed 10m' },
-                        { id: 'fixed_15', label: isBn ? '১৫ মিনিট ফিক্সড' : 'Fixed 15m' },
-                        { id: 'fixed_20', label: isBn ? '২০ মিনিট ফিক্সড' : 'Fixed 20m' },
+                        { id: 'fixed_10', label: t('quizzes.text_45') },
+                        { id: 'fixed_15', label: t('quizzes.text_46') },
+                        { id: 'fixed_20', label: t('quizzes.text_47') },
                       ].map((tOpt) => (
                         <button
                           key={tOpt.id}
@@ -782,7 +764,7 @@ export default function QuizzesPage() {
               <div className="grid sm:grid-cols-2 gap-4 pt-1">
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                    {isBn ? 'প্রতিদিন কুইজ প্রস্তুতির সময় (Trigger Time)' : 'Daily Trigger Time'}
+                    {t('quizzes.trigger_time')}
                   </label>
                   <input
                     type="time"
@@ -791,23 +773,23 @@ export default function QuizzesPage() {
                     className="w-full h-10 border rounded-xl px-3 bg-background text-sm font-semibold"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    {isBn ? 'সন্ধ্যা ৭:৩০ বা পড়ার রুটিন শেষে কুইজ তৈরি হবে' : 'Usually scheduled after evening study routines'}
+                    {t('quizzes.text_48')}
                   </p>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                    {isBn ? 'প্রশ্নের কাঠিন্য মাত্রা (Difficulty)' : 'Difficulty Level'}
+                    {t('quizzes.difficulty')}
                   </label>
                   <select
                     value={autoSchedule.difficulty}
                     onChange={(e) => setAutoSchedule({ ...autoSchedule, difficulty: e.target.value as any })}
                     className="w-full h-10 border rounded-xl px-3 bg-background text-sm font-semibold"
                   >
-                    <option value="mixed">{isBn ? 'মিশ্রিত (সহজ ও মাঝারি সমন্বয় - সুপারিশকৃত)' : 'Mixed (Easy & Medium blend)'}</option>
-                    <option value="easy">{isBn ? 'সহজ (মৌলিক ধারণা ঝালাই)' : 'Easy (Fundamental concepts)'}</option>
-                    <option value="medium">{isBn ? 'মাঝারি (নিয়মিত পরীক্ষার মান)' : 'Medium (Standard exam level)'}</option>
-                    <option value="hard">{isBn ? 'কঠিন (উচ্চতর দক্ষতা ও অলিম্পিয়াড)' : 'Hard (Challenging analytical)'}</option>
+                    <option value="mixed">{t('quizzes.text_49')}</option>
+                    <option value="easy">{t('quizzes.text_50')}</option>
+                    <option value="medium">{t('quizzes.text_51')}</option>
+                    <option value="hard">{t('quizzes.text_52')}</option>
                   </select>
                 </div>
               </div>
@@ -815,7 +797,7 @@ export default function QuizzesPage() {
               {/* Bottom Action */}
               <div className="flex items-center justify-between pt-3 border-t">
                 <span className="text-xs text-muted-foreground">
-                  {isBn ? 'পরিবর্তনগুলো সন্তানের ড্যাশবোর্ডে স্বয়ংক্রিয়ভাবে কার্যকর হবে।' : 'Changes apply automatically to child portal.'}
+                  {t('quizzes.text_53')}
                 </span>
 
                 <div className="flex items-center gap-2">
@@ -825,7 +807,7 @@ export default function QuizzesPage() {
                     onClick={() => setShowConfig(false)}
                     className="h-9 text-xs rounded-xl"
                   >
-                    {isBn ? 'বন্ধ করুন' : 'Close'}
+                    {t('quizzes.text_54')}
                   </Button>
                   <Button
                     type="button"
@@ -834,7 +816,7 @@ export default function QuizzesPage() {
                     className="h-9 text-xs font-bold rounded-xl bg-purple-600 hover:bg-purple-700 text-white gap-1.5 shadow-sm"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>{savingSchedule ? (isBn ? 'সংরক্ষণ হচ্ছে...' : 'Saving...') : (isBn ? 'সেটিংস সংরক্ষণ করুন' : 'Save Settings')}</span>
+                    <span>{savingSchedule ? (t('quizzes.text_55')) : (t('quizzes.text_56'))}</span>
                   </Button>
                 </div>
               </div>
@@ -846,13 +828,13 @@ export default function QuizzesPage() {
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
           <Card className="rounded-2xl border p-4 bg-card/60 backdrop-blur shadow-sm">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {isBn ? 'মোট কুইজ' : 'Total Quizzes'}
+              {t('quizzes.text_57')}
             </p>
             <p className="text-2xl sm:text-3xl font-extrabold text-foreground mt-1">{toBnNum(quizzes.length)}</p>
           </Card>
           <Card className="rounded-2xl border p-4 bg-card/60 backdrop-blur shadow-sm">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {isBn ? 'অ্যাসাইনকৃত' : 'Pending / Assigned'}
+              {t('quizzes.text_58')}
             </p>
             <p className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">
               {toBnNum(assignedCount)}
@@ -860,7 +842,7 @@ export default function QuizzesPage() {
           </Card>
           <Card className="rounded-2xl border p-4 bg-card/60 backdrop-blur shadow-sm">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {isBn ? 'সম্পন্ন' : 'Completed'}
+              {t('quizzes.text_59')}
             </p>
             <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
               {toBnNum(completedCount)}
@@ -881,12 +863,12 @@ export default function QuizzesPage() {
               }`}
             >
               {st === 'all'
-                ? (isBn ? 'সকল কুইজ' : 'All')
+                ? (t('quizzes.text_60'))
                 : st === 'assigned'
-                ? (isBn ? 'অ্যাসাইনকৃত' : 'Assigned')
+                ? (t('quizzes.text_58'))
                 : st === 'completed'
-                ? (isBn ? 'সম্পন্ন' : 'Completed')
-                : (isBn ? 'খসড়া' : 'Draft')}
+                ? (t('quizzes.text_59'))
+                : (t('quizzes.text_61'))}
             </button>
           ))}
         </div>
@@ -897,7 +879,7 @@ export default function QuizzesPage() {
         ) : filteredQuizzes.length === 0 ? (
           <Card className="rounded-2xl border p-12 text-center">
             <p className="text-sm text-muted-foreground">
-              {isBn ? 'কোনো কুইজ পাওয়া যায়নি' : 'No quizzes found.'}
+              {t('quizzes.text_62')}
             </p>
           </Card>
         ) : (
@@ -924,7 +906,7 @@ export default function QuizzesPage() {
                       {isAuto && (
                         <Badge className="bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold gap-1 shadow-2xs">
                           <Zap className="w-3 h-3 fill-amber-300 text-amber-300" />
-                          <span>{isBn ? 'অটো-শিডিউলড' : 'Auto-Scheduled'}</span>
+                          <span>{t('quizzes.text_63')}</span>
                         </Badge>
                       )}
                     </div>
@@ -952,7 +934,7 @@ export default function QuizzesPage() {
                   <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                     <span className="flex items-center gap-1">
                       <Brain className="w-3.5 h-3.5 text-primary" />
-                      {toBnNum(q.questionCount || q.questions?.length || 5)} {isBn ? 'টি প্রশ্ন' : 'Questions'}
+                      {toBnNum(q.questionCount || q.questions?.length || 5)} {t('quizzes.text_64')}
                     </span>
                     <span>•</span>
                     <span className="capitalize">{q.difficulty || 'mixed'}</span>
@@ -973,23 +955,19 @@ export default function QuizzesPage() {
                       <div className="flex items-center justify-between font-semibold text-purple-700 dark:text-purple-300">
                         <span className="flex items-center gap-1">
                           <Sparkles className="w-3 h-3 text-amber-500" />
-                          {isBn ? 'স্মার্ট টাইমিং ও স্পেসড রিপিটেশন' : 'Smart Timing Breakdown'}
+                          {t('quizzes.text_65')}
                         </span>
                         <span className="text-[10px] bg-purple-500/15 px-1.5 py-0.5 rounded font-bold">
-                          {isBn ? '১ দিন আগের পাঠ' : '1-Day-Old'}
+                          {t('quizzes.text_66')}
                         </span>
                       </div>
                       {q.timingBreakdown ? (
                         <p className="text-muted-foreground text-[10px]">
-                          {isBn
-                            ? `গণিত/বিশ্লেষণ: ${toBnNum(q.timingBreakdown.mathCount)}টি (৩ মি./প্রশ্ন) • সাধারণ: ${toBnNum(q.timingBreakdown.nonMathCount)}টি (৫০ সে./প্রশ্ন)`
-                            : `Math: ${q.timingBreakdown.mathCount} (3m/q) • Non-Math: ${q.timingBreakdown.nonMathCount} (50s/q)`}
+                          {t('quizzes.math_3m_q_non_math_50s_q', { p0: isBn ? toBnNum(q.timingBreakdown.mathCount) : q.timingBreakdown.mathCount, p1: isBn ? toBnNum(q.timingBreakdown.nonMathCount) : q.timingBreakdown.nonMathCount }, `Math: ${q.timingBreakdown.mathCount} (3m/q) • Non-Math: ${q.timingBreakdown.nonMathCount} (50s/q)`)}
                         </p>
                       ) : (
                         <p className="text-muted-foreground text-[10px]">
-                          {isBn
-                            ? 'গণিতে পর্যাপ্ত সময় ও বর্ণনামূলক প্রশ্নে আঁটসাঁট সময় বরাদ্দ'
-                            : 'Generous time for math, tight time for recall'}
+                          {t('quizzes.text_67')}
                         </p>
                       )}
                     </div>
@@ -1000,7 +978,7 @@ export default function QuizzesPage() {
                     <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs">
                       <span className="font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
                         <Award className="w-4 h-4" />
-                        {isBn ? 'অর্জিত স্কোর' : 'Score Achieved'}
+                        {t('quizzes.text_68')}
                       </span>
                       <strong className="text-emerald-700 dark:text-emerald-300 font-extrabold text-sm">
                         {toBnNum(q.score)}/{toBnNum(q.maxScore || 10)} ({toBnNum(Math.round(((q.score || 0) / (q.maxScore || 10)) * 100))}%)
@@ -1014,7 +992,7 @@ export default function QuizzesPage() {
                       <Link href={`/attempts/${q.attemptId || 'att-1'}/results`} className="w-full">
                         <Button variant="outline" size="sm" className="w-full text-xs h-8 gap-1.5">
                           <Eye className="w-3.5 h-3.5" />
-                          <span>{isBn ? 'ফলাফল ও এআই বিশ্লেষণ' : 'View AI Results'}</span>
+                          <span>{t('quizzes.text_69')}</span>
                         </Button>
                       </Link>
                     ) : (
@@ -1022,12 +1000,12 @@ export default function QuizzesPage() {
                         <Link href={`/quizzes/${q.id}`} className="flex-1">
                           <Button variant="outline" size="sm" className="w-full text-xs h-8 gap-1">
                             <Eye className="w-3.5 h-3.5" />
-                            <span>{isBn ? 'প্রশ্ন পর্যালোচনা' : 'Preview'}</span>
+                            <span>{t('quizzes.text_70')}</span>
                           </Button>
                         </Link>
                         <div className="flex-1 flex items-center justify-center">
                           <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1.5 rounded-lg border border-amber-500/20 w-full text-center">
-                            {isBn ? 'শিক্ষার্থীর পেন্ডিং' : 'Student Pending'}
+                            {t('quizzes.text_71')}
                           </span>
                         </div>
                       </div>

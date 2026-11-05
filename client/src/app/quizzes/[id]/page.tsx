@@ -50,7 +50,7 @@ export default function QuizDetailPage() {
         setQuiz(null);
         setLoadError(
           err?.response?.data?.error?.message ||
-            (isBn ? 'কুইজটি লোড করা যায়নি।' : 'Could not load this quiz.')
+            (t('quizDetail.text'))
         );
       })
       .finally(() => {
@@ -73,7 +73,7 @@ export default function QuizDetailPage() {
       // "Assigned to Child" even though the server had rejected the request.
       setAssignError(
         err?.response?.data?.error?.message ||
-          (isBn ? 'কুইজটি অ্যাসাইন করা যায়নি।' : 'Could not assign this quiz.')
+          (t('quizDetail.text_2'))
       );
     }
   };
@@ -94,13 +94,13 @@ export default function QuizDetailPage() {
             <Link href="/quizzes">
               <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>{isBn ? 'কুইজে ফিরে যান' : 'Back to Quizzes'}</span>
+                <span>{t('quizDetail.text_3')}</span>
               </Button>
             </Link>
           </div>
           <Card className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 space-y-2">
             <p className="text-sm font-bold text-destructive">
-              {isBn ? 'কুইজটি লোড করা যায়নি' : 'Could not load this quiz'}
+              {t('quizDetail.text_4')}
             </p>
             <p className="text-xs text-muted-foreground">{loadError}</p>
           </Card>

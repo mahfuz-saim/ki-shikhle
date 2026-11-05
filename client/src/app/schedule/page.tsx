@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { AppShell } from '@/components/layout/app-shell';
 import { useAuth } from '@/components/auth/auth-context';
-import { useI18n } from '@/lib/i18n-context';
+import { useI18n, type Translator } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
 import { demoProfileOf, type DemoProfile } from '@/lib/child-scope';
@@ -98,16 +98,24 @@ function getWeekOffsetForDate(target: Date, base: Date = new Date()): number {
   return Math.round(diffTime / (7 * 86400000));
 }
 
-function formatFullDate(date: Date, isBn: boolean): string {
+/**
+ * The full date, in the locale's format.
+ *
+ * `t` is passed in rather than read from `useI18n()`: this is a module-level
+ * function, and a hook cannot be called outside a component.
+ */
+function formatFullDate(date: Date, isBn: boolean, t: Translator): string {
   const dayObj = WEEKDAYS[date.getDay()];
   const dayName = isBn ? dayObj.fullBn : dayObj.fullEn;
   const monthName = isBn ? BN_MONTHS[date.getMonth()] : EN_MONTHS[date.getMonth()];
   const dateNum = isBn ? toBnNum(date.getDate()) : date.getDate();
   const yearNum = isBn ? toBnNum(date.getFullYear()) : date.getFullYear();
 
-  return isBn
-    ? `${dayName}, ${dateNum} ${monthName} ${yearNum}`
-    : `${dayName}, ${monthName} ${dateNum}, ${yearNum}`;
+  return t(
+    'schedule.full_date',
+    { p0: dayName, p1: dateNum, p2: monthName, p3: yearNum },
+    `${dayName}, ${monthName} ${dateNum}, ${yearNum}`
+  );
 }
 
 /**
@@ -123,38 +131,43 @@ function completionKey(date: string, startTime: string): string {
 }
 
 /**
- * The demo routine fixtures. Selected by the server-assigned `demoProfile` —
- * the ids moved to UUIDs, so `childId === 'demo-child-2'` never matched and
- * every demo child saw Rahim's timetable.
+ * The demo timetable for a child profile.
+ *
+ * Selected by the server-assigned `demoProfile` — the ids moved to UUIDs, so
+ * `childId === 'demo-child-2'` never matched and every demo child saw Rahim's
+ * timetable.
+ *
+ * `t` is passed in rather than read from `useI18n()`: this is a module-level
+ * function, and a hook cannot be called outside a component.
  */
-function getDefaultRoutines(profile: DemoProfile | null, isBn: boolean) {
+function getDefaultRoutines(profile: DemoProfile | null, isBn: boolean, t: Translator) {
   if (profile === 'tasnim') {
     return [
-      { id: 'r-t-p1', name: isBn ? '১ম পিরিয়ড: প্রাথমিক বাংলা' : '1st Period: Primary Bangla', periodName: '১ম পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:30', durationMin: 45, subject: 'Bangla', teacher: 'ফরিদা ইয়াসমিন ম্যাডাম' },
-      { id: 'r-t-p2', name: isBn ? '২য় পিরিয়ড: প্রাথমিক ইংরেজি' : '2nd Period: Primary English', periodName: '২য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:15', durationMin: 45, subject: 'English', teacher: 'সায়মা সুলতানা ম্যাডাম' },
-      { id: 'r-t-p3', name: isBn ? '৩য় পিরিয়ড: প্রাথমিক গণিত' : '3rd Period: Primary Math', periodName: '৩য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '11:15', durationMin: 45, subject: 'Mathematics', teacher: 'তানিয়া রহমান ম্যাডাম' },
-      { id: 'r-t1', name: isBn ? 'প্রাথমিক গণিত প্রাইভেট' : 'Elementary Math Tuition', periodName: 'প্রাইভেট', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:00', durationMin: 60, subject: 'Mathematics', teacher: 'রোকেয়া আপা' },
-      { id: 'r-t2', name: isBn ? 'ইংরেজি টিউটর' : 'English Tutor', periodName: 'প্রাইভেট', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 45, subject: 'English', teacher: 'শরীফ স্যার' },
-      { id: 'r-t3', name: isBn ? 'সন্ধ্যায় হোমওয়ার্ক ও সেলফ স্টাডি' : 'Evening Homework & Self-Study', periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '18:30', durationMin: 75, subject: 'Self-Study' },
+      { id: 'r-t-p1', name: t('schedule.text'), periodName: '১ম পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:30', durationMin: 45, subject: 'Bangla', teacher: 'ফরিদা ইয়াসমিন ম্যাডাম' },
+      { id: 'r-t-p2', name: t('schedule.text_2'), periodName: '২য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:15', durationMin: 45, subject: 'English', teacher: 'সায়মা সুলতানা ম্যাডাম' },
+      { id: 'r-t-p3', name: t('schedule.text_3'), periodName: '৩য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '11:15', durationMin: 45, subject: 'Mathematics', teacher: 'তানিয়া রহমান ম্যাডাম' },
+      { id: 'r-t1', name: t('schedule.text_4'), periodName: 'প্রাইভেট', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:00', durationMin: 60, subject: 'Mathematics', teacher: 'রোকেয়া আপা' },
+      { id: 'r-t2', name: t('schedule.text_5'), periodName: 'প্রাইভেট', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 45, subject: 'English', teacher: 'শরীফ স্যার' },
+      { id: 'r-t3', name: t('schedule.text_6'), periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '18:30', durationMin: 75, subject: 'Self-Study' },
     ];
   }
   if (profile === 'fahim') {
     return [
-      { id: 'r-f-c1', name: isBn ? '১ম পিরিয়ড: পদার্থবিজ্ঞান ১ম পত্র' : '1st Period: Physics 1st Paper', periodName: '১ম পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '08:30', durationMin: 50, subject: 'Physics', teacher: 'ড. মাহবুব স্যার' },
-      { id: 'r-f-c2', name: isBn ? '২য় পিরিয়ড: রসায়ন ১ম পত্র' : '2nd Period: Chemistry 1st Paper', periodName: '২য় পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '09:20', durationMin: 50, subject: 'Chemistry', teacher: 'তাহমিনা ম্যাডাম' },
-      { id: 'r-f-c3', name: isBn ? '৩য় পিরিয়ড: উচ্চতর গণিত ১ম পত্র' : '3rd Period: Higher Math 1st Paper', periodName: '৩য় পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '10:10', durationMin: 50, subject: 'Higher Mathematics', teacher: 'এনামুল স্যার' },
-      { id: 'r-f1', name: isBn ? 'পদার্থবিজ্ঞান কোচিং — গতিবিদ্যা' : 'Physics Coaching', periodName: 'কোচিং', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:30', durationMin: 75, subject: 'Physics', teacher: 'আহমেদ স্যার' },
-      { id: 'r-f2', name: isBn ? 'রসায়ন প্রাইভেট' : 'Chemistry Tuition', periodName: 'প্রাইভেট', source: 'tuition', weekdays: [1, 3], startTime: '17:00', durationMin: 60, subject: 'Chemistry', teacher: 'কামরুল স্যার' },
-      { id: 'r-f3', name: isBn ? 'উচ্চতর গণিত সেলফ স্টাডি' : 'Higher Math Self-Study', periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:30', durationMin: 60, subject: 'Higher Mathematics' },
+      { id: 'r-f-c1', name: t('schedule.text_7'), periodName: '১ম পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '08:30', durationMin: 50, subject: 'Physics', teacher: 'ড. মাহবুব স্যার' },
+      { id: 'r-f-c2', name: t('schedule.text_8'), periodName: '২য় পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '09:20', durationMin: 50, subject: 'Chemistry', teacher: 'তাহমিনা ম্যাডাম' },
+      { id: 'r-f-c3', name: t('schedule.text_9'), periodName: '৩য় পিরিয়ড', source: 'college', weekdays: [0, 1, 2, 3, 4], startTime: '10:10', durationMin: 50, subject: 'Higher Mathematics', teacher: 'এনামুল স্যার' },
+      { id: 'r-f1', name: t('schedule.text_10'), periodName: 'কোচিং', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:30', durationMin: 75, subject: 'Physics', teacher: 'আহমেদ স্যার' },
+      { id: 'r-f2', name: t('schedule.text_11'), periodName: 'প্রাইভেট', source: 'tuition', weekdays: [1, 3], startTime: '17:00', durationMin: 60, subject: 'Chemistry', teacher: 'কামরুল স্যার' },
+      { id: 'r-f3', name: t('schedule.text_12'), periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:30', durationMin: 60, subject: 'Higher Mathematics' },
     ];
   }
   return [
-    { id: 'r-r-p1', name: isBn ? '১ম পিরিয়ড: বাংলা ১ম পত্র' : '1st Period: Bangla 1st Paper', periodName: '১ম পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:00', durationMin: 45, subject: 'Bangla', teacher: 'কবির আহমেদ স্যার' },
-    { id: 'r-r-p2', name: isBn ? '২য় পিরিয়ড: ইংরেজি ১ম পত্র' : '2nd Period: English 1st Paper', periodName: '২য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:45', durationMin: 45, subject: 'English', teacher: 'নাসরিন সুলতানা ম্যাডাম' },
-    { id: 'r-r-p3', name: isBn ? '৩য় পিরিয়ড: সাধারণ গণিত' : '3rd Period: Mathematics', periodName: '৩য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:30', durationMin: 45, subject: 'Mathematics', teacher: 'আবুল হোসেন স্যার' },
-    { id: 'r1', name: isBn ? 'গণিত প্রাইভেট — রহিম স্যার' : 'Math Tuition – Rahim Sir', periodName: 'প্রাইভেট', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:00', durationMin: 90, subject: 'Mathematics', teacher: 'রহিম স্যার' },
-    { id: 'r2', name: isBn ? 'পদার্থবিজ্ঞান কোচিং' : 'Physics Coaching', periodName: 'কোচিং', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 60, subject: 'Science', teacher: 'আহমেদ স্যার' },
-    { id: 'r3', name: isBn ? 'সন্ধ্যায় সেলফ স্টাডি ও রিভিশন' : 'Evening Self-Study & Revision', periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:00', durationMin: 90, subject: 'Self-Study' },
+    { id: 'r-r-p1', name: t('schedule.text_13'), periodName: '১ম পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:00', durationMin: 45, subject: 'Bangla', teacher: 'কবির আহমেদ স্যার' },
+    { id: 'r-r-p2', name: t('schedule.text_14'), periodName: '২য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '09:45', durationMin: 45, subject: 'English', teacher: 'নাসরিন সুলতানা ম্যাডাম' },
+    { id: 'r-r-p3', name: t('schedule.text_15'), periodName: '৩য় পিরিয়ড', source: 'school', weekdays: [0, 1, 2, 3, 4], startTime: '10:30', durationMin: 45, subject: 'Mathematics', teacher: 'আবুল হোসেন স্যার' },
+    { id: 'r1', name: t('schedule.text_16'), periodName: 'প্রাইভেট', source: 'tuition', weekdays: [0, 2, 4], startTime: '16:00', durationMin: 90, subject: 'Mathematics', teacher: 'রহিম স্যার' },
+    { id: 'r2', name: t('schedule.text_17'), periodName: 'কোচিং', source: 'tuition', weekdays: [1, 3], startTime: '17:30', durationMin: 60, subject: 'Science', teacher: 'আহমেদ স্যার' },
+    { id: 'r3', name: t('schedule.text_18'), periodName: 'সেলফ স্টাডি', source: 'self_study', weekdays: [0, 1, 2, 3, 4, 5, 6], startTime: '20:00', durationMin: 90, subject: 'Self-Study' },
   ];
 }
 
@@ -181,11 +194,16 @@ export default function SchedulePage() {
    * `isBn` was a dependency of `loadRoutines`, so switching the UI language
    * re-fetched the timetable. The locale only affects the *copy* of the demo
    * fixture, so it is read at call time.
+   *
+   * `t` is held the same way: it is a new function whenever the locale changes, and
+   * putting it in the dependency list would re-fetch on every language toggle.
    */
   const isBnRef = useRef(isBn);
+  const tRef = useRef(t);
   useEffect(() => {
     isBnRef.current = isBn;
-  }, [isBn]);
+    tRef.current = t;
+  }, [isBn, t]);
 
   // Date and Slider State
   const today = useMemo(() => new Date(), []);
@@ -307,13 +325,13 @@ export default function SchedulePage() {
         setRoutines(list);
       } else {
         // Only the demo tenant has a curated timetable fixture.
-        setRoutines(isDemoChild ? getDefaultRoutines(demoProfile, isBnRef.current) : []);
+        setRoutines(isDemoChild ? getDefaultRoutines(demoProfile, isBnRef.current, tRef.current) : []);
       }
     } catch {
-      setRoutines(isDemoChild ? getDefaultRoutines(demoProfile, isBnRef.current) : []);
+      setRoutines(isDemoChild ? getDefaultRoutines(demoProfile, isBnRef.current, tRef.current) : []);
     }
-    // `isBn` is deliberately NOT a dependency — it only affects the copy of the
-    // demo fixture, and including it re-fetched the timetable on every locale
+    // `isBn` and `t` are deliberately NOT dependencies — they only affect the copy of
+    // the demo fixture, and including them re-fetched the timetable on every locale
     // toggle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [childId, isDemoChild, demoProfile]);
@@ -418,9 +436,7 @@ export default function SchedulePage() {
         // The server is the source of truth — put the checkbox back.
         saveCompletedMap(completedMap);
         setMsg(
-          isBn
-            ? 'সম্পন্নের অবস্থা সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।'
-            : 'Could not save the completion. Please try again.'
+          t('schedule.text_19')
         );
         return;
       }
@@ -437,9 +453,7 @@ export default function SchedulePage() {
 
       if (isNowAllDone) {
         setMsg(
-          isBn
-            ? '🎉 আজকের সব শিডিউল সম্পন্ন হয়েছে! চমৎকার কাজ।'
-            : "🎉 All of today's schedule is now complete! Great job."
+          t('schedule.all_of_today_s_schedule_is_now_complete_great_jo')
         );
       }
     }
@@ -505,7 +519,7 @@ export default function SchedulePage() {
         durationMin: 90,
         startsOn: todayStr,
       });
-      setMsg(isBn ? 'রুটিন সফলভাবে তৈরি হয়েছে' : 'Routine created successfully');
+      setMsg(t('schedule.text_20'));
     } catch {
       setRoutines((prev) => [...prev, { id: 'r-' + Date.now(), ...form }]);
       setCreateModalOpen(false);
@@ -540,7 +554,7 @@ export default function SchedulePage() {
       }
       await loadSchedule();
       setRescheduleModalOpen(false);
-      setMsg(isBn ? 'সেশন পুনর্নির্ধারণ করা হয়েছে' : 'Session rescheduled successfully');
+      setMsg(t('schedule.text_21'));
     } catch {
       setRescheduleModalOpen(false);
     } finally {
@@ -549,7 +563,7 @@ export default function SchedulePage() {
   };
 
   const handleDeleteRoutine = async (id: string) => {
-    if (!confirm(isBn ? 'এই রুটিনটি মুছে ফেলতে চান?' : 'Delete this routine?')) return;
+    if (!confirm(t('schedule.text_22'))) return;
     try {
       await api.delete(`/routines/${id}`);
       loadRoutines();
@@ -660,30 +674,24 @@ export default function SchedulePage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-base sm:text-lg font-extrabold text-foreground tracking-tight">
-                    {isBn
-                      ? `${BN_MONTHS[weekDates[3].getMonth()]} ${toBnNum(weekDates[3].getFullYear())}`
-                      : `${EN_MONTHS[weekDates[3].getMonth()]} ${weekDates[3].getFullYear()}`}
+                    {t('schedule.text_2', { p0: isBn ? BN_MONTHS[weekDates[3].getMonth()] : EN_MONTHS[weekDates[3].getMonth()], p1: isBn ? toBnNum(weekDates[3].getFullYear()) : weekDates[3].getFullYear() }, `${EN_MONTHS[weekDates[3].getMonth()]} ${weekDates[3].getFullYear()}`)}
                   </h2>
                   {weekOffset !== 0 && (
                     <Badge variant="outline" className="text-[10px] font-semibold text-muted-foreground">
                       {weekOffset > 0
-                        ? isBn
-                          ? `+${toBnNum(weekOffset)} সপ্তাহ`
-                          : `+${weekOffset} wk`
-                        : isBn
-                        ? `${toBnNum(weekOffset)} সপ্তাহ`
-                        : `${weekOffset} wk`}
+                        ? t('schedule.wk', { p0: isBn ? toBnNum(weekOffset) : weekOffset }, `+${weekOffset} wk`)
+                        : t('schedule.wk_2', { p0: isBn ? toBnNum(weekOffset) : weekOffset }, `${weekOffset} wk`)}
                     </Badge>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground font-medium">
-                  {isBn
-                    ? `${toBnNum(weekDates[0].getDate())} ${BN_MONTHS[weekDates[0].getMonth()]} – ${toBnNum(
+                  {t('schedule.text_3', { p0: isBn ? toBnNum(weekDates[0].getDate()) : EN_MONTHS[weekDates[0].getMonth()].slice(0, 3), p1: isBn ? BN_MONTHS[weekDates[0].getMonth()] : weekDates[0].getDate(), p2: isBn ? toBnNum(
                         weekDates[6].getDate()
-                      )} ${BN_MONTHS[weekDates[6].getMonth()]}`
-                    : `${EN_MONTHS[weekDates[0].getMonth()].slice(0, 3)} ${weekDates[0].getDate()} – ${EN_MONTHS[
+                      ) : EN_MONTHS[
                         weekDates[6].getMonth()
-                      ].slice(0, 3)} ${weekDates[6].getDate()}`}
+                      ].slice(0, 3), p3: isBn ? BN_MONTHS[weekDates[6].getMonth()] : weekDates[6].getDate() }, `${EN_MONTHS[weekDates[0].getMonth()].slice(0, 3)} ${weekDates[0].getDate()} – ${EN_MONTHS[
+                        weekDates[6].getMonth()
+                      ].slice(0, 3)} ${weekDates[6].getDate()}`)}
                 </p>
               </div>
             </div>
@@ -695,7 +703,7 @@ export default function SchedulePage() {
                 size="sm"
                 onClick={() => setWeekOffset((prev) => prev - 1)}
                 className="h-8 w-8 p-0 rounded-xl"
-                title={isBn ? 'পূর্ববর্তী সপ্তাহ' : 'Previous week'}
+                title={t('schedule.text_23')}
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -706,7 +714,7 @@ export default function SchedulePage() {
                 onClick={goToToday}
                 className="h-8 px-3 rounded-xl text-xs font-bold gap-1.5 transition-all"
               >
-                <span>{isBn ? 'আজ' : 'Today'}</span>
+                <span>{t('schedule.text_24')}</span>
                 {selectedDate !== todayStr && (
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block animate-pulse" />
                 )}
@@ -717,7 +725,7 @@ export default function SchedulePage() {
                 size="sm"
                 onClick={() => setWeekOffset((prev) => prev + 1)}
                 className="h-8 w-8 p-0 rounded-xl"
-                title={isBn ? 'পরবর্তী সপ্তাহ' : 'Next week'}
+                title={t('schedule.text_25')}
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -731,7 +739,7 @@ export default function SchedulePage() {
                     if (e.target.value) handleSelectDate(e.target.value);
                   }}
                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                  title={isBn ? 'যেকোনো তারিখ নির্বাচন করুন' : 'Pick any date'}
+                  title={t('schedule.text_26')}
                 />
                 <Button
                   variant="outline"
@@ -739,7 +747,7 @@ export default function SchedulePage() {
                   className="h-8 px-2.5 rounded-xl text-xs gap-1.5 text-muted-foreground hover:text-foreground"
                 >
                   <CalendarCheck className="w-3.5 h-3.5 text-primary" />
-                  <span className="hidden sm:inline font-semibold">{isBn ? 'তারিখ নির্বাচন' : 'Pick Date'}</span>
+                  <span className="hidden sm:inline font-semibold">{t('schedule.text_27')}</span>
                 </Button>
               </div>
             </div>
@@ -774,7 +782,7 @@ export default function SchedulePage() {
                         isSelected ? 'bg-amber-400 text-black' : 'bg-primary text-primary-foreground'
                       }`}
                     >
-                      {isBn ? 'আজ' : 'Today'}
+                      {t('schedule.text_24')}
                     </span>
                   )}
 
@@ -801,16 +809,10 @@ export default function SchedulePage() {
                     }`}
                   >
                     {isDone
-                      ? isBn
-                        ? 'সম্পূর্ণ ✓'
-                        : 'Done ✓'
+                      ? t('schedule.text_28')
                       : daySessions.length > 0
-                      ? isBn
-                        ? `${toBnNum(daySessions.length)} ক্লাস`
-                        : `${daySessions.length} cls`
-                      : isBn
-                      ? 'ছুটি'
-                      : 'Off'}
+                      ? t('schedule.cls', { p0: isBn ? toBnNum(daySessions.length) : daySessions.length }, `${daySessions.length} cls`)
+                      : t('schedule.text_29')}
                   </span>
                 </button>
               );
@@ -829,14 +831,10 @@ export default function SchedulePage() {
               </div>
               <div>
                 <p className="text-sm font-bold">
-                  {isBn
-                    ? 'আজকের সব শিডিউল সম্পন্ন হয়েছে! আগামীকালের রুটিন প্রদর্শিত হচ্ছে।'
-                    : "Today's schedule is 100% completed! Showing tomorrow's routine."}
+                  {t('schedule.today_s_schedule_is_100_completed_showing_tomorr')}
                 </p>
                 <p className="text-xs opacity-80 mt-0.5">
-                  {isBn
-                    ? 'আজকের সব ক্লাস সম্পন্ন হয়েছে। আগামীকালের ক্লাসের রুটিন ও প্রস্তুতি নিচে দেখুন।'
-                    : 'All sessions for today are complete. Review upcoming sessions and lesson preparation for tomorrow.'}
+                  {t('schedule.text_30')}
                 </p>
               </div>
             </div>
@@ -846,7 +844,7 @@ export default function SchedulePage() {
               onClick={() => handleSelectDate(todayStr)}
               className="h-8 text-xs font-bold border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-900 dark:text-emerald-100 shrink-0"
             >
-              {isBn ? 'আজকের রুটিন দেখুন' : "View Today's Routine"}
+              {t('schedule.view_today_s_routine')}
             </Button>
           </div>
         )}
@@ -860,29 +858,25 @@ export default function SchedulePage() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-lg sm:text-2xl font-extrabold text-foreground tracking-tight">
-                  {formatFullDate(selectedDateObj, isBn)}
+                  {formatFullDate(selectedDateObj, isBn, t)}
                 </h2>
                 {selectedDate === todayStr && (
                   <Badge className="bg-primary text-primary-foreground text-[10px] font-extrabold px-2 py-0.5">
-                    {isBn ? 'আজকের রুটিন' : "Today's Routine"}
+                    {t('schedule.today_s_routine')}
                   </Badge>
                 )}
                 {selectedDate === tomorrowStr && (
                   <Badge className="bg-amber-500 text-black text-[10px] font-extrabold px-2 py-0.5">
-                    {isBn ? 'আগামীকালের রুটিন' : "Tomorrow's Routine"}
+                    {t('schedule.tomorrow_s_routine')}
                   </Badge>
                 )}
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                 {selectedSessions.length > 0
-                  ? isBn
-                    ? `মোট ${toBnNum(selectedSessions.length)}টি ক্লাস/সেশন • আনুমানিক ${toBnNum(
+                  ? t('schedule.session_s_scheduled_approx_mins_total', { p0: isBn ? toBnNum(selectedSessions.length) : selectedSessions.length, p1: isBn ? toBnNum(
                         totalMinutesInSelected
-                      )} মিনিট সময়সূচি`
-                    : `${selectedSessions.length} session(s) scheduled • approx ${totalMinutesInSelected} mins total`
-                  : isBn
-                  ? 'এই দিনে কোনো নিয়মিত ক্লাস বা সেশন নির্ধারিত নেই'
-                  : 'No classes scheduled for this day'}
+                      ) : totalMinutesInSelected }, `${selectedSessions.length} session(s) scheduled • approx ${totalMinutesInSelected} mins total`)
+                  : t('schedule.text_31')}
               </p>
             </div>
 
@@ -890,9 +884,7 @@ export default function SchedulePage() {
               <div className="flex items-center gap-3 bg-card p-2 px-3 rounded-2xl border shadow-xs">
                 <div className="text-right">
                   <span className="text-xs font-bold text-foreground block">
-                    {isBn
-                      ? `${toBnNum(completedInSelected)}/${toBnNum(selectedSessions.length)} সম্পন্ন`
-                      : `${completedInSelected}/${selectedSessions.length} Completed`}
+                    {t('schedule.completed', { p0: isBn ? toBnNum(completedInSelected) : completedInSelected, p1: isBn ? toBnNum(selectedSessions.length) : selectedSessions.length }, `${completedInSelected}/${selectedSessions.length} Completed`)}
                   </span>
                   <span className="text-[10px] text-muted-foreground font-semibold">
                     {Math.round((completedInSelected / selectedSessions.length) * 100)}%
@@ -917,12 +909,10 @@ export default function SchedulePage() {
                 <GraduationCap className="w-7 h-7" />
               </div>
               <h3 className="text-base sm:text-lg font-bold text-foreground">
-                {isBn ? 'এই দিনে কোনো ক্লাস নির্ধারিত নেই' : 'No classes scheduled for this day'}
+                {t('schedule.text_32')}
               </h3>
               <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
-                {isBn
-                  ? 'এই বারে কোনো স্কুল পিরিয়ড বা প্রাইভেট ক্লাস নেই। চাইলে নিচের বাটনে ক্লিক করে নতুন রুটিন যোগ করতে পারেন।'
-                  : 'There are no sessions scheduled for this day. You can add a period or study routine below.'}
+                {t('schedule.text_33')}
               </p>
               <div className="pt-2">
                 <Button
@@ -934,9 +924,7 @@ export default function SchedulePage() {
                 >
                   <Plus className="w-4 h-4" />
                   <span>
-                    {isBn
-                      ? `${WEEKDAYS[selectedDateObj.getDay()].bn} বারে রুটিন যোগ করুন`
-                      : `Add routine for ${WEEKDAYS[selectedDateObj.getDay()].en}`}
+                    {t('schedule.add_routine_for', { p0: isBn ? WEEKDAYS[selectedDateObj.getDay()].bn : WEEKDAYS[selectedDateObj.getDay()].en }, `Add routine for ${WEEKDAYS[selectedDateObj.getDay()].en}`)}
                   </span>
                 </Button>
               </div>
@@ -965,7 +953,7 @@ export default function SchedulePage() {
                           {/* Period Badge */}
                           <Badge className="bg-primary/15 text-primary border-primary/30 font-bold text-[11px] px-2.5 py-0.5">
                             {session.periodName ||
-                              (isBn ? `${toBnNum(idx + 1)}ম পিরিয়ড` : `Period ${idx + 1}`)}
+                              (t('schedule.period', { p0: isBn ? toBnNum(idx + 1) : idx + 1 }, `Period ${idx + 1}`))}
                           </Badge>
 
                           {/* Time Badge */}
@@ -974,9 +962,7 @@ export default function SchedulePage() {
                             <span>{session.startTime}</span>
                             <span>•</span>
                             <span>
-                              {isBn
-                                ? `${toBnNum(session.durationMin || 45)} মিনিট`
-                                : `${session.durationMin || 45}m`}
+                              {t('schedule.m', { p0: isBn ? toBnNum(session.durationMin || 45) : session.durationMin || 45 }, `${session.durationMin || 45}m`)}
                             </span>
                           </div>
 
@@ -994,18 +980,18 @@ export default function SchedulePage() {
                             }`}
                           >
                             {session.source === 'school'
-                              ? isBn ? '🏫 স্কুল' : 'School'
+                              ? t('schedule.text_34')
                               : session.source === 'college'
-                              ? isBn ? '🏛️ কলেজ' : 'College'
+                              ? t('schedule.text_35')
                               : session.source === 'tuition'
-                              ? isBn ? '📚 টিউশন/কোচিং' : 'Tuition'
-                              : isBn ? '📖 সেলফ-স্টাডি' : 'Self-Study'}
+                              ? t('schedule.text_36')
+                              : t('schedule.text_37')}
                           </Badge>
 
                           {/* Rescheduled Badge */}
                           {isRescheduled && (
                             <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold">
-                              {isBn ? 'পুনর্নির্ধারিত' : 'Rescheduled'}
+                              {t('schedule.text_38')}
                             </Badge>
                           )}
                         </div>
@@ -1030,7 +1016,7 @@ export default function SchedulePage() {
                               )}
                               {session.room && (
                                 <span className="text-muted-foreground/70">
-                                  • {isBn ? `কক্ষ: ${session.room}` : `Room: ${session.room}`}
+                                  • {t('schedule.room', { p0: session.room }, `Room: ${session.room}`)}
                                 </span>
                               )}
                             </p>
@@ -1051,7 +1037,7 @@ export default function SchedulePage() {
                           }`}
                         >
                           <Check className={`w-3.5 h-3.5 stroke-[3] ${isCompleted ? 'text-emerald-600' : ''}`} />
-                          <span>{isCompleted ? (isBn ? 'সম্পন্ন ✓' : 'Completed ✓') : (isBn ? 'সম্পন্ন করুন' : 'Mark Done')}</span>
+                          <span>{isCompleted ? (t('schedule.text_39')) : (t('schedule.text_40'))}</span>
                         </Button>
 
                         <Button
@@ -1059,10 +1045,10 @@ export default function SchedulePage() {
                           variant="outline"
                           onClick={() => openRescheduleModal(session)}
                           className="text-xs h-9 px-3 rounded-xl gap-1 text-muted-foreground hover:text-foreground"
-                          title={isBn ? 'সেশন পুনর্নির্ধারণ' : 'Reschedule'}
+                          title={t('schedule.text_41')}
                         >
                           <RefreshCw className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">{isBn ? 'পুনর্নির্ধারণ' : 'Reschedule'}</span>
+                          <span className="hidden sm:inline">{t('schedule.text_42')}</span>
                         </Button>
                       </div>
                     </div>
@@ -1083,9 +1069,9 @@ export default function SchedulePage() {
                 <BookOpen className="w-4 h-4" />
               </div>
               <div>
-                <span>{isBn ? 'সকল নিয়মিত রুটিনসমূহ পরিচালনা' : 'Manage All Recurring Routines'}</span>
+                <span>{t('schedule.text_43')}</span>
                 <span className="text-xs text-muted-foreground font-normal ml-2">
-                  ({routines.length} {isBn ? 'টি রুটিন' : 'routines configured'})
+                  ({routines.length} {t('schedule.text_44')})
                 </span>
               </div>
             </div>
@@ -1094,9 +1080,7 @@ export default function SchedulePage() {
 
           <div className="p-4 sm:p-5 pt-0 border-t space-y-3">
             <p className="text-xs text-muted-foreground">
-              {isBn
-                ? 'সপ্তাহভিত্তিক নিয়মিত পিরিয়ড ও প্রাইভেট ক্লাসের রুলস। এখান থেকে নতুন রুটিন যোগ বা মুছতে পারেন।'
-                : 'Configured recurring routine templates that automatically generate daily study schedules.'}
+              {t('schedule.text_45')}
             </p>
 
             <div className="space-y-2.5">
@@ -1110,12 +1094,12 @@ export default function SchedulePage() {
                       <span className="font-bold text-sm text-foreground truncate">{r.name}</span>
                       <Badge variant="outline" className="text-[10px] font-semibold">
                         {r.source === 'school'
-                          ? isBn ? 'স্কুল' : 'School'
+                          ? t('schedule.text_46')
                           : r.source === 'college'
-                          ? isBn ? 'কলেজ' : 'College'
+                          ? t('schedule.text_47')
                           : r.source === 'tuition'
-                          ? isBn ? 'টিউশন' : 'Tuition'
-                          : isBn ? 'সেলফ-স্টাডি' : 'Self-study'}
+                          ? t('schedule.text_48')
+                          : t('schedule.text_49')}
                       </Badge>
                     </div>
 
@@ -1153,7 +1137,7 @@ export default function SchedulePage() {
                       className="text-xs h-8 gap-1 border-primary/30 text-primary hover:bg-primary/5 rounded-xl"
                     >
                       <RefreshCw className="w-3 h-3" />
-                      <span>{isBn ? 'পুনর্নির্ধারণ' : 'Reschedule'}</span>
+                      <span>{t('schedule.text_42')}</span>
                     </Button>
                     <Button
                       size="sm"
@@ -1181,16 +1165,10 @@ export default function SchedulePage() {
         title={t('schedule.createRoutine', 'Add Recurring Routine')}
         description={
           institutionType === 'college'
-            ? isBn
-              ? 'কলেজ ক্লাস ও প্রাইভেট টিউশনের রুটিন যুক্ত করুন।'
-              : 'Set up recurring days and times for college lectures or private tuition.'
+            ? t('schedule.text_50')
             : institutionType === 'admission'
-            ? isBn
-              ? 'কোচিং, টেস্ট ও সেলফ-স্টাডির রুটিন যুক্ত করুন।'
-              : 'Set up recurring days and times for admission coaching or self-study.'
-            : isBn
-            ? 'স্কুল ক্লাস ও প্রাইভেট টিউশনের রুটিন যুক্ত করুন।'
-            : 'Set up recurring days and times for school periods or private tuition.'
+            ? t('schedule.text_51')
+            : t('schedule.text_52')
         }
       >
         <form onSubmit={handleCreateRoutine} className="space-y-4 pt-1">
@@ -1199,7 +1177,7 @@ export default function SchedulePage() {
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={isBn ? 'যেমন: গণিত প্রাইভেট — রহিম স্যার' : 'e.g. Math Tuition – Rahim Sir'}
+              placeholder={t('schedule.text_53')}
               required
               className="mt-1 rounded-xl"
             />
@@ -1213,25 +1191,17 @@ export default function SchedulePage() {
                 onChange={(e) => setForm({ ...form, source: e.target.value })}
                 className="h-10 w-full border rounded-xl px-3 bg-background text-sm mt-1"
               >
-                {institutionType === 'school' && <option value="school">{isBn ? 'স্কুল' : 'School'}</option>}
-                {institutionType === 'college' && <option value="college">{isBn ? 'কলেজ' : 'College'}</option>}
+                {institutionType === 'school' && <option value="school">{t('schedule.text_46')}</option>}
+                {institutionType === 'college' && <option value="college">{t('schedule.text_47')}</option>}
                 <option value="tuition">
                   {institutionType === 'admission'
-                    ? isBn
-                      ? 'কোচিং / প্রাইভেট'
-                      : 'Coaching / Tuition'
-                    : isBn
-                    ? 'প্রাইভেট / কোচিং'
-                    : 'Tuition / Private'}
+                    ? t('schedule.text_54')
+                    : t('schedule.text_55')}
                 </option>
                 <option value="self_study">
                   {institutionType === 'admission'
-                    ? isBn
-                      ? 'সেলফ-স্টাডি ও মডেল টেস্ট'
-                      : 'Self-Study & Mock Tests'
-                    : isBn
-                    ? 'সেলফ-স্টাডি'
-                    : 'Self-Study'}
+                    ? t('schedule.text_56')
+                    : t('schedule.text_49')}
                 </option>
               </select>
             </div>

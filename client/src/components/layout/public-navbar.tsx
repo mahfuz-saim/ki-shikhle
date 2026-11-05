@@ -14,7 +14,7 @@ export function PublicNavbar({ hideBadge }: { hideBadge?: boolean } = {}) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { token } = useAuth();
-  const { locale, toggleLocale, isBn } = useI18n();
+  const { t, locale, toggleLocale, isBn } = useI18n();
 
   const isHomePage = pathname === '/';
   const shouldHideBadge = hideBadge || isHomePage;
@@ -91,21 +91,21 @@ export function PublicNavbar({ hideBadge }: { hideBadge?: boolean } = {}) {
             onClick={(e) => handleScrollTo(e, 'features')}
             className="hover:text-primary transition-colors cursor-pointer"
           >
-            {isBn ? 'ফিচারসমূহ' : 'Features'}
+            {t('publicNav.text')}
           </a>
           <a
             href="#how-it-works"
             onClick={(e) => handleScrollTo(e, 'how-it-works')}
             className="hover:text-primary transition-colors cursor-pointer"
           >
-            {isBn ? 'কীভাবে কাজ করে' : 'How It Works'}
+            {t('publicNav.text_2')}
           </a>
           <a
             href="#pricing"
             onClick={(e) => handleScrollTo(e, 'pricing')}
             className="hover:text-primary transition-colors cursor-pointer"
           >
-            {isBn ? 'মূল্য ও প্ল্যান' : 'Pricing'}
+            {t('publicNav.text_3')}
           </a>
         </nav>
 
@@ -140,19 +140,19 @@ export function PublicNavbar({ hideBadge }: { hideBadge?: boolean } = {}) {
             <Link href="/dashboard">
               <Button size="sm" className="h-9 text-xs font-semibold rounded-xl gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
                 <LayoutDashboard className="w-3.5 h-3.5" />
-                <span>{isBn ? 'ড্যাশবোর্ড' : 'Dashboard'}</span>
+                <span>{t('publicNav.text_4')}</span>
               </Button>
             </Link>
           ) : (
             <div className="flex items-center gap-2">
               <Link href="/login">
                 <Button variant="ghost" size="sm" className="h-9 text-xs font-semibold rounded-xl">
-                  {isBn ? 'লগইন' : 'Login'}
+                  {t('publicNav.text_5')}
                 </Button>
               </Link>
               <Link href="/register">
                 <Button size="sm" className="h-9 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20">
-                  <span>{isBn ? 'ফ্রি শুরু করুন' : 'Get Started Free'}</span>
+                  <span>{t('publicNav.text_6')}</span>
                 </Button>
               </Link>
             </div>
