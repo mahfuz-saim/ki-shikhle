@@ -78,6 +78,26 @@ for (const k of used) {
   if (!(k in enFlat)) problems.push(`used in code but not in en.json: ${k}`);
 }
 
+// 4. The two files hold the wrong language.
+//
+// This is not a cosmetic check. The migration codemod once read `isBn ? 'বাংলা' :
+// 'English'` as if the *first* branch were the English one, which put every Bangla
+// string into `en.json` and every English string into `bn.json`. The app still ran —
+// it just showed every user the other language.
+//
+// A handful of keys are legitimately the same in both files: `brandBn` and `taglineBn`
+// are the Bangla brand strings, and they live in both. A key with no Bengali script in
+// either file (a number, a code) is ambiguous and is not flagged.
+const BENGALI = /[\u0980-\u09FF]/;
+for (const k of Object.keys(enFlat)) {
+  if (!(k in bnFlat)) continue;
+  const enIsBn = BENGALI.test(String(enFlat[k]));
+  const bnIsBn = BENGALI.test(String(bnFlat[k]));
+  if (enIsBn && !bnIsBn) {
+    problems.push(`en.json holds the Bangla text at ${k} — the languages are swapped`);
+  }
+}
+
 console.log(`dictionary keys: en=${Object.keys(enFlat).length} bn=${Object.keys(bnFlat).length}`);
 console.log(`keys referenced in code: ${used.size}`);
 console.log(`problems: ${problems.length}`);

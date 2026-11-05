@@ -309,6 +309,60 @@ describe('Cross-tenant entity reads are 404', () => {
   });
 });
 
+describe('The subject↔child relation has a tenancy boundary', () => {
+  // The relation used to be an implicit many-to-many (`_ChildToSubject`) that stored a
+  // child id and a subject id with nothing tying them to the same account. It is now
+  // the explicit `child_subjects` table, which carries `parent_id`.
+
+  it('GET /children/:id/subjects against another tenant\'s child is 404', async () => {
+    const res = await call('GET', `/api/v1/subjects/children/${b.childId}/subjects`, {
+      token: aToken,
+    });
+    expectNotFound(res);
+  });
+
+  it('GET /children/:id/subjects never returns another tenant\'s custom subject', async () => {
+    const res = await call('GET', `/api/v1/subjects/children/${a.childId}/subjects`, {
+      token: aToken,
+    });
+    expect(res.status).toBe(200);
+    const names = (res.body.data || []).map((s: any) => s.nameEn);
+    expect(names).not.toContain('Tenant B custom subject');
+  });
+
+  it('POST /children/:id/subjects cannot assign another tenant\'s custom subject', async () => {
+    const res = await call('POST', `/api/v1/subjects/children/${a.childId}/subjects/${bIds().subject.id}`, {
+      token: aToken,
+      body: {},
+    });
+    expectNotFound(res);
+  });
+
+  it('POST /children/:id/subjects against another tenant\'s child is 404', async () => {
+    const res = await call('POST', `/api/v1/subjects/children/${b.childId}/subjects/${bIds().subject.id}`, {
+      token: aToken,
+      body: {},
+    });
+    expectNotFound(res);
+  });
+
+  it('DELETE /children/:id/subjects/:subjectId against another tenant\'s child is 404', async () => {
+    const res = await call('DELETE', `/api/v1/subjects/children/${b.childId}/subjects/${bIds().subject.id}`, {
+      token: aToken,
+    });
+    expectNotFound(res);
+  });
+
+  it('a subject assignment is scoped to its own account in the database', async () => {
+    // The point of the explicit table: the row carries the owning parent, so a
+    // cross-account link cannot even be represented.
+    const row = await prisma.childSubject.findFirst({
+      where: { childId: a.childId, subjectId: bIds().subject.id },
+    });
+    expect(row).toBeNull();
+  });
+});
+
 describe('A child sees only its own data', () => {
   it('GET /children returns only the child itself', async () => {
     const childUser = await prisma.user.findUnique({ where: { email: a.childEmail } });

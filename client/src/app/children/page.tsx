@@ -21,6 +21,7 @@ import {
   Lock,
   GraduationCap,
   CheckCircle2,
+  Check,
 } from 'lucide-react';
 
 export default function ChildrenPage() {
@@ -679,11 +680,22 @@ export default function ChildrenPage() {
 
 function SubjectsManager() {
   const { t, isBn } = useI18n();
+  const { activeChild, childrenList } = useAuth();
   const [list, setList] = useState<any[]>([]);
+  const [assigned, setAssigned] = useState<any[]>([]);
   const [nameEn, setNameEn] = useState('');
   const [nameBn, setNameBn] = useState('');
   const [loading, setLoading] = useState(false);
   const [addError, setAddError] = useState('');
+  const [assignError, setAssignError] = useState('');
+
+  /**
+   * The child whose subject list is being managed.
+   *
+   * The subject↔child relation is now owner-scoped on the server, so the child has to
+   * be named explicitly. Without one, the manager only lists the account's catalogue.
+   */
+  const child = activeChild || childrenList?.[0] || null;
 
   const load = () => {
     api
@@ -707,9 +719,46 @@ function SubjectsManager() {
       );
   };
 
+  /** The subjects this child is actually assigned. */
+  const loadAssigned = (childId: string) => {
+    api
+      .get(`/subjects/children/${childId}/subjects`)
+      .then((r) => setAssigned(r.data.data || []))
+      .catch(() => setAssigned([]));
+  };
+
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (child?.id) loadAssigned(child.id);
+    else setAssigned([]);
+  }, [child?.id]);
+
+  async function assign(subjectId: string) {
+    if (!child?.id) return;
+    setAssignError('');
+    try {
+      await api.post(`/subjects/children/${child.id}/subjects/${subjectId}`, {});
+      loadAssigned(child.id);
+    } catch (err: any) {
+      const serverMsg = err?.response?.data?.error?.message;
+      setAssignError(serverMsg || t('children.text_7'));
+    }
+  }
+
+  async function unassign(subjectId: string) {
+    if (!child?.id) return;
+    setAssignError('');
+    try {
+      await api.delete(`/subjects/children/${child.id}/subjects/${subjectId}`);
+      loadAssigned(child.id);
+    } catch (err: any) {
+      const serverMsg = err?.response?.data?.error?.message;
+      setAssignError(serverMsg || t('children.text_7'));
+    }
+  }
 
   async function add() {
     if (!nameEn) return;
@@ -763,26 +812,61 @@ function SubjectsManager() {
       {/* Scrollable Subject Box: 6 subjects visible on mobile (3 rows x 2 cols), rest scrollable within box */}
       <div className="max-h-[178px] sm:max-h-[235px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 overscroll-contain">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1 pb-1">
-          {list.map((s: any, i: number) => (
-            <div
-              key={i}
-              className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/20 text-xs hover:bg-muted/40 transition-colors h-[52px]"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold truncate text-foreground text-xs leading-tight">{s.nameEn}</p>
-                {s.nameBn && (
-                  <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">{s.nameBn}</p>
-                )}
+          {list.map((s: any, i: number) => {
+            const isAssigned = assigned.some((x: any) => x.id === s.id);
+            return (
+              <div
+                key={i}
+                className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/20 text-xs hover:bg-muted/40 transition-colors h-[52px]"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold truncate text-foreground text-xs leading-tight">{s.nameEn}</p>
+                  {s.nameBn && (
+                    <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">{s.nameBn}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {s.isCustom && (
+                    <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                      Custom
+                    </Badge>
+                  )}
+                  {child && (
+                    <button
+                      onClick={() => (isAssigned ? unassign(s.id) : assign(s.id))}
+                      title={isAssigned ? t('children.text_8') : t('children.text_9')}
+                      aria-label={isAssigned ? t('children.text_8') : t('children.text_9')}
+                      className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-colors ${
+                        isAssigned
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-card border-border text-muted-foreground hover:border-primary hover:text-primary'
+                      }`}
+                    >
+                      {isAssigned ? (
+                        <Check className="w-3 h-3" />
+                      ) : (
+                        <Plus className="w-3 h-3" />
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
-              {s.isCustom && (
-                <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1 shrink-0">
-                  Custom
-                </Badge>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
+
+      {assignError && (
+        <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs font-semibold">
+          {assignError}
+        </div>
+      )}
+
+      {child && (
+        <p className="text-[11px] text-muted-foreground">
+          {t('children.text_10', { p0: child.name }, `Assigned to ${child.name}`)}
+        </p>
+      )}
     </div>
   );
 }

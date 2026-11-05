@@ -179,6 +179,21 @@ export interface MemSubject {
   [key: string]: any;
 }
 
+/**
+ * A "this child studies this subject" link.
+ *
+ * The database uses the explicit `child_subjects` table, which carries the owning
+ * `parentId` so the join can be scoped by account in one query. The in-memory store
+ * keeps the same shape — a row always belongs to exactly one owner.
+ */
+export interface MemChildSubject {
+  id: string;
+  ownerId: string;
+  childId: string;
+  subjectId: string;
+  [key: string]: any;
+}
+
 export interface MemException {
   id: string;
   ownerId: string;
@@ -502,6 +517,7 @@ export const store = {
   attempts: new Partition<MemAttempt>('attempts'),
   notifications: new Partition<MemNotification>('notifications'),
   subjects: new Partition<MemSubject>('subjects'),
+  childSubjects: new Partition<MemChildSubject>('childSubjects'),
   payments: new Partition<MemPayment>('payments'),
   exceptions: new Partition<MemException>('exceptions'),
   routineCompletions: new Partition<MemRoutineCompletion>('routineCompletions'),
@@ -523,6 +539,7 @@ export function resetStore() {
   store.attempts.reset();
   store.notifications.reset();
   store.subjects.reset();
+  store.childSubjects.reset();
   store.payments.reset();
   store.exceptions.reset();
   seedDemoFixtures();

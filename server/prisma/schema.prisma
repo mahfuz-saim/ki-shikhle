@@ -139,7 +139,7 @@ model Child {
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
   parent User @relation(fields: [parentId], references: [id], onDelete: Cascade)
-  subjects Subject[] // subjects this child studies (seeded by grade + custom)
+  subjectAssignments ChildSubject[] // subjects this child studies
   learningEntries LearningEntry[]
   routines Routine[]
   routineCompletions RoutineCompletion[]
@@ -165,11 +165,38 @@ model Subject {
   createdAt  DateTime @default(now()) @map("created_at")
 
   customOwner User? @relation("CustomSubjects", fields: [parentId], references: [id])
-  // implicit many-to-many: which children study this subject
-  children Child[]
+  assignments ChildSubject[]
 
   @@index([curriculum, grade])
   @@map("subjects")
+}
+
+/// Which child studies which subject.
+///
+/// This replaces the implicit `Child`↔`Subject` many-to-many. The implicit table
+/// (`_ChildToSubject`) has **no tenancy boundary of its own** — it stores a child id and
+/// a subject id, and nothing ties them to the same account. A row could therefore link a
+/// child of one tenant to a custom subject belonging to another, and any query that
+/// followed the relation would cross the account boundary.
+///
+/// The explicit table keeps the same shape but adds the owning parent, so the join can
+/// be constrained by `parentId` in one query. A subject a child studies is either a
+/// seeded (shared) subject or a custom subject belonging to the child's own account.
+model ChildSubject {
+  id        String   @id @default(uuid())
+  childId   String   @map("child_id")
+  subjectId String   @map("subject_id")
+  /// The account that owns both the child and the subject.
+  parentId  String   @map("parent_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  child   Child   @relation(fields: [childId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, subjectId])
+  @@index([parentId])
+  @@index([subjectId])
+  @@map("child_subjects")
 }
 
 model LearningEntry {
