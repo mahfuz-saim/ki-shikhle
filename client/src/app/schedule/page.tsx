@@ -14,6 +14,7 @@ import { useAuth } from '@/components/auth/auth-context';
 import { useI18n, type Translator } from '@/lib/i18n-context';
 import { getInstitutionType, getInstitutionInfo } from '@/lib/institution';
 import { api } from '@/lib/api';
+import { quizLanguage } from '@/lib/quiz-language';
 import { loadClassLogs, findClassLog, findLogQuiz } from '@/lib/class-logs';
 import { demoProfileOf, type DemoProfile } from '@/lib/child-scope';
 import {
@@ -426,7 +427,7 @@ export default function SchedulePage() {
         const generated = await api.post(`/children/${childId}/quizzes/generate`, {
           scope: 'entries', entryIds: [entry.id], numQuestions: 5,
           difficulty: 'mixed', types: ['mcq', 'true_false'],
-          language: isBn ? 'bn' : 'en',
+          language: quizLanguage(currentChild?.medium, entry.subject || entry.subjectName || session.subject || session.name || ''),
           title: `${session.subject || session.name} — ${session.date}`,
         });
         quiz = generated.data?.data;

@@ -903,6 +903,10 @@ function QuizzesPageContent() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredQuizzes.map((q) => {
             const isCompleted = q.status === 'completed';
+            const resultScore = typeof q.score === 'number' && Number.isFinite(q.score) ? q.score : null;
+            const resultTotal = [q.maxScore, q.questions?.length, q.questionCount]
+              .find((value) => typeof value === 'number' && Number.isFinite(value) && value > 0);
+            const hasResult = resultScore !== null && resultTotal !== undefined && resultScore >= 0 && resultScore <= resultTotal;
             const isAssigned = q.status === 'assigned';
             const isAuto = q.isAutoScheduled || q.title?.includes('স্বয়ংক্রিয়') || q.title?.includes('Auto') || q.scopeJson?.topicAge === '1-day-old';
 
@@ -991,14 +995,14 @@ function QuizzesPageContent() {
                   )}
 
                   {/* Score if completed */}
-                  {isCompleted && q.score !== null && (
+                  {isCompleted && (
                     <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs">
                       <span className="font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
                         <Award className="w-4 h-4" />
                         {t('quizzes.text_68')}
                       </span>
                       <strong className="text-emerald-700 dark:text-emerald-300 font-extrabold text-sm">
-                        {toBnNum(q.score)}/{toBnNum(q.maxScore || 10)} ({toBnNum(Math.round(((q.score || 0) / (q.maxScore || 10)) * 100))}%)
+                        {hasResult ? `${toBnNum(resultScore!)}/${toBnNum(resultTotal!)} (${toBnNum(Math.round((resultScore! / resultTotal!) * 100))}%)` : t('quizzes.scoreUnavailable')}
                       </strong>
                     </div>
                   )}

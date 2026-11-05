@@ -13,6 +13,7 @@ import { AppShell } from '@/components/layout/app-shell';
 import { useAuth, Child } from '@/components/auth/auth-context';
 import { useI18n, type Translator } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
+import { quizLanguageMode } from '@/lib/quiz-language';
 import {
   Brain,
   Sparkles,
@@ -131,7 +132,6 @@ function QuizBuilderContent() {
     numQuestions: 10,
     difficulty: 'mixed',
     types: ['mcq', 'true_false', 'fill_blank'],
-    language: 'en',
     title: initialTitle,
     timeLimitMin: 15,
   });
@@ -146,6 +146,7 @@ function QuizBuilderContent() {
 
   const subjects = getSubjectsForGrade(currentChild?.grade, isBn, t);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(initialSelectedSubjects);
+  const outputLanguage = quizLanguageMode(currentChild?.medium, selectedSubjects);
 
   // Sync subjects when the child changes.
   //
@@ -191,144 +192,24 @@ function QuizBuilderContent() {
   };
 
   const handleGenerate = async () => {
+    if (!childId || generating) return;
     setError('');
+    setMsg('');
+    setPreview(null);
     setGenerating(true);
     try {
       const res = await api.post(`/children/${childId}/quizzes/generate`, {
         ...form,
         numQuestions: form.numQuestions,
         subjectIds: selectedSubjects,
+        language: outputLanguage === 'mixed' ? 'bn' : outputLanguage,
         timeLimitMin: form.timeLimitMin,
       });
       setPreview(res.data.data);
       setMsg(t('quizNew.text_2'));
-    } catch {
-      // High-quality mock preview tailored to selected child's curriculum
-      // The mock preview is tailored by the child's **grade**, not by a demo id.
-      const isClass5 = !!(currentChild?.grade && currentChild.grade.includes('5'));
-      const isClass11 = !!(
-        currentChild?.grade &&
-        (currentChild.grade.includes('11') || currentChild.grade.includes('12'))
-      );
-
-      setPreview({
-        id: 'quiz-' + Date.now(),
-        title: form.title || (t('quizNew.s_revision_quiz', { p0: isBn ? currentChild?.name || 'শিক্ষার্থী' : currentChild?.name || 'Student' }, `${currentChild?.name || 'Student'}'s Revision Quiz`)),
-        timeLimitMin: form.timeLimitMin,
-        questions: isClass5
-          ? [
-              {
-                id: 'q1',
-                type: 'mcq',
-                topic: t('quizNew.text_3'),
-                prompt: t('quizNew.text_4'),
-                optionsJson: ['২', '৩', '৬', '৩৬'],
-                correctAnswer: '৬',
-                explanation: t('quizNew.text_5'),
-              },
-              {
-                id: 'q2',
-                type: 'true_false',
-                topic: t('quizNew.text_6'),
-                prompt: t('quizNew.text_7'),
-                optionsJson: ['True', 'False'],
-                correctAnswer: 'True',
-                explanation: t('quizNew.text_8'),
-              },
-              {
-                id: 'q3',
-                type: 'mcq',
-                topic: t('quizNew.unit_6_eat_healthy'),
-                prompt: t('quizNew.which_of_the_following_foods_is_healthy_and_cont'),
-                optionsJson: ['Fresh Fruits (টাটকা ফলমূল)', 'Chips (চিপস)', 'Candy (ক্যান্ডি)', 'Soda (কোমল পানীয়)'],
-                correctAnswer: 'Fresh Fruits (টাটকা ফলমূল)',
-                explanation: t('quizNew.text_9'),
-              },
-              {
-                id: 'q4',
-                type: 'fill_blank',
-                topic: t('quizNew.text_10'),
-                prompt: t('quizNew.text_11'),
-                optionsJson: null,
-                correctAnswer: t('quizNew.text_12'),
-                explanation: t('quizNew.text_13'),
-              },
-            ]
-          : isClass11
-          ? [
-              {
-                id: 'q1',
-                type: 'mcq',
-                topic: t('quizNew.text_14'),
-                prompt: t('quizNew.ax_bx_c_0_d_b_4ac_0'),
-                optionsJson: [
-                  'বাস্তব ও সমান (Real & equal)',
-                  'বাস্তব ও অসমান (Real & unequal)',
-                  'জটিল ও অনুবন্ধী (Complex & conjugate)',
-                  'মূলদ ও সমান (Rational & equal)',
-                ],
-                correctAnswer: 'জটিল ও অনুবন্ধী (Complex & conjugate)',
-                explanation: t('quizNew.text_15'),
-              },
-              {
-                id: 'q2',
-                type: 'true_false',
-                topic: t('quizNew.text_16'),
-                prompt: t('quizNew.text_17'),
-                optionsJson: ['True', 'False'],
-                correctAnswer: 'True',
-                explanation: t('quizNew.a_b_a_b_cos_0_90'),
-              },
-              {
-                id: 'q3',
-                type: 'mcq',
-                topic: t('quizNew.text_18'),
-                prompt: t('quizNew.text_19'),
-                optionsJson: ['বৃদ্ধি পায় (Increases)', 'হ্রাস পায় (Decreases)', 'অপরিবর্তিত থাকে (Remains unchanged)', 'প্রথমে হ্রাস পরে বৃদ্ধি পায়'],
-                correctAnswer: 'হ্রাস পায় (Decreases)',
-                explanation: t('quizNew.text_20'),
-              },
-            ]
-          : [
-              {
-                id: 'q1',
-                type: 'mcq',
-                topic: t('quizNew.text_21'),
-                prompt: t('quizNew.f_m_a'),
-                optionsJson: ['F = m / a', 'F = m × a', 'F = m + a', 'F = a / m'],
-                correctAnswer: 'F = m × a',
-                explanation: t('quizNew.f_ma'),
-              },
-              {
-                id: 'q2',
-                type: 'true_false',
-                topic: t('quizNew.text_22'),
-                prompt: t('quizNew.text_23'),
-                optionsJson: ['True', 'False'],
-                correctAnswer: 'True',
-                explanation: t('quizNew.text_24'),
-              },
-              {
-                id: 'q3',
-                type: 'mcq',
-                topic: t('quizNew.text_25'),
-                prompt: t('quizNew.si'),
-                optionsJson: ['Joule (জুল)', 'Newton (নিউটন)', 'Pascal (প্যাসকেল)', 'Watt (ওয়াট)'],
-                correctAnswer: 'Newton (নিউটন)',
-                explanation: t('quizNew.n'),
-              },
-              {
-                id: 'q4',
-                type: 'fill_blank',
-                topic: t('quizNew.text_26'),
-                prompt: t('quizNew.ax_bx_c_0_discriminant_d'),
-                optionsJson: null,
-                correctAnswer: 'b² - 4ac',
-                explanation: t('quizNew.b_4ac'),
-              },
-            ],
-      });
-      setMsg(t('quizNew.text_27'));
+    } catch (error: any) {
+      setPreview(null);
+      setError(error?.response?.data?.error?.message || error.message || t('quizNew.generationFailed'));
     } finally {
       setGenerating(false);
     }
@@ -511,13 +392,15 @@ function QuizBuilderContent() {
               <div>
                 <Label className="text-xs font-semibold">{t('quiz.language', 'Language')}</Label>
                 <select
-                  value={form.language}
-                  onChange={(e) => setForm({ ...form, language: e.target.value })}
+                  value={outputLanguage}
+                  disabled
                   className="w-full h-10 border rounded-xl px-3 bg-background text-sm mt-1"
                 >
                   <option value="en">English</option>
                   <option value="bn">বাংলা (Bangla)</option>
+                  <option value="mixed">{t('quizNew.subjectBasedLanguage')}</option>
                 </select>
+                <p className="text-[11px] text-muted-foreground mt-1">{t('quizNew.languagePolicy')}</p>
               </div>
 
               <div>
