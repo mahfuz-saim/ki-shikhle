@@ -2,13 +2,13 @@
 
 export const runtime = 'edge';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { KidShell } from '@/components/layout/kid-shell';
-import { useAuth } from '@/components/auth/auth-context';
+import { useChildScope } from '@/components/auth/use-child-scope';
 import { useI18n } from '@/lib/i18n-context';
 import { api } from '@/lib/api';
 import { QuizTakingSkeleton } from '@/components/ui/skeleton';
@@ -25,34 +25,43 @@ import {
 export default function TakeQuiz() {
   const params = useParams();
   const router = useRouter();
-  const { activeChild } = useAuth();
+  const { childId } = useChildScope();
   const { t, isBn } = useI18n();
 
   const quizId = (params as any)?.id as string;
-  // The child this attempt belongs to. It used to fall back to the literal string
-  // `'demo-child'`, which is not a real id — the server answered 404 and the page
-  // invented an attempt called `att-1`.
-  const childId = activeChild?.id || null;
-
   const [quiz, setQuiz] = useState<any>(null);
   const [attempt, setAttempt] = useState<any>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [idx, setIdx] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [startingAttempt, setStartingAttempt] = useState(true);
+  const submissionInFlight = useRef(false);
+  const timedOutAttempt = useRef<string | null>(null);
   const [saveMsg, setSaveMsg] = useState('');
   const [loadError, setLoadError] = useState('');
   const [submitError, setSubmitError] = useState('');
 
-  /**
-   * The attempt is created **once** per quiz.
-   *
-   * The old effect had `isBn` in its dependency list, so switching the UI language
-   * re-ran it and POSTed a brand-new attempt — orphaning the previous one and
-   * resetting the student's progress. The `isBn` flag is read inside the render
-   * instead of being a dependency.
-   */
-  const attemptStartedFor = useRef<string | null>(null);
+  // Keep the request, not a "started" flag. Strict Mode replays effects, so a
+  // cancelled subscriber must not strand the next subscriber without an attempt.
+  const attemptRequest = useRef<{ key: string; promise: Promise<any> } | null>(null);
+  const ensureAttempt = useCallback((): Promise<any> => {
+    if (!quizId || !childId) return Promise.reject(new Error('The child session is still loading. Please try again.'));
+    const key = `${childId}:${quizId}`;
+    if (attemptRequest.current?.key === key) return attemptRequest.current.promise;
+
+    const promise = api.post(`/quizzes/${quizId}/attempts`, { childId }).then((response) => {
+      const savedAttempt = response.data?.data;
+      if (!savedAttempt?.id) throw new Error('The server did not return a quiz attempt. Please try again.');
+      return savedAttempt;
+    });
+    attemptRequest.current = { key, promise };
+    void promise.catch(() => {
+      // A failed start can be retried by Save or Submit without reloading answers.
+      if (attemptRequest.current?.promise === promise) attemptRequest.current = null;
+    });
+    return promise;
+  }, [quizId, childId]);
 
   /**
    * The locale is read through a ref rather than as an effect dependency.
@@ -107,55 +116,61 @@ export default function TakeQuiz() {
 
   useEffect(() => {
     if (!quizId || !childId) return;
-    if (attemptStartedFor.current === quizId) return;
-    attemptStartedFor.current = quizId;
-    let isMounted = true;
+    let cancelled = false;
+    setAttempt(null);
+    setStartingAttempt(true);
+    setSubmitError('');
 
-    api
-      .post(`/quizzes/${quizId}/attempts`, { childId })
-      .then((r) => {
-        if (isMounted) setAttempt(r.data.data);
+    ensureAttempt()
+      .then((savedAttempt) => {
+        if (!cancelled) setAttempt(savedAttempt);
       })
-      .catch((err) => {
-        if (!isMounted) return;
-        const serverMsg = err?.response?.data?.error?.message;
-        setSubmitError(
-          serverMsg ||
-          (isBnRef.current ? 'কুইজ শুরু করা যায়নি।' : 'Could not start the attempt.')
-        );
+      .catch((error) => {
+        if (!cancelled) {
+          setSubmitError(error?.response?.data?.error?.message
+            || (isBnRef.current ? 'কুইজ শুরু করা যায়নি। জমা দিতে আবার চেষ্টা করুন।' : 'Could not start the attempt. Submit again to retry.'));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setStartingAttempt(false);
       });
 
     return () => {
-      isMounted = false;
+      cancelled = true;
     };
-    // `isBn` is intentionally NOT a dependency — a locale toggle must not
-    // re-create the attempt.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quizId, childId]);
+  }, [quizId, childId, ensureAttempt]);
 
   // Countdown timer
   useEffect(() => {
-    if (timeLeft === null) return;
+    if (timeLeft === null || !attempt?.id || submitting) return;
     if (timeLeft <= 0) {
-      handleSubmit();
+      // A failed automatic submission must not trigger an endless request loop.
+      // Leave the submit button available for an explicit retry instead.
+      if (timedOutAttempt.current !== attempt.id) {
+        timedOutAttempt.current = attempt.id;
+        void handleSubmit();
+      }
       return;
     }
     const t = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
     return () => clearTimeout(t);
-  }, [timeLeft]);
+  }, [timeLeft, attempt?.id, submitting]);
 
   const handleSelectOption = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
   const handleSaveProgress = async () => {
-    if (!attempt) return;
+    if (submissionInFlight.current) return;
     const payload = Object.entries(answers).map(([questionId, answer]) => ({
       questionId,
       answer,
     }));
     try {
-      await api.put(`/attempts/${attempt.id}/answers`, { answers: payload });
+      const savedAttempt = await ensureAttempt();
+      setAttempt(savedAttempt);
+      setSubmitError('');
+      await api.put(`/attempts/${savedAttempt.id}/answers`, { answers: payload });
       setSaveMsg(t('childQuizPlay.text'));
     } catch {
       // Do not claim a save that did not happen.
@@ -167,27 +182,19 @@ export default function TakeQuiz() {
   };
 
   const handleSubmit = async () => {
-    if (submitting) return;
+    if (submissionInFlight.current) return;
+    submissionInFlight.current = true;
     setSubmitting(true);
     setSubmitError('');
     const payload = Object.entries(answers).map(([questionId, answer]) => ({
       questionId,
       answer,
     }));
-    const attemptId = attempt?.id;
-
-    // Without a real attempt there is nothing to submit. The old code fell back to
-    // the literal `'att-1'` and pushed a results page for an attempt that never
-    // existed — which rendered a hardcoded 8/10.
-    if (!attemptId) {
-      setSubmitError(
-        t('childQuizPlay.text_3')
-      );
-      setSubmitting(false);
-      return;
-    }
-
     try {
+      // Reuse an in-flight/completed start or retry a failed one before submitting.
+      const savedAttempt = await ensureAttempt();
+      setAttempt(savedAttempt);
+      const attemptId = savedAttempt.id;
       await api.put(`/attempts/${attemptId}/answers`, { answers: payload });
       await api.post(`/attempts/${attemptId}/submit`);
       router.push(`/attempts/${attemptId}/results`);
@@ -199,6 +206,7 @@ export default function TakeQuiz() {
         serverMsg ||
         (t('childQuizPlay.text_4'))
       );
+      submissionInFlight.current = false;
       setSubmitting(false);
     }
   };
@@ -343,6 +351,7 @@ export default function TakeQuiz() {
                 variant="ghost"
                 size="sm"
                 onClick={handleSaveProgress}
+                disabled={startingAttempt || submitting}
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
                 <Bookmark className="w-3.5 h-3.5 mr-1" />
@@ -361,12 +370,12 @@ export default function TakeQuiz() {
               ) : (
                 <Button
                   size="sm"
-                  disabled={submitting}
+                  disabled={startingAttempt || submitting || !childId}
                   onClick={handleSubmit}
                   className="text-xs rounded-xl h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/20"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>{submitting ? 'Submitting...' : 'Submit Quiz 🎉'}</span>
+                  <span>{startingAttempt ? 'Starting quiz...' : submitting ? 'Submitting...' : 'Submit Quiz 🎉'}</span>
                 </Button>
               )}
             </div>
